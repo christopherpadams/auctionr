@@ -1,0 +1,117 @@
+R version 3.3.2 (2016-10-31) -- "Sincere Pumpkin Patch"
+Copyright (C) 2016 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin13.4.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> source('~/Dropbox/HBS/Projects/AMackay/auctionmodel/R/code_sketch.R', echo=TRUE)
+
+> rm(list = ls())
+
+> ###########################################################################
+> # Estimation Functions
+> ############################################# .... [TRUNCATED]
+
+> vf.bid_function_fast = Vectorize(FUN = f.bid_function_fast,vectorize.args = "cost")
+
+> vf.w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, param.u){
++
++   b_z = vf.bid_function_fast(cost=z, num_bids=num_bi .... [TRUNCATED]
+
+> f.funk = function(data_vec, param.u){
++   val = integrate(vf.w_integrand_z_fast, w_bid=data_vec[1],
++                   num_bids=data_vec[2], mu=da .... [TRUNCATED]
+
+> f.ll_parallel = function(par, y, n, h_x, cl){
++   params = par
++   v.y = y
++   v.n = n
++   m.h_x = h_x
++
++   v.mu = params[1]
++   v.alpha = params[ .... [TRUNCATED]
+
+> #######################################################
+> # Load Data
+> #######################################################
+> set.seed(301)
+
+> # data = # Generate some data
+>   # y, n, x1, x2: positive
+>   # n: discrete and > 1
+>   # y is some function of n, x1, x2
+>
+> obs = 200
+
+> w = rlnorm(obs)
+
+> x1 = rlnorm(obs) + .5*w
+
+> x2 = .1*rlnorm(obs) + .3*w
+
+> e = 2*rlnorm(obs)
+
+> n = sample(2:10, obs, replace=TRUE)
+
+> y = 10 - .5*n + x1 + x2 + e
+
+> data = data.frame(cbind(y, n, x1, x2))
+
+> plot(n, y)
+
+> v.y = data$y
+
+> v.n = data$n
+
+> m.h_x = as.matrix(cbind(log(data$x1),log(data$x2)))
+
+> # inital parameter guess
+> x0 =  c(8, 2, .5, .4, .6)
+
+> library(parallel)
+
+> cl = makeCluster(4)
+
+> clusterExport(cl,varlist=c("vf.bid_function_fast",
++                            "vf.w_integrand_z_fast",
++                            "f.funk"))
+
+> f.ll_parallel(x0, y = v.y, n = v.n, h_x = m.h_x, cl = cl)
+[1] 1148.225
+
+> optim_control = list(maxit = 2000, parscale = c(1, 0.1, 1, 0.1,
++                                                 rep(1, length(x0) - 4)))
+
+> result = optim(par = x0, fn = f.ll_parallel, control=optim_control,
++                y=v.y, n=v.n, h_x=m.h_x, cl=cl)
+
+> result
+$par
+[1] 15.4977557  3.8299721  0.2145705  0.1577268  0.1068006
+
+$value
+[1] 508.4587
+
+$counts
+function gradient
+     495       NA
+
+$convergence
+[1] 0
+
+$message
+NULL
+
+>
