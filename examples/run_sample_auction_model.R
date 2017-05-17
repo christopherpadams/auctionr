@@ -43,4 +43,6 @@ optim_control = list(maxit = 2000, parscale = c(1, 0.1, 1, 0.1,
 result = optim(par = x0, fn = f.ll_parallel, control=optim_control,
                y=v.y, n=v.n, h_x=m.h_x, cl=cl)
 
+stopCluster(cl = cl)
+
 result
