@@ -1,9 +1,17 @@
 Package: auctionmodeling
 Type: Package
-Title: What the Package Does (Title Case)
-Version: 0.1.0
-Author: Who wrote it
-Maintainer: Who to complain to <yourfault@somewhere.net>
-Description: More about what it does (maybe more than one line)
-License: What license is it under?
+Title: Estimate Private-Value Auction Models
+Version: 0.1.0.9000
+Authors@R: person("Alex", "MacKay", email = "amackay@hbs.edu",
+  role = c("aut", "cre"))
+Description: Package for R to estimate private-value auction models while
+  allowing for unobservable auction-specific heterogeneity.  Extensions to
+  the baseline model allow for endogenous entry and observing multiple bids
+  per auction.
+License: GPL >= 3
+URL: http://gihub.com/alexmackay/auctionmodeling
+Imports: 
+  parallel
+Encoding: UTF-8
 LazyData: TRUE
+Roxygen: list(markdown = TRUE)
