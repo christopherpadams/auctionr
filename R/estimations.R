@@ -1,9 +1,29 @@
-#' @import parallel
+#' Suite of functions to estimate private-value auction models
+#'
+#'
+#' @param cost XXnumber of observations to draw
+#' @param num_bids XXnon-negative alpha parameter of the beta distribution
+#' @param mu XXnon-negative beta parameter of the beta distribution
+#' @param alpha XXnon-negative beta parameter of the beta distribution
+#' @param gamma_1p1oa XXnon-negative beta parameter of the beta distribution
+#'
+#' @details The Beta distribution with parameters \eqn{a} and \eqn{b} has
+#' density:
+#'
+#' \deqn{
+#'     \Gamma(a+b)/(\Gamma(a)\Gamma(b))x^(a-1)(1-x)^(b-1)
+#' }
+#'
+#' for \eqn{a > 0}, \eqn{b > 0} and \eqn{0 \le x \le 1}.
+#'
+#' @examples
+#' # Draw from beta distribution with parameters a = 1 and b = 3
+#' beta_plot(a = 1, b = 3)
+#'
+#' @seealso \code{\link{rbeta}}, \code{\link{geom_density}}
+#'
+#'
 #' @export
-
-###########################################################################
-# Estimation Functions
-###########################################################################
 
 f.bid_function_fast = function(cost, num_bids, mu, alpha, gamma_1p1oa) {
   #
@@ -20,11 +40,11 @@ f.bid_function_fast = function(cost, num_bids, mu, alpha, gamma_1p1oa) {
 }
 
 #' @export
-#
+
 vf.bid_function_fast = Vectorize(FUN = f.bid_function_fast,vectorize.args = "cost")
 
 #' @export
-#
+
 vf.w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, param.u) {
   #
   b_z = vf.bid_function_fast(cost=z, num_bids=num_bids, mu=mu, alpha=alpha, gamma_1p1oa)
@@ -42,7 +62,7 @@ vf.w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, par
 }
 
 #' @export
-#
+
 f.funk = function(data_vec, param.u) {
   #
   val = integrate(vf.w_integrand_z_fast, w_bid=data_vec[1],
@@ -55,8 +75,9 @@ f.funk = function(data_vec, param.u) {
   return(val$value)
 }
 
+#' @import parallel
 #' @export
-#
+
 f.ll_parallel = function(par, y, n, h_x, cl) {
   #
   params = par

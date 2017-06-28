@@ -1,23 +1,42 @@
 ---
-title: "Untitled"
-output: github_document
+title: "Auction Modeling"
+output: md_document
 ---
 
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(
+        echo = TRUE
+)
+knitr::opts_knit$set(
+        stop_on_error = 2L
+)
+knitr::opts_chunk$set(
+        fig.path = "man/figures/"
+)
 ```
 
-## GitHub Documents
+## Auction Modeling
 
-This is an R Markdown format used for publishing markdown documents to GitHub. When you click the **Knit** button all R code chunks are run and a markdown file (.md) suitable for publishing to GitHub is generated.
+Package for R to estimate private-value auction models while allowing for unobservable
+auction-specific heterogeneity. Extensions to the baseline model allow for endogenous 
+entry and observing multiple bids per auction.
 
-## Including Code
+## Motivation 
 
-You can include R code in the document as follows:
+This is a test.
 
-```{r cars}
-summary(cars)
+## Examples
+
+The `beta_plot` function allows you to simulate data from a 
+beta distribution and plot the results.
+
+```{r}
+library(auctionmodeling)
+#MYFUNCTIONGOESHERE(withparams = TRUE)
 ```
+
 
 ## Including Plots
 
