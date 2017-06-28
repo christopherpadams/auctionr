@@ -1,6 +1,7 @@
-rm(list = ls())
-source("./R/code_sketch.R")
+#rm(list = ls())
+#source("./R/code_sketch.R")
 
+library(auctionmodeling)
 
 #######################################################
 # Load Data

@@ -15,3 +15,4 @@ Imports:
 Encoding: UTF-8
 LazyData: TRUE
 Roxygen: list(markdown = TRUE)
+RoxygenNote: 6.0.1
