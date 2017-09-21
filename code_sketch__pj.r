@@ -1,23 +1,34 @@
-
-
 auction <- function(
   input_data=NULL, initial_guess=NULL, generate_data=FALSE,
-  input_pdf=NULL,
+  pdf_list=NULL,
   num_cores=1
   ) {
   # INPUTS
   #   input_data
   #
+  #
   #   initial_guess [list]
+  #
   #
   #   generate_data [boolean]
   #
-  #   input_pdf [string or list of strings]
-  #     define the probability distribution function(s) to use
-  #     input may be a string or list of strings
+  #
+  #   pdf_list [list]
+  #     define the probability density function(s) to use
+  #     input must be list of the form
+  #       pdf_list = list( pdf1 = list( param_a = , param_b = ), pdf2 = list( ... ) )
+  #
+  #     currently supported PDFs are:
+  #       norm - normal distribution
+  #       lognorm - log normal distribution
+  #
+  #     valid parameters for each PDF may be found at
+  #       https://stat.ethz.ch/R-manual/R-devel/library/stats/html/Distributions.html
+  #
   #
   #   num_cores [int]
   #     Number of parallel workers to spawn.
+  #
   #
   #
   # OUTPUTS
@@ -51,19 +62,21 @@ auction <- function(
   #   Check parameter data types for non-null default value
   res = auction__check_input__generate_data(generate_data, res)
   res = auction__check_input__num_cores(num_cores, res)
-
+  #   Check PDFs specified
+  res = auction__check_input__pdf_list(pdf_list, res)
+  pdf_list = res$inp
+  res = res$res
   if ( res['err_code'] != 0 ) {
     return(res)
   }
 
+  print("")
+  print("pdf_list")
+  print(pdf_list)
+  print("")
+  return(NULL)
 
-  #   Check cores
-  num_cores_detected = detectCores(res)
-  if ( num_cores > num_cores_detected ) {
-    print(paste0("Warning: You have requested ", num_cores,
-                 " cores but only have ", num_cores_detected,
-                 " cores available"))
-  }
+
 
   #   Check input data and initial guess
   if ( ! generate_data ) {
@@ -80,11 +93,6 @@ auction <- function(
     }
   }
 
-  #   Check PDFs specified
-
-  if ( res['err_code'] != 0 ) {
-    return(res)
-  }
 
 
   # Prepare data
@@ -177,6 +185,14 @@ auction__check_input__num_cores <- function(inp, res) {
     if ( ( ! is.numeric(inp) ) || ( inp%%1 != 0) ||  ( inp < 0 ) ) {
       res['err_code'] = 2
       res['err_msg'] = "Invalid input for 'num_cores' | Must be natural number"
+    } else {
+      # Check cores available
+      num_cores_detected = detectCores(res)
+      if ( inp > num_cores_detected ) {
+        print(paste0("Warning: You have requested ", inp,
+                     " cores but only have ", num_cores_detected,
+                     " cores available"))
+      }
     }
   }
   return(res)
@@ -199,6 +215,149 @@ auction__check_input__input_data__columns <- function(inp, res) {
   }
   return(res)
 }
+
+auction__check_input__pdf_list <- function(inp, res) {
+  if ( res['err_code'] == 0 ) {
+    if (is.null(inp)) {
+      inp = list(lognorm=NULL)
+    }
+
+    if (! is.list(inp) || length(inp) == 0) {
+      res['err_code'] = 2
+      res['err_msg'] = "Invalid input for 'pdf_list' | Must be NULL for default PDF or list as per documentation"
+    } else {
+      pdf_list = inp
+
+      # Get list of valid PDFs
+      valid_pdf_list = auction__valid_opt__pdf_list()
+
+      # Remove PDFs that are not valid
+      pdf_list = pdf_list[names(pdf_list) %in% names(valid_pdf_list)]
+
+      if (length(pdf_list)==0) {
+        res['err_code'] = 2
+        res['err_msg'] = "Invalid PDFs specified for 'pdf_list'"
+      } else {
+
+        # Check to see if parameter requirements are met
+        for (funcName in names(pdf_list)) {
+          I_validPDF = TRUE
+
+          curPDF = pdf_list[[as.character(funcName)]]
+
+          # Remove parameters that are not valid
+          if (is.list(curPDF)) {
+            # Remove by parameter name
+            curPDF = curPDF[names(curPDF) %in% names(valid_pdf_list[[as.character(funcName)]])]
+
+            if (length(names(curPDF)) != 0){
+              # Remove by parameter datatype
+              for (paramName in names(curPDF)) {
+                # Get parameter value being tested
+                paramVal = curPDF[[as.character(paramName)]]
+                #   If NULL, then remove
+                #   Otherwise, if not boolean nor numeric, then wrap in quotes
+                if (is.null(paramVal)) {
+                  # Remove and continue
+                  curPDF = curPDF[names(curPDF) != paramName]
+                  next
+                } else if ((! is.logical(paramVal)) && (! is.numeric(paramVal))) {
+                  # Wrap in quotes
+                  paramVal = paste("'", paramVal, "'", sep="")
+                }
+                # Get required parameter data type
+                paramReqType = valid_pdf_list[[as.character(funcName)]][[as.character(paramName)]][['type']]
+
+                # Check
+                checkStr = paste("is.", paramReqType, "(", paramVal, ")", sep="")
+                I_check = eval(parse(text=checkStr))
+
+                if (! I_check) {
+                  # Remove
+                  curPDF = curPDF[names(curPDF) != paramName]
+                }
+
+              }
+            }
+          }
+
+          # Check for required parameters
+          #   curPDF or length(curPDF)==0 is okay if no required parameters
+          if (is.null(curPDF) || (is.list(curPDF))) {
+            # Look for requirements
+            req_list = c()
+            validPDF = valid_pdf_list[[as.character(funcName)]]
+            if (is.list(validPDF) && length(validPDF) > 0) {
+              for (paramName in names(validPDF)) {
+
+                if (validPDF[[as.character(paramName)]][['req']]) {
+                  req_list = c(req_list, paramName)
+                }
+
+              }
+            }
+
+            # Check to see if requirements are met
+            if (length(req_list) > 0) {
+              if (is.null(curPDF) || (length(names(curPDF))==0)) {
+                I_validPDF = FALSE
+              } else {
+
+                I_req = reqList %in% names(curPDF)
+                if (! all(I_req)) {
+                  I_validPDF = FALSE
+                  print(paste(
+                    "Ignoring PDF ", funcName, " because missing required parameters: ",
+                    paste(reqList[! I_req], collapse=','), sep = ""
+                    ))
+                }
+
+              }
+            }
+          } else {
+            I_validPDF = FALSE
+          }
+
+          if (! I_validPDF) {
+            pdf_list = pdf_list[names(pdf_list) != funcName]
+          } else {
+            if (length(names(curPDF))==0) {
+              curPDF = NULL
+            }
+            pdf_list[[as.character(funcName)]] = curPDF
+          }
+        }
+
+        if (length(pdf_list)==0) {
+          res['err_code'] = 2
+          res['err_msg'] = "No PDFs specified in 'pdf_list' have valid required parameters"
+        }
+
+      }
+
+      inp = pdf_list
+
+    }
+  }
+  return(list(res=res,inp=inp))
+}
+auction__valid_opt__pdf_list <- function() {
+  # Parameters have two values, (1) whether they are required and (2) what datatype must they be
+  #   If a parameter is not required, than (1) is NULL
+  return(list(
+    norm=list(
+      mean=list(type='numeric',req=FALSE),
+      sd=list(type='numeric',req=FALSE),
+      log=list(type='logical',req=FALSE)
+      ),
+    lognorm=list(
+      meanlog=list(type='numeric',req=FALSE),
+      sdlog=list(type='numeric',req=FALSE),
+      log=list(type='logical',req=FALSE)
+    )
+    ))
+}
+
 
 # auction__check_input <- function(inp, inpName, inpTypeList, res) {
 #   if ( res['err_code'] == 0 ) {
