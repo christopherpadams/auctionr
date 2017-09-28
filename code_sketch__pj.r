@@ -19,8 +19,8 @@ auction <- function(
   #       pdf_list = list( pdf1 = list( param_a = , param_b = ), pdf2 = list( ... ) )
   #
   #     currently supported PDFs are:
-  #       norm - normal distribution
-  #       lognorm - log normal distribution
+  #       dnorm - normal distribution
+  #       dlnorm - log normal distribution
   #
   #     valid parameters for each PDF may be found at
   #       https://stat.ethz.ch/R-manual/R-devel/library/stats/html/Distributions.html
@@ -62,21 +62,18 @@ auction <- function(
   #   Check parameter data types for non-null default value
   res = auction__check_input__generate_data(generate_data, res)
   res = auction__check_input__num_cores(num_cores, res)
-  #   Check PDFs specified
+  #   Check PDFs specified and untangle pdf_list and res
+  #     (1) run check
   res = auction__check_input__pdf_list(pdf_list, res)
+  #     (2) untangle
   pdf_list = res$inp
   res = res$res
+
+
+  # Check to see if we should error out
   if ( res['err_code'] != 0 ) {
     return(res)
   }
-
-  print("")
-  print("pdf_list")
-  print(pdf_list)
-  print("")
-  return(NULL)
-
-
 
   #   Check input data and initial guess
   if ( ! generate_data ) {
@@ -97,9 +94,7 @@ auction <- function(
 
   # Prepare data
   #   Part 1) Inspect data
-  I_sampleData = FALSE
   if (generate_data) {
-    I_sampleData = TRUE
     dat = generate__data()
   } else {
 
@@ -118,17 +113,19 @@ auction <- function(
 
 
   # Get initial guess for convergence
-  if ( I_sampleData ) {
-    x0 = generate__data(v__y, v__n, m__h_x)
+  if ( generate_data ) {
+    x0 = genereate__initial_guess(v__y, v__n, m__h_x)
   } else {
     x0 = initial_guess
   }
 
 
+
+
   # Set up parallelization
   cl = makeCluster(num_cores)
   clusterExport(cl,varlist=c("vf__bid_function_fast",
-                             "vf__w_integrand_z_fast",
+                             "vf__w_integrand_z_fast__2",
                              "f__funk"))
 
 
@@ -137,8 +134,27 @@ auction <- function(
 
 
   # Run
-  run_result = optim(par=x0, fn=f__ll_parallel, control=optim_control,
-                 y=v__y, n=v__n, h_x=m__h_x, cl=cl)
+  # run_result = optim(par=x0, fn=f__ll_parallel, control=optim_control,
+  #                y=v__y, n=v__n, h_x=m__h_x, cl=cl)
+
+  run_result = list()
+  for (list_entry in names(pdf_list)) {
+    # Initialize results
+    run_result[[as.character(list_entry)]] = NULL
+
+    # Prepare inputs
+    pdf_list_entry = list(funcName=as.character(list_entry), argList=pdf_list[[as.character(list_entry)]])
+
+    # Run
+    print(paste("Running |", as.character(list_entry)))
+
+    run_result[[as.character(list_entry)]] = optim(par=x0, fn=f__ll_parallel__2, control=optim_control,
+                       y=v__y, n=v__n, h_x=m__h_x,
+                       pdf_list_entry=pdf_list_entry,
+                       cl=cl)
+
+    print(paste("End of run |", as.character(list_entry)))
+  }
 
 
   # Release resources
@@ -147,11 +163,20 @@ auction <- function(
 
   # Inspect result
 
+  # If inspection is fine, add to res
+  res$result = run_result
 
 
   # Return result
   return(res)
 }
+
+
+
+###########################################################################
+#
+###########################################################################
+
 
 
 auction__load_packages <- function (res) {
@@ -345,12 +370,12 @@ auction__valid_opt__pdf_list <- function() {
   # Parameters have two values, (1) whether they are required and (2) what datatype must they be
   #   If a parameter is not required, than (1) is NULL
   return(list(
-    norm=list(
+    dnorm=list(
       mean=list(type='numeric',req=FALSE),
       sd=list(type='numeric',req=FALSE),
       log=list(type='logical',req=FALSE)
       ),
-    lognorm=list(
+    dlnorm=list(
       meanlog=list(type='numeric',req=FALSE),
       sdlog=list(type='numeric',req=FALSE),
       log=list(type='logical',req=FALSE)
@@ -412,7 +437,8 @@ generate__data <- function() {
   # n: discrete and > 1
   # y is some function of n, x1, x2
 
-  obs = 200
+  #obs = 200
+  obs = 20
   w = rlnorm(obs)
   x1 = rlnorm(obs) + 0.5*w
   x2 = 0.1*rlnorm(obs) + 0.3*w
@@ -493,9 +519,10 @@ f__bid_function_fast = function(cost, num_bids, mu, alpha, gamma_1p1oa){
     1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha)
   # Check gamma(1/alpha) part
 }
-vf__bid_function_fast = Vectorize(FUN = f.bid_function_fast,vectorize.args = "cost")
 
-vf__w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, param.u){
+vf__bid_function_fast = Vectorize(FUN = f__bid_function_fast,vectorize.args = "cost")
+
+vf__w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, param_u){
 
   b_z = vf__bid_function_fast(cost=z, num_bids=num_bids, mu=mu, alpha=alpha, gamma_1p1oa)
   u_z = w_bid/b_z
@@ -503,22 +530,47 @@ vf__w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, pa
   vals = num_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha-1)*
     exp(-num_bids*(gamma_1p1oa/mu*z)^alpha)*
     1/b_z*
-    dlnorm(u_z, meanlog=(-param.u^2*1/2), sdlog = param.u) # Note: can swap for different distributions
+    dlnorm(u_z, meanlog=(-param_u^2*1/2), sdlog = param_u) # Note: can swap for different distributions
 
   vals[(gamma_1p1oa/mu)^alpha == Inf] = 0
   vals[exp(-num_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
   return(vals)
+}
 
+vf__w_integrand_z_fast__2 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, param_u, pdf_list_entry){
+  # Get "x"
+  b_z = vf__bid_function_fast(cost=z, num_bids=num_bids, mu=mu, alpha=alpha, gamma_1p1oa)
+  u_z = w_bid/b_z
+
+  # Add "x"
+  pdf_list_entry$argList$x = u_z
+
+  # Run
+  vals = num_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha-1)*
+    exp(-num_bids*(gamma_1p1oa/mu*z)^alpha)*
+    1/b_z*
+    do.call(
+      match.fun(pdf_list_entry$funcName),
+      pdf_list_entry$argList
+    )
+
+    #dlnorm(u_z, meanlog=(-param_u^2*1/2), sdlog = param_u) # Note: can swap for different distributions
+
+
+  vals[(gamma_1p1oa/mu)^alpha == Inf] = 0
+  vals[exp(-num_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
+  return(vals)
 }
 
 
 
-f__funk = function(data_vec, param_u){
+f__funk = function(data_vec, param_u, pdf_list_entry){
 
-  val = integrate(vf__w_integrand_z_fast, w_bid=data_vec[1],
+  # val = integrate(vf__w_integrand_z_fast, w_bid=data_vec[1],
+  val = integrate(vf__w_integrand_z_fast__2, w_bid=data_vec[1],
                   num_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
-                  gamma_1p1oa=data_vec[5], param_u=param_u, lower=0, upper=Inf,
-                  abs.tol = 1e-10)
+                  gamma_1p1oa=data_vec[5], param_u=param_u, pdf_list_entry=pdf_list_entry,
+                  lower=0, upper=Inf, abs.tol = 1e-10)
   #                   rel.tol = .Machine$double.eps^0.7)
   if(val$message != "OK")
     stop("Integration failed.")
@@ -544,7 +596,7 @@ f__ll_parallel = function(x0, y, n, h_x, cl){
     return(-Inf) # Check that these hold at estimated values
   else if ( sum (v__mu <= 0 ) > 0 )
     return(-Inf)
-  else if ( sum( v.alpha <= 0.01 ) > 0)
+  else if ( sum( v__alpha <= 0.01 ) > 0)
     return(-Inf)
   else
     # Y Component
@@ -554,8 +606,42 @@ f__ll_parallel = function(x0, y, n, h_x, cl){
 
     v__f_w = parApply(cl = cl, X = dat, MARGIN = 1, FUN = f__funk, param_u = u)
     v__f_y = v__f_w / v__h
-    return(-sum(log(v.f_y)))
+    return(-sum(log(v__f_y)))
 }
+f__ll_parallel__2 = function(x0, y, n, h_x, pdf_list_entry, cl){
+  params = x0
+  v__y = y
+  v__n = n
+  m__h_x = h_x
+
+  v__mu = params[1]
+  v__alpha = params[2]
+  u = params[3]
+
+  h = params[4:( 3 + dim(m__h_x)[2] )]
+  v__h = exp( colSums( h * t(m__h_x) ) )
+
+  if (u <= 0.1)
+    return(-Inf) # Check that these hold at estimated values
+  else if ( sum (v__mu <= 0 ) > 0 )
+    return(-Inf)
+  else if ( sum( v__alpha <= 0.01 ) > 0)
+    return(-Inf)
+  else
+    # Y Component
+    v__gamma_1p1opa = gamma(1 + 1/v__alpha)
+  v__w = v__y / v__h
+  dat = cbind(v__w, v__n, v__mu, v__alpha, v__gamma_1p1opa)
+
+  v__f_w = parApply(cl = cl, X = dat, MARGIN = 1,
+                    FUN = f__funk,
+                    param_u = u,
+                    pdf_list_entry=pdf_list_entry
+  )
+  v__f_y = v__f_w / v__h
+  return(-sum(log(v__f_y)))
+}
+
 
 
 
@@ -565,7 +651,13 @@ f__ll_parallel = function(x0, y, n, h_x, cl){
 ###########################################################################
 # Run code
 ###########################################################################
-res = auction(generate_data=TRUE, num_cores=20)
+
+listInputPDF = list(
+  fakePDF=list(fake1=1, fake2=2),
+  dlnorm=list(sdlog=1)
+  )
+
+res = auction(generate_data=TRUE, num_cores=2, pdf_list=listInputPDF)
 print(res)
 
 
