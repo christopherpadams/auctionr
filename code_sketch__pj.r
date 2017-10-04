@@ -148,6 +148,15 @@ auction <- function(
     # Run
     print(paste("Running |", as.character(list_entry)))
 
+    # print("pdf_list_entry")
+    # print(pdf_list_entry)
+    # print("length arglist")
+    # print(length(pdf_list_entry$argList))
+    # print("argList[1]")
+    # print(pdf_list_entry$argList[[1]])
+    # print("is.null")
+    # print(is.null(pdf_list_entry$argList[[1]]))
+
     run_result[[as.character(list_entry)]] = optim(par=x0, fn=f__ll_parallel__2, control=optim_control,
                        y=v__y, n=v__n, h_x=m__h_x,
                        pdf_list_entry=pdf_list_entry,
@@ -244,7 +253,7 @@ auction__check_input__input_data__columns <- function(inp, res) {
 auction__check_input__pdf_list <- function(inp, res) {
   if ( res['err_code'] == 0 ) {
     if (is.null(inp)) {
-      inp = list(lognorm=NULL)
+      inp = list(dlnorm=NULL)
     }
 
     if (! is.list(inp) || length(inp) == 0) {
@@ -339,6 +348,7 @@ auction__check_input__pdf_list <- function(inp, res) {
 
               }
             }
+
           } else {
             I_validPDF = FALSE
           }
@@ -347,9 +357,11 @@ auction__check_input__pdf_list <- function(inp, res) {
             pdf_list = pdf_list[names(pdf_list) != funcName]
           } else {
             if (length(names(curPDF))==0) {
-              curPDF = NULL
+              curPDF = list(NULL)
             }
+
             pdf_list[[as.character(funcName)]] = curPDF
+
           }
         }
 
@@ -370,16 +382,41 @@ auction__valid_opt__pdf_list <- function() {
   # Parameters have two values, (1) whether they are required and (2) what datatype must they be
   #   If a parameter is not required, than (1) is NULL
   return(list(
-    dnorm=list(
-      mean=list(type='numeric',req=FALSE),
-      sd=list(type='numeric',req=FALSE),
+    dcauchy=list(
+      location=list(type='numeric',req=FALSE),
+      scale=list(type='numeric',req=FALSE),
+      log=list(type='logical',req=FALSE)
+      ),
+    dchisq=list(
+      df=list(type='numeric',req=TRUE),
+      ncp=list(type='numeric',req=FALSE),
+      log=list(type='logical',req=FALSE)
+      ),
+    dexp=list(
+      rate=list(type='numeric',req=FALSE),
+      log=list(type='logical',req=FALSE)
+      ),
+    dgamma=list(
+      shape=list(type='numeric',req=TRUE),
+      rate=list(type='numeric',req=FALSE),
+      scale=list(type='numeric',req=FALSE),
       log=list(type='logical',req=FALSE)
       ),
     dlnorm=list(
       meanlog=list(type='numeric',req=FALSE),
       sdlog=list(type='numeric',req=FALSE),
       log=list(type='logical',req=FALSE)
-    )
+      ),
+    dnorm=list(
+      mean=list(type='numeric',req=FALSE),
+      sd=list(type='numeric',req=FALSE),
+      log=list(type='logical',req=FALSE)
+      ),
+    dweibull=list(
+      shape=list(type='numeric',req=TRUE),
+      scale=list(type='numeric',req=FALSE),
+      log=list(type='logical',req=FALSE)
+      )
     ))
 }
 
@@ -543,9 +580,14 @@ vf__w_integrand_z_fast__2 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa,
   u_z = w_bid/b_z
 
   # Add "x"
-  pdf_list_entry$argList$x = u_z
+  ### pdf_list_entry$argList$x = u_z
+  if ( length(pdf_list_entry$argList)==1 && is.null(pdf_list_entry$argList[[1]]) ) {
+    pdf_list_entry$argList = list(x = u_z)
+  } else {
+    pdf_list_entry$argList$x = u_z
+  }
 
-  # Run
+  #Run
   vals = num_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha-1)*
     exp(-num_bids*(gamma_1p1oa/mu*z)^alpha)*
     1/b_z*
@@ -553,9 +595,7 @@ vf__w_integrand_z_fast__2 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa,
       match.fun(pdf_list_entry$funcName),
       pdf_list_entry$argList
     )
-
-    #dlnorm(u_z, meanlog=(-param_u^2*1/2), sdlog = param_u) # Note: can swap for different distributions
-
+    ### dlnorm(u_z, meanlog=(-param_u^2*1/2), sdlog = param_u) # Note: can swap for different distributions
 
   vals[(gamma_1p1oa/mu)^alpha == Inf] = 0
   vals[exp(-num_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
@@ -655,9 +695,12 @@ f__ll_parallel__2 = function(x0, y, n, h_x, pdf_list_entry, cl){
 listInputPDF = list(
   fakePDF=list(fake1=1, fake2=2),
   dlnorm=list(sdlog=1)
-  )
+  ) # working
+listInputPDF = NULL # working -> defaults to dlnorm
+listInputPDF = list(dlnorm=NULL) # working
+listInputPDF = list(dlnorm=list()) # working
+listInputPDF = list(dlnorm=NULL, dnorm=NULL) # working
+listInputPDF = list(dgamma=NULL) # working
 
 res = auction(generate_data=TRUE, num_cores=2, pdf_list=listInputPDF)
 print(res)
-
-
