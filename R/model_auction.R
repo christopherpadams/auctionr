@@ -1,8 +1,32 @@
-auction <- function(
-  input_data=NULL, initial_guess=NULL, generate_data=FALSE,
-  pdf_list=NULL,
-  num_cores=1
-  ) {
+#' Suite of functions to estimate private-value auction models
+#'
+#'
+#' @param cost XXnumber of observations to draw
+#' @param num_bids XXnon-negative alpha parameter of the beta distribution
+#' @param mu XXnon-negative beta parameter of the beta distribution
+#' @param alpha XXnon-negative beta parameter of the beta distribution
+#' @param gamma_1p1oa XXnon-negative beta parameter of the beta distribution
+#'
+#' @details The Beta distribution with parameters \eqn{a} and \eqn{b} has
+#' density:
+#'
+#' \deqn{
+#'     \Gamma(a+b)/(\Gamma(a)\Gamma(b))x^(a-1)(1-x)^(b-1)
+#' }
+#'
+#' for \eqn{a > 0}, \eqn{b > 0} and \eqn{0 \le x \le 1}.
+#'
+#' @examples
+#' # Draw from beta distribution with parameters a = 1 and b = 3
+#' beta_plot(a = 1, b = 3)
+#'
+#' @seealso \code{\link{rbeta}}, \code{\link{geom_density}}
+#'
+#'
+#' @export
+auction <- function (input_data = NULL, initial_guess = NULL, 
+                           generate_data = FALSE, pdf_list = NULL,
+                           num_cores = 1) {
   # INPUTS
   #   input_data
   #
@@ -48,11 +72,7 @@ auction <- function(
 
   # Validate environment and inputs
   #   Initialize
-  res = list(
-    result=-1,
-    err_code=0,
-    err_msg=""
-  )
+  res <- list(result = -1, err_code = 0, err_msg = "")
 
   #   Validate environment
   #     Load required libraries
@@ -60,14 +80,14 @@ auction <- function(
 
   # Check inputs
   #   Check parameter data types for non-null default value
-  res = auction__check_input__generate_data(generate_data, res)
-  res = auction__check_input__num_cores(num_cores, res)
+  res <- auction__check_input__generate_data(generate_data, res)
+  res <- auction__check_input__num_cores(num_cores, res)
   #   Check PDFs specified and untangle pdf_list and res
   #     (1) run check
-  res = auction__check_input__pdf_list(pdf_list, res)
+  res <- auction__check_input__pdf_list(pdf_list, res)
   #     (2) untangle
-  pdf_list = res$inp
-  res = res$res
+  pdf_list <- res$inp
+  res <- res$res
 
 
   # Check to see if we should error out
@@ -180,6 +200,56 @@ auction <- function(
   return(res)
 }
 
+#' @param obs, number of observations to draw, 
+#'
+#' @details The Beta distribution with parameters \eqn{a} and \eqn{b} has
+#' density:
+#'
+#' \deqn{
+#'     \Gamma(a+b)/(\Gamma(a)\Gamma(b))x^(a-1)(1-x)^(b-1)
+#' }
+#'
+#' for \eqn{a > 0}, \eqn{b > 0} and \eqn{0 \le x \le 1}.
+#'
+#' @examples
+#' # Draw from beta distribution with parameters a = 1 and b = 3
+#' beta_plot(a = 1, b = 3)
+#'
+#' @seealso \code{\link{rbeta}}, \code{\link{geom_density}}
+#'
+#'
+#' @export
+generate__data <- function(obs = 200) {
+  # For testing purposes, we will generate sample data
+  
+  # ensure that obs is integer greater than 0
+  set.seed(301)
+  # data = # Generate some data
+  # y, n, x1, x2: positive
+  # n: discrete and > 1
+  # y is some function of n, x1, x2
+
+  #obs = 200
+  obs = 20
+  w = rlnorm(obs)
+  x1 = rlnorm(obs) + 0.5*w
+  x2 = 0.1*rlnorm(obs) + 0.3*w
+  e = 2*rlnorm(obs)
+  n = sample(2:10, obs, replace=TRUE)
+  y = 10 - 0.5*n + x1 + x2 + e
+  data = data.frame(cbind(y, n, x1, x2))
+  #plot(n, y)
+
+  v__y = data$y
+  v__n = data$n
+  m__h_x = as.matrix(cbind(log(data$x1),log(data$x2)))
+
+  return(
+    list(
+      v__y = v__y, v__n = v__n, m__h_x = m__h_x
+      )
+  )
+}
 
 
 ###########################################################################
@@ -188,23 +258,24 @@ auction <- function(
 
 
 
-auction__load_packages <- function (res) {
-  if ( res['err_code'] == 0 ) {
-    listRequiredPackages = c('parallel')
-    listMissingPackages = c()
-    for (reqPkg in listRequiredPackages) {
-      if ( ! require(reqPkg, character.only=TRUE)) {
-        listMissingPackages = c(listMissingPackages, reqPkg)
-      }
-    }
-    if ( length(listMissingPackages) > 0 ) {
-      res['err_code'] = 1
-      res['err_msg'] = paste0("Unable to load the following packages: ",
-                              paste(listMissingPackages, collapse=','))
-    }
-  }
-  return(res)
-}
+# auction__load_packages <- function (res) {
+#   if ( res['err_code'] == 0 ) {
+#     listRequiredPackages = c('parallel')
+#     listMissingPackages = c()
+#     for (reqPkg in listRequiredPackages) {
+#       if ( ! require(reqPkg, character.only=TRUE)) {
+#         listMissingPackages = c(listMissingPackages, reqPkg)
+#       }
+#     }
+#     if ( length(listMissingPackages) > 0 ) {
+#       res['err_code'] = 1
+#       res['err_msg'] = paste0("Unable to load the following packages: ",
+#                               paste(listMissingPackages, collapse=','))
+#     }
+#   }
+#   return(res)
+# }
+
 auction__check_input__generate_data <- function(inp, res) {
   if ( res['err_code'] == 0 ) {
     if ( ! is.logical(inp) ) {
@@ -465,36 +536,6 @@ auction__valid_opt__pdf_list <- function() {
 
 
 
-generate__data <- function() {
-  # For testing purposes, we will generate sample data
-
-  set.seed(301)
-  # data = # Generate some data
-  # y, n, x1, x2: positive
-  # n: discrete and > 1
-  # y is some function of n, x1, x2
-
-  #obs = 200
-  obs = 20
-  w = rlnorm(obs)
-  x1 = rlnorm(obs) + 0.5*w
-  x2 = 0.1*rlnorm(obs) + 0.3*w
-  e = 2*rlnorm(obs)
-  n = sample(2:10, obs, replace=TRUE)
-  y = 10 - 0.5*n + x1 + x2 + e
-  data = data.frame(cbind(y, n, x1, x2))
-  #plot(n, y)
-
-  v__y = data$y
-  v__n = data$n
-  m__h_x = as.matrix(cbind(log(data$x1),log(data$x2)))
-
-  return(
-    list(
-      v__y = v__y, v__n = v__n, m__h_x = m__h_x
-      )
-  )
-}
 
 
 
