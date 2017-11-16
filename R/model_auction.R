@@ -289,7 +289,7 @@ auction__check_input__num_cores__v2 <- function(res, num_cores) {
     auction__gen_err_msg(res)
   } else {
     # Check cores available
-    num_cores__avail = detectCores(res)
+    num_cores__avail = detectCores()
     if ( num_cores > num_cores__avail ) {
       print(paste0("Warning: You have requested ", num_cores,
                    " cores but only have ", num_cores__avail,
@@ -1907,7 +1907,6 @@ vf__w_integrand_z_fast__v3 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa
   return(vals)
 }
 
-vf__bid_function_fast__v3 = Vectorize(FUN = f__bid_function_fast__v3,vectorize.args = "price")
 
 f__bid_function_fast__v3 = function(price, num_bids, mu, alpha, gamma_1p1oa){
 
@@ -1922,6 +1921,9 @@ f__bid_function_fast__v3 = function(price, num_bids, mu, alpha, gamma_1p1oa){
     1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha)
   # Check gamma(1/alpha) part
 }
+
+vf__bid_function_fast__v3 = Vectorize(FUN = f__bid_function_fast__v3,vectorize.args = "price")
+
 
 
 
@@ -1981,6 +1983,7 @@ auction_v2(dat = auction__generate_data(10),
 
 
 
+stop()
 
 
 
