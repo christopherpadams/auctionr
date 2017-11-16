@@ -63,27 +63,11 @@ auction_v2 <- function(dat = NULL,
   initial_guess = res$initial_guess
   res = res$res
 
-
-  # # Prepare initial guess
-  # #   Should have initial starting points for each Unobserved Heterogenity distribution
-  # x0 = auction__conv__init_pos(res=res,
-  #                              dat=dat,
-  #                              x0=initial_guess,
-  #                              func_list__unobs_distrib=func_list__unobs_distrib)
-
   # Set up parallelization
   cl = makeCluster(num_cores)
   clusterExport(cl,varlist=c("vf__bid_function_fast__v3",
                              "vf__w_integrand_z_fast__v3",
                              "f__funk__v3"))
-  # #   Get convergence control parameters
-  # conv_ctrl = auction__conv__control_params__set(res=res,
-  #                                                x0=x0)
-  #
-  # #   Ensure initial guess, x0, is a vector not a list
-  # x0 = auction__conv__initial_guess__set(res=res,
-  #                                        x0=x0)
-
   # Run
   run_result = list()
   for (funcName in names(func_list__unobs_distrib)) {
@@ -94,9 +78,6 @@ auction_v2 <- function(dat = NULL,
 
     # Prepare inputs
     #   unobserved heterogeneity distribution
-    ### func__unobs_distrib = list(
-    ###   funcName=func_list__unobs_distrib[[sFuncName]]$funcName,
-    ###   argList=func_list__unobs_distrib[[sFuncName]]$argList )
     func__unobs_distrib = func_list__unobs_distrib[[sFuncName]]
 
     #   initial guess, step sizes, max iterations
@@ -129,11 +110,16 @@ auction_v2 <- function(dat = NULL,
   # Release resources
   stopCluster(cl)
   # Inspect result
+  res$result = auction__output_org(run_result=run_result, func_list__unobs_distrib=func_list__unobs_distrib)
+  # Return result
+  return(res)
+}
 
-  # print(run_result)
+auction__output_org <- function(run_result, func_list__unobs_distrib) {
 
-
-  run_result2 = list()
+  # Get standard deviations of the unobserved heterogeneity
+  run_result__raw = list()
+  run_result__df = list()
   for (funcName in names(run_result)) {
     sFuncName = as.character(funcName)
 
@@ -148,52 +134,63 @@ auction_v2 <- function(dat = NULL,
     }
 
     # Use auction__unobs_dist__exp_val_1() to get other parameter plus its value
-    # #   Build input, func__prob_distrib
-    # func__prob_distrib = list(funcName=sFuncName, argList=list())
-    # func__prob_distrib$argList[[paramName]] = paramVal
-    # #   Get output
-    # func__prob_distrib = auction__unobs_dist__exp_val_1(func__prob_distrib, paramVal)
-
     func__prob_distrib = auction__unobs_dist__exp_val_1(func__prob_distrib = func_list__unobs_distrib[[sFuncName]],
                                                         paramVal = paramVal)
 
     # Get standard deviation of unobserved heterogeneity
-    if (func_list__unobs_distrib[[sFuncName]]$funcName == 'dgamma') {
-      unobs_std = auction__unobs_dist__std__gamma(
-        param_rate  = func__prob_distrib$argList$rate,
-        param_shape = func__prob_distrib$argList$shape
-      )
-    } else if (func_list__unobs_distrib[[sFuncName]]$funcName == 'dlnorm') {
-      unobs_std = auction__unobs_dist__std__lognorm(
-        param_meanlog = func__prob_distrib$argList$meanlog,
-        param_sdlog   = func__prob_distrib$argList$sdlog
-        )
-    } else if (func_list__unobs_distrib[[sFuncName]]$funcName == 'dweibull') {
-      unobs_std = auction__unobs_dist__std__weibull(
-        param_scale = func__prob_distrib$argList$scale,
-        param_shape = func__prob_distrib$argList$shape
-      )
-    } else {
-      unobs_std = NaN
-    }
+    unobs_std = auction__unobs_dist__std(func__prob_distrib = func__prob_distrib)
 
-    run_result2[[sFuncName]] = list()
-    run_result2[[sFuncName]]$invLogLikelyhood = run_result[[sFuncName]]$value
-    run_result2[[sFuncName]]$funcName = func__prob_distrib$funcName
-    run_result2[[sFuncName]]$argList = func__prob_distrib$argList
-    run_result2[[sFuncName]]$argName_ctrl = func__prob_distrib$argName_ctrl
-    run_result2[[sFuncName]]$I_unobs__const = func__prob_distrib$I_unobs__const
-    run_result2[[sFuncName]]$std = unobs_std
+    # Build output list
+    run_result__raw[[sFuncName]] = list()
+    run_result__raw[[sFuncName]]$invLogLikelyhood = run_result[[sFuncName]]$value
+    run_result__raw[[sFuncName]]$funcName = func__prob_distrib$funcName
+    run_result__raw[[sFuncName]]$argList = func__prob_distrib$argList
+    run_result__raw[[sFuncName]]$argName_ctrl = func__prob_distrib$argName_ctrl
+    run_result__raw[[sFuncName]]$I_unobs__const = func__prob_distrib$I_unobs__const
+    run_result__raw[[sFuncName]]$std = unobs_std
+
+    # Build dataframe result to organize by StdDev
+    run_result__df[[sFuncName]] = run_result__raw[[sFuncName]]
+    #   Remove parameters which are lists themselves
+    run_result__df[[sFuncName]]$argList = NULL
+    ##  (is.list() ) not working, try length()>1 ?
+    # for (argKey in names(run_result__df[[sFuncName]])) {
+    #   if (is.list( run_result__df[[sFuncName]][[as.character(argKey)]] )) {
+    #     run_result__df[[sFuncName]][[as.character(argKey)]] = NULL
+    #   }
+    # }
+
   }
-  # print(run_result2)
+  # Convert list to dataframe
+  run_result__df = do.call(rbind.data.frame, run_result__df)
+  # Sort by standard deviation
+  run_result__df = run_result__df[with(run_result__df, order(std)), ]
+  # Add distribution parameters back in
+  run_result__df['funcParam1'] = NaN
+  run_result__df['funcParam1_val'] = NaN
+  run_result__df['funcParam2'] = NaN
+  run_result__df['funcParam2_val'] = NaN
+  for (funcName in names(run_result)) {
+    sFuncName = as.character(funcName)
 
+    run_result__df[sFuncName, 'funcParam1'] = run_result__raw[[sFuncName]]$argName_ctrl
 
-  # If inspection is fine, add to res
-  res$result = run_result2
-  # Return result
-  return(res)
+    run_result__df[sFuncName, 'funcParam1_val'] = run_result__raw[[sFuncName]]$argList[[
+      run_result__raw[[sFuncName]]$argName_ctrl ]]
+
+    run_result__df[sFuncName, 'funcParam2'] = names(run_result__raw[[sFuncName]]$argList)[
+      ! names(run_result__raw[[sFuncName]]$argList) %in% run_result__df[sFuncName, 'funcParam1'] ]
+
+    run_result__df[sFuncName, 'funcParam2_val'] =
+      run_result__raw[[sFuncName]]$argList[[run_result__df[sFuncName, 'funcParam2']]]
+  }
+  # Re-org columns
+  #   [funcName, std, invLogLikelyhood, etc]
+  listColNames = c('funcName', 'std', 'invLogLikelyhood', 'argName_ctrl')
+  run_result__df = run_result__df[c(listColNames, colnames(run_result__df)[! colnames(run_result__df) %in% listColNames])]
+
+  return(run_result__df)
 }
-
 
 auction__generate_data <- function(obs = 200) {
   # For testing purposes, we will generate sample data
@@ -1642,7 +1639,6 @@ auction__unobs_dist__exp_val_1 <- function(func__prob_distrib, paramVal) {
   # print(func__prob_distrib$argList[[paramName]])
 
   paramName = func__prob_distrib$argName_ctrl
-  print(func__prob_distrib$I_unobs__const)
   if (func__prob_distrib$I_unobs__const) {
     paramVal = func__prob_distrib$argList[[paramName]]
   }
@@ -1709,8 +1705,29 @@ auction__unobs_dist__exp_val_1 <- function(func__prob_distrib, paramVal) {
   }
   return(func__prob_distrib)
 }
-
-
+auction__unobs_dist__std <- function(func__prob_distrib) {
+  # Get standard deviation of unobserved heterogeneity
+  if (func__prob_distrib$funcName == 'dgamma') {
+    unobs_std = auction__unobs_dist__std__gamma(
+      param_rate  = func__prob_distrib$argList$rate,
+      param_shape = func__prob_distrib$argList$shape
+    )
+  } else if (func__prob_distrib$funcName == 'dlnorm') {
+    unobs_std = auction__unobs_dist__std__lognorm(
+      param_meanlog = func__prob_distrib$argList$meanlog,
+      param_sdlog   = func__prob_distrib$argList$sdlog
+    )
+  } else if (func__prob_distrib$funcName == 'dweibull') {
+    unobs_std = auction__unobs_dist__std__weibull(
+      param_scale = func__prob_distrib$argList$scale,
+      param_shape = func__prob_distrib$argList$shape
+    )
+  } else {
+    print(paste("Unknown distribution '", func__prob_distrib$funcName,"', returning NaN for standard deviation", sep=''))
+    unobs_std = NaN
+  }
+  return(unobs_std)
+}
 
 
 auction__unobs_dist__exp_val_1__lognorm <- function(param_meanlog = NULL, param_sdlog = NULL) {
@@ -1795,6 +1812,8 @@ auction__unobs_dist__std__gamma <- function(param_rate, param_shape) {
 
 
 
+
+
 f__ll_parallel__v3 = function(x0, dat_price, dat_num, dat_X, func__prob_distrib, cl){
   # From iteration to iteration, only x0 is changing
 
@@ -1851,12 +1870,10 @@ f__ll_parallel__v3 = function(x0, dat_price, dat_num, dat_X, func__prob_distrib,
   }
 }
 f__funk__v3 = function(data_vec, func__prob_distrib){
-  print("f__funk__v3")
   val = integrate(vf__w_integrand_z_fast__v3, w_bid=data_vec[1],
                   num_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
                   gamma_1p1oa=data_vec[5], func__prob_distrib=func__prob_distrib,
                   lower=0, upper=Inf, abs.tol = 1e-10)
-  print("f__funk__v3")
   if(val$message != "OK")
     stop("Integration failed.")
   return(val$value)
@@ -1951,6 +1968,7 @@ listInputPDF = list(dgamma=list()) # working
 listInputPDF = NULL # working
 listInputPDF = list(dlnorm=list(argList=list(meanlog=2)), dfake=list()) # working
 listInputPDF = list(dlnorm=list(argList=list(sdlog=2))) # working
+listInputPDF = list(dlnorm=list(), dweibull=list()) # working
 
 
 auction_v2(dat = auction__generate_data(10),
