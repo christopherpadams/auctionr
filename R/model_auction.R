@@ -115,6 +115,8 @@ auction_v2 <- function(dat = NULL,
   return(res)
 }
 
+
+# Called by auction_v2
 auction__output_org <- function(run_result, func_list__unobs_distrib) {
 
   # Get standard deviations of the unobserved heterogeneity
@@ -216,13 +218,13 @@ auction__generate_data <- function(obs = 200) {
     ) )
 }
 
-
 auction__gen_err_msg <- function(res) {
   # Goal: Print out an error message and then stops execution of the main script
 
   errMsg = paste('\n\tError Code=', res['err_code'], '\n\tError msg=', res['err_msg'], sep='')
   stop(errMsg)
 }
+
 auction__init_env <- function (num_cores) {
   # Goal:
   #   - Prepare results/error handling
@@ -303,7 +305,43 @@ auction__check_input__num_cores__v2 <- function(res, num_cores) {
   return(list(res=res, num_cores=num_cores))
 }
 
+auction__input_data_consistency <- function(res, dat, colName_price, colName_num) {
+  # Goal: Make sure the input data has required columns
 
+  if (mode(dat) == "list" && is.character(colName_price) && is.character(colName_num)) {
+    # Get list of required column names
+    colList_req = c(colName_price, colName_num)
+
+    # Get list of column names
+    if (is.data.frame(dat)) {
+      colList = colnames(dat)
+    } else {
+      colList = names(dat)
+    }
+
+    # Make sure we aren't missing the required columns
+    listMissingColName = c()
+    for (reqCol in colList_req) {
+      if ( ! reqCol %in% colList ) {
+        listMissingColName = c(listMissingColName, reqCol)
+      }
+    }
+
+    if ( length(listMissingColName) > 0 ) {
+      res['err_code'] = 2
+      res['err_msg'] = paste0("Unable to find the following columns within input data: ",
+                              paste(listMissingColName, collapse=','))
+      auction__gen_err_msg(res)
+    }
+  } else {
+    res['err_code'] = 2
+    res['err_msg'] = "Invalid input for 'dat' and/or associated column names"
+  }
+  if (res['err_code'] != 0) {
+    auction__gen_err_msg(res)
+  }
+  return(res)
+}
 
 auction__check_input__unobs_distrib_AND_initial_guess <- function(func_list, initial_guess, dat, res) {
 
@@ -587,68 +625,6 @@ auction__check_input__unobs_distrib__validate_func <- function(func_list, res) {
     }
   }
 
-
-
-
-  # #   For remaining distributions, ensure there is at least one parameter specified for control
-  # #     Set parameter to control if not given
-  # #     If multiple parameters remain, then identify the preferred parameter
-  # for (funcName in names(func_list)) {
-  #   sFuncName = as.character(funcName)
-  #
-  #   # What is the preferred parameter to control?
-  #   paramName_pref = auction__unobs_dist__paramName(func_list[[sFuncName]])
-  #
-  #   if (length(func_list[[sFuncName]]$argList)==0) {
-  #     # No parameters listed, append the preferred control parameter
-  #     func_list[[sFuncName]]$argList = list()
-  #     func_list[[sFuncName]]$argList[[paramName_pref]] = NaN
-  #   } else {
-  #     # What is the current list of parameters?
-  #     listKeys_arg = names(func_list[[sFuncName]]$argList)
-  #
-  #     # One or more parameters listed
-  #     #   If preferred control parameter is specified with a value, keep only this
-  #     #   Otherwise take the first parameter with a specified value
-  #     if (any(paramName_pref %in% listKeys_arg) &&
-  #         length(func_list[[sFuncName]]$argList[[paramName_pref]]) != 0 &&
-  #         ! is.nan(func_list[[sFuncName]]$argList[[paramName_pref]])) {
-  #       # Keep only the preferred control parameter
-  #       func_list[[sFuncName]]$argList = func_list[[sFuncName]]$argList[
-  #         names(func_list[[sFuncName]]$argList) %in% paramName_pref ]
-  #     } else {
-  #       # Has any parameter been set to a value?
-  #       I_set = FALSE
-  #
-  #       for (paramName in listKeys_arg) {
-  #         if (length(func_list[[sFuncName]]$argList[[paramName]]) != 0 &&
-  #             ! is.nan(func_list[[sFuncName]]$argList[[paramName]]) ) {
-  #
-  #           func_list[[sFuncName]]$argList = func_list[[sFuncName]]$argList[
-  #             names(func_list[[sFuncName]]$argList) %in% paramName ]
-  #
-  #           I_set = TRUE
-  #           break
-  #         }
-  #       }
-  #
-  #       if (! I_set) {
-  #         # Leave only one
-  #         #   If preferred exists, select preferred
-  #         #   Otherwise pick the first one
-  #         if (any(paramName_pref %in% listKeys_arg)) {
-  #           paramName = paramName_pref
-  #         } else {
-  #           paramName = listKeys_arg[1]
-  #         }
-  #         func_list[[sFuncName]]$argList = list()
-  #         func_list[[sFuncName]]$argList[[paramName]] = NaN
-  #       }
-  #
-  #     }
-  #   }
-  # }
-
   return( list( func_list=func_list, res=res ) )
 }
 auction__check_input__unobs_distrib__set_ctrl_arg <- function(func_list, res) {
@@ -829,76 +805,6 @@ auction__unobs_distrib__set_init_guess <- function(func_list, initial_guess) {
   for (funcName in names(func_list)) {
     sFuncName = as.character(funcName)
 
-    # # If a parameter value is set in $argList, then set $initial_guess as it will be held constant
-    # if (length(func_list[[sFuncName]]$argList)>0) {
-    #   for (argKey in names(func_list[[sFuncName]]$argList)) {
-    #     if (! is.nan(func_list[[sFuncName]]$argList[[argKey]]) &&
-    #         is.numeric(func_list[[sFuncName]]$argList[[argKey]]) &&
-    #         length(func_list[[sFuncName]]$argList[[argKey]]) > 0) {
-    #
-    #       # print("match found from argList")
-    #       # print(argkey)
-    #       #
-    #       # print(paste("Setting initial_guess of '", sFuncName, "' to ",
-    #       #             func_list[[sFuncName]]$argList[[argKey]],
-    #       #             sep=''))
-    #
-    #       func_list[[sFuncName]]$initial_guess = func_list[[sFuncName]]$argList[[argKey]]
-    #       break
-    #     }
-    #   }
-    # }
-    #
-    # # Ensure we have a value for $initial_guess
-    # if ( is.nan(func_list[[sFuncName]]$initial_guess) ||
-    #      ! is.numeric(func_list[[sFuncName]]$initial_guess) ||
-    #      length(func_list[[sFuncName]]$initial_guess)==0 ) {
-    #
-    #   # print("no match found from argList, now looking within initial_guess")
-    #
-    #   # Check to see if there is a name match within the variable 'initial_guess'
-    #   #   If not, get default value
-    #   I_match = FALSE
-    #   if (! is.null(initial_guess)) {
-    #     listKeys_initguess = names(initial_guess)
-    #
-    #     # Check if the entry within $funcName matches
-    #     # then check if sFuncName matches
-    #     if (any(listKeys_initguess %in% func_list[[sFuncName]]$funcName)) {
-    #       func_list[[sFuncName]]$initial_guess = initial_guess[[
-    #         listKeys_initguess[ listKeys_initguess %in% func_list[[sFuncName]]$funcName ]
-    #         ]]
-    #       I_match = TRUE
-    #     } else if(any(names(initial_guess) %in% sFuncName)) {
-    #       func_list[[sFuncName]]$initial_guess = initial_guess[[
-    #         listKeys_initguess[ listKeys_initguess %in% sFuncName ]
-    #         ]]
-    #       I_match = TRUE
-    #     }
-    #   }
-    #   # If no match found, get default
-    #   #   Default value should be related to distribution picked and parameter that is being controlled
-    #   if (! I_match) {
-    #
-    #     funcName = func_list[[sFuncName]]$funcName
-    #     paramName = names(func_list[[sFuncName]]$argList)[1]
-    #
-    #     func_list[[sFuncName]]$initial_guess =
-    #       auction__conv__init_pos__gen__unobs_distrib(funcName=funcName, paramName=paramName)
-    #
-    #   #   print(paste("Set default initial_guess for '", sFuncName, "' as ",
-    #   #               func_list[[sFuncName]]$initial_guess,
-    #   #               sep=''))
-    #   #
-    #   # } else {
-    #   #   print(paste("Found initial_guess for '", sFuncName, "' as ",
-    #   #               func_list[[sFuncName]]$initial_guess,
-    #   #               sep=''))
-    #   }
-    #
-    # }
-
-
     if (! is.nan(func_list[[sFuncName]]$argList[[func_list[[sFuncName]]$argName_ctrl]]) &&
         is.numeric(func_list[[sFuncName]]$argList[[func_list[[sFuncName]]$argName_ctrl]]) &&
         length(func_list[[sFuncName]]$argList[[func_list[[sFuncName]]$argName_ctrl]]) > 0) {
@@ -936,7 +842,6 @@ auction__unobs_distrib__set_init_guess <- function(func_list, initial_guess) {
   # print("TEST - auction__unobs_distrib__set_init_guess")
   return(func_list)
 }
-
 auction__unobs_distrib__set_step_size <- function(func_list) {
   for (funcName in names(func_list)) {
     sFuncName = as.character(funcName)
@@ -955,7 +860,6 @@ auction__unobs_distrib__set_step_size <- function(func_list) {
   return(func_list)
 }
 
-
 auction__get_num_columns__dat <- function(dat) {
   if (is.data.frame(dat)) {
     nParams_dat = dim(dat)[2]
@@ -973,7 +877,6 @@ auction__get_num_columns__dat <- function(dat) {
   }
   return(nParams_dat)
 }
-
 
 auction__conv__init_pos__gen__unobs_distrib <- function(funcName, paramName = NULL) {
   if (funcName == 'dgamma') {
@@ -1014,6 +917,7 @@ auction__conv__init_pos__gen__unobs_distrib <- function(funcName, paramName = NU
   }
   return(unobs_dist_param)
 }
+
 auction__conv__init_pos__gen__without_unobs_distrib <- function(nParams_dat = NULL, nParams_X = 2) {
   # Goal: Generate x0
   #           x0 is the initial guess or initial position for
@@ -1039,104 +943,6 @@ auction__conv__init_pos__gen__without_unobs_distrib <- function(nParams_dat = NU
     x_terms = h_x
     ) )
 }
-
-auction__input_data_consistency <- function(res, dat, colName_price, colName_num) {
-  # Goal: Make sure the input data has required columns
-
-  if (mode(dat) == "list" && is.character(colName_price) && is.character(colName_num)) {
-    # Get list of required column names
-    colList_req = c(colName_price, colName_num)
-
-    # Get list of column names
-    if (is.data.frame(dat)) {
-      colList = colnames(dat)
-    } else {
-      colList = names(dat)
-    }
-
-    # Make sure we aren't missing the required columns
-    listMissingColName = c()
-    for (reqCol in colList_req) {
-      if ( ! reqCol %in% colList ) {
-        listMissingColName = c(listMissingColName, reqCol)
-      }
-    }
-
-    if ( length(listMissingColName) > 0 ) {
-      res['err_code'] = 2
-      res['err_msg'] = paste0("Unable to find the following columns within input data: ",
-                              paste(listMissingColName, collapse=','))
-      auction__gen_err_msg(res)
-    }
-  } else {
-    res['err_code'] = 2
-    res['err_msg'] = "Invalid input for 'dat' and/or associated column names"
-  }
-  if (res['err_code'] != 0) {
-    auction__gen_err_msg(res)
-  }
-  return(res)
-}
-
-auction__conv__init_pos <- function(res, dat, x0, func_list__unobs_distrib) {
-  # Goal: Validate structure or entries within x0
-  #           x0 is the initial guess or initial position for
-  #           the numerical solver
-  #             -> optim()
-
-  # Check if user-supplied 'x0' is valid
-  #     Length of x0 must be 2+1+ # of Xs
-  #     Width of dat must be 2 + # of Xs
-  #
-  #   First need to know how many X parameters are within data
-  if (is.data.frame(dat)) {
-    nParams_dat = dim(dat)[2]
-  } else {
-    # Expected to be list, with each key-value pairing potentially having more than 1 column
-    #   e.g. either "x1", "x2", ... or "x_terms"
-    nParams_dat = 0
-    for (colName in names(dat)) {
-      nCol = dim(dat[[colName]])[2]
-      if (is.null(nCol)) {
-        nCol = 1
-      }
-      nParams_dat = nParams_dat + nCol
-    }
-  }
-  nX_dat = nParams_dat - 2
-
-  #   Now check if x0 is valid
-  if (! is.null(x0)) {
-    if (is.numeric(x0)) {
-      nParams_x0 = length(x0)
-    } else if (is.list(x0)) {
-      nParams_x0 = 0
-      for (colName in names(x0)) {
-        nCol = dim(x0[[colName]])[2]
-        if (is.null(nCol)) {
-          nCol = 1
-        }
-        nParams_x0 = nParams_x0 + nCol
-      }
-    } else {
-      res['err_code'] = 2
-      res['err_msg'] = "Invalid input for 'initial_guess' | Must be numeric vector or list"
-      auction__gen_err_msg(res)
-    }
-
-    nX_x0 = nParams_x0 - 3
-    if (nX_x0 < nX_dat) {
-      res['err_code'] = 2
-      res['err_msg'] = "Invalid input for 'initial_guess' | Too few parameters given"
-      auction__gen_err_msg(res)
-    }
-  } else {
-    # No initial guess given, generate
-    x0 = auction__conv__init_pos__gen(nParams_dat=nParams_dat)
-  }
-
-  return(x0)
-}
 auction__conv__init_pos__gen <- function(nParams_dat) {
   # Goal: Generate x0
   #           x0 is the initial guess or initial position for
@@ -1161,101 +967,7 @@ auction__conv__init_pos__gen <- function(nParams_dat) {
     ) )
 }
 
-auction__conv__control_params__set <- function(res, x0) {
-  # Define convergence criteria
-  #  Max iterations
-  #  Step-size of parameters that may be adjusted
-
-  # define maxit
-  max_iterations = 2000
-
-  # ready to define step sizes
-  #   x0 step size list should be of the form
-  #       c( [pv_weibull_mu] , [pv_weibull_a] , [unobs_dist_param] , [h_x 1] , [h_x 2] , ... )
-  #   get indices and step sizes
-  listIdx = auction__x0_indices()
-  listStep = auction__x0_stepsizes()
-  #   get number of parameters in input x0 and number of X terms
-  if (is.numeric(x0)) {
-    # get number of parameters in input x0
-    nParam = length(x0)
-    # get number of X terms
-    #   X terms are always in the last positions of the numeric vector x0
-    nParam_X = length(x0) - listIdx$x_terms__start + 1
-  } else if (is.list(x0)) {
-    nParam = 0
-    nParam_X = 0
-    for ( x0_key in names(x0) ) {
-      nParam = nParam + length(x0[[x0_key]])
-      if (length(grep('x_term', x0_key))>=1) {
-        nParam_X = nParam_X + length(x0[[x0_key]])
-      }
-    }
-    if (nParam_X == 0) {
-      res['err_code'] = 2
-      res['err_msg'] = "Unexpected error, x0 is list but no X terms found"
-      auction__gen_err_msg(res)
-    }
-  } else {
-    res['err_code'] = 2
-    res['err_msg'] = "Unexpected error, x0 is niether numeric vector nor list"
-    auction__gen_err_msg(res)
-  }
-  # build vector containg step sizes for just X terms
-  x0_steps__x_terms = c(listStep$x_terms__start, rep(listStep$x_terms__other, nParam_X-1))
-  # initialize vector to contain all step sizes
-  x0_steps = rep(-1, nParam)
-  # fill vector with all step sizes
-  if (is.numeric(x0)) {
-    # We assume x0 holds the correct parameters and is in the correct ordering,
-    #     c( [pv_weibull_mu] , [pv_weibull_a] , [unobs_dist_param] , [h_x 1] , [h_x 2] , ... )
-    x0_steps[listIdx$pv_weibull_mu] = listStep$pv_weibull_mu
-    x0_steps[listIdx$pv_weibull_a] = listStep$pv_weibull_a
-
-    x0_steps[listIdx$unobs_dist_param] = listStep$unobs_dist_param
-
-    x0_steps[listIdx$x_terms__start:(listIdx$x_terms__start + nParam_X - 1)] = x0_steps__x_terms
-
-  } else if (is.list(x0)) {
-
-    for ( x0_key in names(x0) ) {
-
-      if (length(grep('unobs', x0_key))>=1) {
-        x0_steps[listIdx$unobs_dist_param] = listStep$unobs_dist_param
-      } else if (length(grep('weibull', x0_key))>=1) {
-        if (length(grep('_mu', x0_key))==1) {
-          x0_steps[listIdx$pv_weibull_mu] = listStep$pv_weibull_mu
-        } else if (length(grep('_a', x0_key))>=1) {
-          x0_steps[listIdx$pv_weibull_a] = listStep$pv_weibull_a
-        }
-      } else if (length(grep('x_term', x0_key))>=1) {
-        x0_steps[listIdx$x_terms__start:(listIdx$x_terms__start + nParam_X - 1)] = x0_steps__x_terms
-      }
-
-    }
-
-  }
-
-  if (any(x0_steps == -1)) {
-    res['err_code'] = 2
-    res['err_msg'] = "Unexpected error, x0_step has at least one -1 entry"
-    if (is.numeric(x0)) {
-      res['err_msg'] = paste(res['err_msg'], '| x0 is numeric')
-    } else {
-      res['err_msg'] = paste(res['err_msg'], '| x0 is list')
-    }
-    auction__gen_err_msg(res)
-  }
-  return( list(
-    maxit = max_iterations,
-    parscale = x0_steps
-  ) )
-}
-
-
-
-
-conv_params = auction__conv__get_params <- function(func__unobs_distrib, initial_guess, max_iterations = 2000) {
+auction__conv__get_params <- function(func__unobs_distrib, initial_guess, max_iterations = 2000) {
   # Define convergence criteria
   #  Max iterations
   #  Step-size of parameters that may be adjusted
@@ -1315,244 +1027,6 @@ conv_params = auction__conv__get_params <- function(func__unobs_distrib, initial
 }
 
 
-
-
-
-auction__conv__initial_guess__set <- function(res, x0) {
-  # x0 must be of the form
-  #   c( [pv_weibull_mu] , [pv_weibull_a] , [unobs_dist_param] , [h_x 1] , [h_x 2] , ... )
-  if (is.numeric(x0)) {
-    # Assumed correct
-    return(x0)
-  } else if (is.list(x0)) {
-    # Must convert to vector
-    #   Define indices
-    listIdx = auction__x0_indices()
-    #   Initialize values to NULL
-    val__pv_weibull_mu = NULL
-    val__pv_weibull_a = NULL
-    val__unobs_dist_param =NULL
-    val__x_terms = NULL
-
-    #   Initialize vector
-    #     Find length
-    nParam = 0
-    for ( x0_key in names(x0) ) {
-      nParam = nParam + length(x0[[x0_key]])
-    }
-    #     Initialize to -1
-    x0_vec = rep(-1, nParam)
-    #   Fill vector
-    for ( x0_key in names(x0) ) {
-
-      if (length(grep('unobs', x0_key))>=1) {
-
-        if (is.null(val__unobs_dist_param)) {
-          val__unobs_dist_param = x0[[x0_key]]
-          x0_vec[listIdx$unobs_dist_param] = x0[[x0_key]]
-        } else {
-          res['err_code'] = 2
-          res['err_msg'] = "Unexpected error, x0 contains multiple parameters for unobserved distrib function"
-        }
-
-      } else if ((length(grep('weibull', x0_key))>=1) && (length(grep('_mu', x0_key))==1)) {
-
-          if (is.null(val__pv_weibull_mu)) {
-            val__pv_weibull_mu = x0[[x0_key]]
-            x0_vec[listIdx$pv_weibull_mu] = x0[[x0_key]]
-          } else {
-            res['err_code'] = 2
-            res['err_msg'] = "Unexpected error, x0 contains multiple 'mu' parameters for private-value distrib function"
-          }
-
-      } else if ((length(grep('weibull', x0_key))>=1) && (length(grep('_a', x0_key))==1)) {
-
-        if (is.null(val__pv_weibull_a)) {
-          val__pv_weibull_a = x0[[x0_key]]
-          x0_vec[listIdx$pv_weibull_a] = x0[[x0_key]]
-        } else {
-          res['err_code'] = 2
-          res['err_msg'] = "Unexpected error, x0 contains multiple 'a' parameters for private-value distrib function"
-        }
-
-      } else if (length(grep('x_term', x0_key))>=1) {
-
-        if (is.null(val__x_terms)) {
-          val__x_terms = x0[[x0_key]]
-
-          nParam_X = length(x0[[x0_key]])
-          x0_vec[listIdx$x_terms__start:(listIdx$x_terms__start+nParam_X-1)] = x0[[x0_key]]
-
-        } else {
-          res['err_code'] = 2
-          res['err_msg'] = "Unexpected error, x0 contains multiple 'X' parameters"
-        }
-
-      } else {
-        res['err_code'] = 2
-        res['err_msg'] = "Unexpected error, x0 contains unknown parameters"
-      }
-
-    }
-
-    if (res['err_code'] != 0) {
-      auction__gen_err_msg(res)
-    } else if (
-      is.null(val__pv_weibull_mu) || is.null(val__pv_weibull_a) || is.null(val__unobs_dist_param) || is.null(val__x_terms)
-      ) {
-      res['err_code'] = 2
-      res['err_msg'] = "Unexpected error, x0 is list() and missing parameters"
-      auction__gen_err_msg(res)
-    } else {
-      return(x0_vec)
-    }
-
-  } else {
-    res['err_code'] = 2
-    res['err_msg'] = "Unexpected error, x0 is niether numeric vector nor list"
-    auction__gen_err_msg(res)
-  }
-}
-
-
-auction__check_input__func_list__unobs_distrib <- function(func_list, res) {
-  # Goal: Check parameters related to the unobserved heterogeneity
-
-  sInputVar = "'func_list__unobs_distrib'"
-
-  if (is.null(func_list)) {
-    func_list = list(dlnorm=NULL)
-  }
-
-  if (! is.list(func_list) || length(func_list) == 0) {
-    res['err_code'] = 2
-    res['err_msg'] = paste("Invalid input for", sInputVar, '| Must be NULL or list() as per documentation')
-    # res['err_msg'] = "Invalid input for 'pdf_list' | Must be NULL for default PDF or list as per documentation"
-
-  } else {
-    func_list2 = func_list
-
-    # Get list of valid PDFs
-    func_list__valid = auction__valid_opt__func_list()
-
-    # Remove PDFs that are not valid
-    func_list2 = func_list2[names(func_list2) %in% names(func_list__valid)]
-
-    if (length(func_list2)==0) {
-      res['err_code'] = 2
-      res['err_msg'] = paste("Invalid probability distribution functions selected for", sInputVar)
-      # res['err_msg'] = "Invalid PDFs specified for 'pdf_list'"
-    } else {
-
-      # Check to see if parameter requirements are met
-      for (funcName in names(func_list2)) {
-        I_valid = TRUE
-
-        curFunc = func_list2[[as.character(funcName)]]
-
-        # Remove parameters that are not valid
-        if (is.list(curFunc)) {
-          # Remove by parameter name
-          curFunc = curFunc[names(curFunc) %in% names(func_list__valid[[as.character(funcName)]])]
-
-          if (length(names(curFunc)) != 0){
-            # Remove by parameter datatype
-            for (paramName in names(curFunc)) {
-              # Get parameter value being tested
-              paramVal = curFunc[[as.character(paramName)]]
-              #   If NULL, then remove
-              #   Otherwise, if not boolean nor numeric, then wrap in quotes
-              if (is.null(paramVal)) {
-                # Remove and continue
-                curFunc = curFunc[names(curFunc) != paramName]
-                next
-              } else if ((! is.logical(paramVal)) && (! is.numeric(paramVal))) {
-                # Wrap in quotes
-                paramVal = paste("'", paramVal, "'", sep="")
-              }
-              # Get required parameter data type
-              paramReqType = func_list__valid[[as.character(funcName)]][[as.character(paramName)]][['type']]
-
-              # Check
-              checkStr = paste("is.", paramReqType, "(", paramVal, ")", sep="")
-              I_check = eval(parse(text=checkStr))
-
-              if (! I_check) {
-                # Remove
-                curFunc = curFunc[names(curFunc) != paramName]
-              }
-
-            }
-          }
-        }
-
-        # Check for required parameters
-        #   curPDF or length(curPDF)==0 is okay if no required parameters
-        if (is.null(curFunc) || (is.list(curFunc))) {
-          # Look for requirements
-          req_list = c()
-          validFunc = func_list__valid[[as.character(funcName)]]
-          if (is.list(validFunc) && length(validFunc) > 0) {
-            for (paramName in names(validFunc)) {
-
-              if (validFunc[[as.character(paramName)]][['req']]) {
-                req_list = c(req_list, paramName)
-              }
-
-            }
-          }
-
-          # Check to see if requirements are met
-          if (length(req_list) > 0) {
-            if (is.null(curFunc) || (length(names(curFunc))==0)) {
-              I_valid = FALSE
-            } else {
-
-              I_req = reqList %in% names(curFunc)
-              if (! all(I_req)) {
-                I_valid = FALSE
-                print(paste(
-                  "Ignoring probability distribution function '", funcName, "' because missing required parameters: ",
-                  paste(reqList[! I_req], collapse=','), sep = ""
-                ))
-              }
-
-            }
-          }
-
-        } else {
-          I_valid = FALSE
-        }
-
-        if (! I_valid) {
-          func_list2 = func_list2[names(func_list2) != funcName]
-        } else {
-          if (length(names(curFunc))==0) {
-            curFunc = list(NULL)
-          }
-
-          func_list2[[as.character(funcName)]] = curFunc
-
-        }
-      }
-
-      if (length(func_list2)==0) {
-        res['err_code'] = 2
-        res['err_msg'] = paste('Invalid input for', sInputVar, '| No valid distribution function or missing required parameter(s)')
-      }
-
-    }
-
-    func_list = func_list2
-  }
-
-  if (res['err_code'] != 0) {
-    auction__gen_err_msg(res)
-  }
-  return(list(res=res,func_list=func_list))
-}
-
-
 auction__valid_opt__func_list <- function() {
   # Goal: Provide list of functions and associated parameters that are accepted for representing
   #       unobserved heterogenity
@@ -1577,25 +1051,6 @@ auction__valid_opt__func_list <- function() {
   ))
 }
 
-
-
-auction__unobs_dist__paramName <- function(func__prob_distrib) {
-  if (! is.list(func__prob_distrib$argList) || length(names(func__prob_distrib$argList))==0) {
-    if (func__prob_distrib$funcName == 'dgamma') {
-      paramName = 'rate'
-    } else if (func__prob_distrib$funcName == 'dlnorm') {
-      paramName = 'sdlog'
-    } else if (func__prob_distrib$funcName == 'dweibull') {
-      paramName = 'shape'
-    } else {
-      paramName = NaN
-    }
-  } else {
-    paramName = names(func__prob_distrib$argList)[1]
-  }
-  return(paramName)
-}
-
 auction__unobs_dist__ctrl_param__default <- function(funcName){
   if (funcName == 'dgamma') {
     paramName = 'rate'
@@ -1608,44 +1063,15 @@ auction__unobs_dist__ctrl_param__default <- function(funcName){
   }
 }
 
-
-
 auction__unobs_dist__exp_val_1 <- function(func__prob_distrib, paramVal) {
   # Goal: Update parameters within 'func__prob_distrib' to ensure
   #       E(X)=1 for the probability distribution representing
   #       unobserved heterogeneity
 
-  # print("auction__unobs_dist__exp_val_1")
-  # print(func__prob_distrib)
-  # print(paramVal)
-
-
-  # # Get name of parameter that we are focusing on
-  # paramName = auction__unobs_dist__paramName(func__prob_distrib=func__prob_distrib)
-  #
-  # # Check if we are to hold constant the value of the parameter we are focusing on,
-  # #   Afterwards, calculate value for other parameter to get E(x) = 1
-  # # if (! is.null( names(func__prob_distrib$argList) )) {
-  # if (length(func__prob_distrib$argList) >0) {
-  #   # Is the value being held constant?
-  #   if (!is.null(func__prob_distrib$argList[[paramName]]) &&
-  #       is.numeric(func__prob_distrib$argList[[paramName]]) &&
-  #       !is.nan(func__prob_distrib$argList[[paramName]])) {
-  #     paramVal = func__prob_distrib$argList[[paramName]]
-  #   }
-  # }
-  #
-  # print(paramName)
-  # print(func__prob_distrib$argList[[paramName]])
-
   paramName = func__prob_distrib$argName_ctrl
   if (func__prob_distrib$I_unobs__const) {
     paramVal = func__prob_distrib$argList[[paramName]]
   }
-  # print(func__prob_distrib)
-  # print(paramName)
-
-
 
   # Ready to calculate value for other parameter
   if (func__prob_distrib$funcName == 'dgamma') {
@@ -1729,16 +1155,9 @@ auction__unobs_dist__std <- function(func__prob_distrib) {
   return(unobs_std)
 }
 
-
 auction__unobs_dist__exp_val_1__lognorm <- function(param_meanlog = NULL, param_sdlog = NULL) {
   # Given either meanlog or sdlog, set the other such that E(x) = 1
   #   E(x) = exp(mu) * exp(1/2 * s ^ 2)
-
-  # print("auction__unobs_dist__exp_val_1__lognorm")
-  # print("param_meanlog")
-  # print(param_meanlog)
-  # print("param_sdlog")
-  # print(param_sdlog)
 
   if (is.null(param_meanlog) || is.nan(param_meanlog)) {
     param_meanlog = -1/2 * param_sdlog ^ 2
@@ -1753,14 +1172,11 @@ auction__unobs_dist__exp_val_1__lognorm <- function(param_meanlog = NULL, param_
     param_sdlog = param_sdlog
   ) )
 }
-
 auction__unobs_dist__std__lognorm <- function(param_meanlog, param_sdlog) {
   # Given meanlog and sdlog, calculate standard deviation of the unobserved heterogeneity
   #   var(x) = ( exp(s ^ 2) - 1 ) * exp(2 * mu + s ^ 2)
   return(sqrt( ( exp(param_sdlog ^ 2) - 1 ) * exp(2 * param_meanlog + param_sdlog ^ 2) ))
 }
-
-
 auction__unobs_dist__exp_val_1__weibull <- function(param_scale = NULL, param_shape = NULL) {
   # Given either scale or shape, set the other such that E(x) = 1
   #   E(x) = scale * GAMMA(1 + 1 / shape)
@@ -1777,7 +1193,6 @@ auction__unobs_dist__exp_val_1__weibull <- function(param_scale = NULL, param_sh
     param_shape = param_shape
   ) )
 }
-
 auction__unobs_dist__std__weibull <- function(param_scale, param_shape) {
   # Given scale and shape, calculate standard deviation of the unobserved heterogeneity
   #   var(x) = scale ^ 2 * (   GAMMA(1+ 2 / shape)   -   ( gamma(1 + 1 / shape) ) ^ 2    )
@@ -1785,8 +1200,6 @@ auction__unobs_dist__std__weibull <- function(param_scale, param_shape) {
     param_scale ^ 2 * ( gamma(1 + 2 / param_shape) - (gamma(1 + 1 / param_shape)) ^ 2 )
   ))
 }
-
-
 auction__unobs_dist__exp_val_1__gamma <- function(param_rate = NULL, param_shape = NULL) {
   # Given either rate or shape, set the other such that E(x) = 1
   #   E(x) = shape / rate
@@ -1801,7 +1214,6 @@ auction__unobs_dist__exp_val_1__gamma <- function(param_rate = NULL, param_shape
     param_shape = param_shape
   ) )
 }
-
 auction__unobs_dist__std__gamma <- function(param_rate, param_shape) {
   # Given rate and shape, calculate standard deviation of the unobserved heterogeneity
   #   var(x) = shape / (rate ^ 2)
@@ -1810,27 +1222,25 @@ auction__unobs_dist__std__gamma <- function(param_rate, param_shape) {
 
 
 
-
-
-
-
 f__ll_parallel__v3 = function(x0, dat_price, dat_num, dat_X, func__prob_distrib, cl){
   # From iteration to iteration, only x0 is changing
 
-  # Is the parameter for unobserved heterogeneity held constant?
-  I_unobs__const = func__prob_distrib$I_unobs__const
-  #   Get appropriate list of indices for x0
-  if (I_unobs__const) {
+
+  # Get appropriate list of indices for x0
+  #   Is the parameter for unobserved heterogeneity held constant?
+  if (func__prob_distrib$I_unobs__const) {
     listIdx = auction__x0_indices__without_unobs_distrib()
+    unobs_paramVal = func__prob_distrib$argList[[func__prob_distrib$argName_ctrl]]
   } else {
     listIdx = auction__x0_indices()
+    unobs_paramVal = x0[listIdx$unobs_dist_param]
   }
 
 
   h = x0[listIdx$x_terms__start:(listIdx$x_terms__start+dim(dat_X)[2]-1)]
   v__h = exp( colSums( h * t(dat_X) ) )
 
-  if (! I_unobs__const && x0[listIdx$unobs_dist_param] <= 0.1) {
+  if (! func__prob_distrib$I_unobs__const && x0[listIdx$unobs_dist_param] <= 0.1) {
     return(-Inf) # Check that these hold at estimated values
   } else if ( sum (x0[listIdx$pv_weibull_mu] <= 0 ) > 0 ) {
     return(-Inf)
@@ -1844,15 +1254,9 @@ f__ll_parallel__v3 = function(x0, dat_price, dat_num, dat_X, func__prob_distrib,
     dat = cbind(v__w, dat_num, x0[listIdx$pv_weibull_mu], x0[listIdx$pv_weibull_a], v__gamma_1p1opa)
 
     # Set E(X) = 1 for UnObserved distribution
-    if (I_unobs__const) {
-      paramVal = func__prob_distrib$argList[[func__prob_distrib$argName_ctrl]]
-    } else {
-      paramVal = x0[listIdx$unobs_dist_param]
-    }
-
     func__prob_distrib = auction__unobs_dist__exp_val_1(
       func__prob_distrib=func__prob_distrib,
-      paramVal=paramVal )
+      paramVal=unobs_paramVal )
 
     # Run
     v__f_w = parApply(cl = cl,
@@ -1906,8 +1310,6 @@ vf__w_integrand_z_fast__v3 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa
   vals[exp(-num_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
   return(vals)
 }
-
-
 f__bid_function_fast__v3 = function(price, num_bids, mu, alpha, gamma_1p1oa){
 
   if (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha) == 0) {
@@ -1921,13 +1323,7 @@ f__bid_function_fast__v3 = function(price, num_bids, mu, alpha, gamma_1p1oa){
     1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha)
   # Check gamma(1/alpha) part
 }
-
 vf__bid_function_fast__v3 = Vectorize(FUN = f__bid_function_fast__v3,vectorize.args = "price")
-
-
-
-
-
 
 
 auction__x0_indices <- function() {
