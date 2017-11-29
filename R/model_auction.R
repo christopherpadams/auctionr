@@ -1360,6 +1360,8 @@ auction__x0_stepsizes__without_unobs_distrib <- function() {
 }
 
 
+### CODE START
+
 listInputPDF = list(dlnorm=list()) # working
 listInputPDF = list(dweibull=list()) # working
 listInputPDF = list(dgamma=list()) # working
