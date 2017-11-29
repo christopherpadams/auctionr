@@ -106,6 +106,7 @@ auction_v2 <- function(dat = NULL,
                                     cl=cl)
 
     print(paste("End of run |", sFuncName))
+    print(run_result[[sFuncName]])
   }
   # Release resources
   stopCluster(cl)
@@ -1362,21 +1363,68 @@ auction__x0_stepsizes__without_unobs_distrib <- function() {
 
 ### CODE START
 
+# log norm distribution
 listInputPDF = list(dlnorm=list()) # working
-listInputPDF = list(dweibull=list()) # working
-listInputPDF = list(dgamma=list()) # working
-listInputPDF = NULL # working
-listInputPDF = list(dlnorm=list(argList=list(meanlog=2)), dfake=list()) # working
-listInputPDF = list(dlnorm=list(argList=list(sdlog=2))) # working
-listInputPDF = list(dlnorm=list(), dweibull=list()) # working
-
-
 auction_v2(dat = auction__generate_data(10),
            winning_bid = 'price',
            number_of_bids = 'num',
-           num_cores = 2,
-           func_list__unobs_distrib = listInputPDF
-           )
+           num_cores = 3,
+           func_list__unobs_distrib = listInputPDF)
+
+#listInputPDF = lidlnorm=list()) # working
+auction_v2(dat = auction__generate_data(10),
+           winning_bid = 'price',
+           number_of_bids = 'num',
+           num_cores = 3,
+           func_list__unobs_distrib = "dlnorm")
+
+# Weibull distribution
+listInputPDF = list(dweibull=list()) # working
+auction_v2(dat = auction__generate_data(10),
+           winning_bid = 'price',
+           number_of_bids = 'num',
+           num_cores = 3,
+           func_list__unobs_distrib = listInputPDF)
+
+# Gamma distribution
+listInputPDF = list(dgamma=list()) # working
+auction_v2(dat = auction__generate_data(10),
+           winning_bid = 'price',
+           number_of_bids = 'num',
+           num_cores = 3,
+           func_list__unobs_distrib = listInputPDF)
+
+# what happens if none specified?
+listInputPDF = NULL # working
+auction_v2(dat = auction__generate_data(10),
+           winning_bid = 'price',
+           number_of_bids = 'num',
+           num_cores = 3,
+           func_list__unobs_distrib = listInputPDF)
+
+# or what ahppens if wrong parameters specified?
+listInputPDF = list(dlnorm=list(argList=list(meanlog=2)), dfake=list()) # working
+auction_v2(dat = auction__generate_data(10),
+           winning_bid = 'price',
+           number_of_bids = 'num',
+           num_cores = 3,
+           func_list__unobs_distrib = listInputPDF)
+
+# Lognorm again with fixed distribution of unobserved
+listInputPDF = list(dlnorm=list(argList=list(sdlog=2))) # working
+auction_v2(dat = auction__generate_data(10),
+           winning_bid = 'price',
+           number_of_bids = 'num',
+           num_cores = 3,
+           func_list__unobs_distrib = listInputPDF)
+
+# run with multiple distributions requested
+listInputPDF = list(dlnorm=list(), dweibull=list()) # working
+auction_v2(dat = auction__generate_data(10),
+           winning_bid = 'price',
+           number_of_bids = 'num',
+           num_cores = 3,
+           func_list__unobs_distrib = listInputPDF)
 
 
 
