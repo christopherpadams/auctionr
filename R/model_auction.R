@@ -101,174 +101,6 @@ auction_v3 <- function(dat = NULL,
   res = auction_v3__output_org(run_result)
   return(res)
 }
-auction_v2 <- function(dat = NULL,
-                       winning_bid = NULL,
-                       number_of_bids = NULL,
-                       initial_guess = NULL,
-                       num_cores = NULL,
-                       func_list__unobs_distrib = NULL
-                       ) {
-  #
-  #
-  #   winning_bid
-  #     column name within dat that represents price or winning bid
-  #
-  #   number_of_bids
-  #     column name within dat that represents number of bids
-
-
-  # Initialize environment
-  #   Initialize
-  res = auction__init_env(num_cores=num_cores)
-  #   Unpack 'res'
-  num_cores = res$num_cores
-  res = res$res
-
-  # Validate that data, winning_bid and number_of_bids all match
-  res = auction__input_data_consistency(res=res,
-                                        dat=dat,
-                                        colName_price=winning_bid,
-                                        colName_num=number_of_bids)
-
-  # Check consistency of initial guess and distribution information for unobserved heterogeneity
-  res = auction__check_input__unobs_distrib_AND_initial_guess(func_list=func_list__unobs_distrib,
-                                                              initial_guess=initial_guess,
-                                                              dat=dat,
-                                                              res=res)
-  #     unpack results
-  func_list__unobs_distrib = res$func_list
-  initial_guess = res$initial_guess
-  res = res$res
-
-  # Set up parallelization
-  cl = makeCluster(num_cores)
-  clusterExport(cl,varlist=c("vf__bid_function_fast__v3",
-                             "vf__w_integrand_z_fast__v3",
-                             "f__funk__v3"))
-  # Run
-  run_result = list()
-  for (funcName in names(func_list__unobs_distrib)) {
-    sFuncName = as.character(funcName)
-
-    # Initialize results
-    run_result[[sFuncName]] = NULL
-
-    # Prepare inputs
-    #   unobserved heterogeneity distribution
-    func__unobs_distrib = func_list__unobs_distrib[[sFuncName]]
-
-    #   initial guess, step sizes, max iterations
-    conv_params = auction__conv__get_params(
-      func__unobs_distrib=func_list__unobs_distrib[[sFuncName]],
-      initial_guess=initial_guess )
-    #     unpack
-    I_unobs__const = conv_params$I_unobs__const
-    x0 = conv_params$initial_guess
-    conv_ctrl = conv_params$conv_ctrl
-
-    #   set I_unobs__const
-    func__unobs_distrib$I_unobs__const = I_unobs__const
-    func_list__unobs_distrib[[sFuncName]]$I_unobs__const = I_unobs__const
-
-    # Run
-    print(paste("Running |", sFuncName))
-
-    run_result[[sFuncName]] = optim(par=x0,
-                                    fn=f__ll_parallel__v3,
-                                    control=conv_ctrl,
-                                    dat_price=dat[[winning_bid]],
-                                    dat_num=dat[[number_of_bids]],
-                                    dat_X=dat[['x_terms']],
-                                    func__prob_distrib=func__unobs_distrib,
-                                    cl=cl)
-
-    print(paste("End of run |", sFuncName))
-    print(run_result[[sFuncName]])
-  }
-  # Release resources
-  stopCluster(cl)
-  # Inspect result
-  res$result = auction__output_org(run_result=run_result, func_list__unobs_distrib=func_list__unobs_distrib)
-  # Return result
-  return(res)
-}
-
-auction__output_org <- function(run_result, func_list__unobs_distrib) {
-
-  # Get standard deviations of the unobserved heterogeneity
-  run_result__raw = list()
-  run_result__df = list()
-  for (funcName in names(run_result)) {
-    sFuncName = as.character(funcName)
-
-    # What was the parameter being changed?
-    paramName = func_list__unobs_distrib[[sFuncName]]$argName_ctrl
-    # What was its final value?
-    if (func_list__unobs_distrib[[sFuncName]]$I_unobs__const) {
-      paramVal = func_list__unobs_distrib[[sFuncName]]$argList[[paramName]]
-    } else {
-      listIdx = auction__x0_indices()
-      paramVal = run_result[[sFuncName]]$par[listIdx$unobs_dist_param]
-    }
-
-    # Use auction__unobs_dist__exp_val_1() to get other parameter plus its value
-    func__prob_distrib = auction__unobs_dist__exp_val_1(func__prob_distrib = func_list__unobs_distrib[[sFuncName]],
-                                                        paramVal = paramVal)
-
-    # Get standard deviation of unobserved heterogeneity
-    unobs_std = auction__unobs_dist__std(func__prob_distrib = func__prob_distrib)
-
-    # Build output list
-    run_result__raw[[sFuncName]] = list()
-    run_result__raw[[sFuncName]]$invLogLikelyhood = run_result[[sFuncName]]$value
-    run_result__raw[[sFuncName]]$funcName = func__prob_distrib$funcName
-    run_result__raw[[sFuncName]]$argList = func__prob_distrib$argList
-    run_result__raw[[sFuncName]]$argName_ctrl = func__prob_distrib$argName_ctrl
-    run_result__raw[[sFuncName]]$I_unobs__const = func__prob_distrib$I_unobs__const
-    run_result__raw[[sFuncName]]$std = unobs_std
-
-    # Build dataframe result to organize by StdDev
-    run_result__df[[sFuncName]] = run_result__raw[[sFuncName]]
-    #   Remove parameters which are lists themselves
-    run_result__df[[sFuncName]]$argList = NULL
-    ##  (is.list() ) not working, try length()>1 ?
-    # for (argKey in names(run_result__df[[sFuncName]])) {
-    #   if (is.list( run_result__df[[sFuncName]][[as.character(argKey)]] )) {
-    #     run_result__df[[sFuncName]][[as.character(argKey)]] = NULL
-    #   }
-    # }
-
-  }
-  # Convert list to dataframe
-  run_result__df = do.call(rbind.data.frame, run_result__df)
-  # Sort by standard deviation
-  run_result__df = run_result__df[with(run_result__df, order(std)), ]
-  # Add distribution parameters back in
-  run_result__df['funcParam1'] = NaN
-  run_result__df['funcParam1_val'] = NaN
-  run_result__df['funcParam2'] = NaN
-  run_result__df['funcParam2_val'] = NaN
-  for (funcName in names(run_result)) {
-    sFuncName = as.character(funcName)
-
-    run_result__df[sFuncName, 'funcParam1'] = run_result__raw[[sFuncName]]$argName_ctrl
-
-    run_result__df[sFuncName, 'funcParam1_val'] = run_result__raw[[sFuncName]]$argList[[
-      run_result__raw[[sFuncName]]$argName_ctrl ]]
-
-    run_result__df[sFuncName, 'funcParam2'] = names(run_result__raw[[sFuncName]]$argList)[
-      ! names(run_result__raw[[sFuncName]]$argList) %in% run_result__df[sFuncName, 'funcParam1'] ]
-
-    run_result__df[sFuncName, 'funcParam2_val'] =
-      run_result__raw[[sFuncName]]$argList[[run_result__df[sFuncName, 'funcParam2']]]
-  }
-  # Re-org columns
-  #   [funcName, std, invLogLikelyhood, etc]
-  listColNames = c('funcName', 'std', 'invLogLikelyhood', 'argName_ctrl')
-  run_result__df = run_result__df[c(listColNames, colnames(run_result__df)[! colnames(run_result__df) %in% listColNames])]
-
-  return(run_result__df)
-}
 auction_v3__output_org <- function(run_result) {
 
   # Initialize dataframe
@@ -294,7 +126,6 @@ auction_v3__output_org <- function(run_result) {
   }
   return(df)
 }
-
 auction__generate_data <- function(obs = 200) {
   # For testing purposes, we will generate sample data
 
@@ -313,43 +144,16 @@ auction__generate_data <- function(obs = 200) {
   y = 10 - 0.5*n + x1 + x2 + e
 
   return( list(
-      price = y,
-      num = n,
-      x_terms = as.matrix( cbind( log(x1), log(x2) ) )
-    ) )
+    price = y,
+    num = n,
+    x_terms = as.matrix( cbind( log(x1), log(x2) ) )
+  ) )
 }
-
 auction__gen_err_msg <- function(res) {
   # Goal: Print out an error message and then stops execution of the main script
 
   errMsg = paste('\n\tError Code=', res['err_code'], '\n\tError msg=', res['err_msg'], sep='')
   stop(errMsg)
-}
-
-auction__init_env <- function (num_cores) {
-  # Goal:
-  #   - Prepare results/error handling
-  #   - Load all required packages, stop execution is any packages are missing
-  #   - Check number of cores requested
-  #   - Check parameters related to the unobserved heterogeneity
-
-  # Initialize output and error code + message
-  res = list(result = -1, err_code = 0, err_msg = "")
-
-  # Load required libraries
-  res = auction__load_packages_v2(res)
-
-  # Check the number of cores requested
-  #   result = list(res=res, num_cores=num_cores)
-  res = auction__check_input__num_cores__v2(res, num_cores)
-  #     unpack
-  num_cores = res$num_cores
-  res = res$res
-
-  return( list(
-    res = res,
-    num_cores = num_cores
-  ) )
 }
 auction_v3__init_env <- function(num_cores) {
   # Goal:
@@ -361,28 +165,6 @@ auction_v3__init_env <- function(num_cores) {
   # Check number of cores requested
   num_cores = auction_v3__check__num_cores(num_cores = num_cores)
   return(num_cores)
-}
-auction__load_packages_v2 <- function (res) {
-  # Goal: Load all required packages, stop execution if any are missing
-
-  # Which packages are required?
-  listRequiredPackages = c('parallel')
-  # Try to load each required package, record which ones fail to load
-  listMissingPackages = c()
-  for (reqPkg in listRequiredPackages) {
-    if ( ! require(reqPkg, character.only=TRUE)) {
-      listMissingPackages = c(listMissingPackages, reqPkg)
-    }
-  }
-  # Report which packages failed to load, if any
-  if ( length(listMissingPackages) > 0 ) {
-    res['err_code'] = 1
-    res['err_msg'] = paste0("Unable to load the following packages: ",
-                            paste(listMissingPackages, collapse=','))
-
-    auction__gen_err_msg(res)
-  }
-  return(res)
 }
 auction_v3__load_packages <- function () {
   # Goal: Load all required packages, stop execution if any are missing
@@ -405,39 +187,6 @@ auction_v3__load_packages <- function () {
 
     auction__gen_err_msg(res)
   }
-  return(res)
-}
-auction__check_input__num_cores__v2 <- function(res, num_cores) {
-  # Goal: Check number of cores requested
-
-  # If no # workers requested, then set to 1
-  if (is.null(num_cores)) {
-    print(paste0("Setting number of cores to 1"))
-    num_cores = 1
-  }
-  # Check if valid input received
-  if (
-        ( ! is.numeric(num_cores) ) ||
-        ( num_cores%%1 != 0) ||
-        ( num_cores < 0 )
-    ) {
-    res['err_code'] = 2
-    res['err_msg'] = "Invalid input for 'num_cores' | Must be natural number"
-    auction__gen_err_msg(res)
-  } else {
-    # Check cores available
-    num_cores__avail = detectCores()
-    if ( num_cores > num_cores__avail ) {
-      print(paste0("Warning: You have requested ", num_cores,
-                   " cores but only have ", num_cores__avail,
-                   " cores available"))
-
-      # Adjust number of workers we will request
-      num_cores = num_cores__avail
-      print(paste0("\tSetting # parallel workers to", num_cores))
-    }
-  }
-  return(list(res=res, num_cores=num_cores))
 }
 auction_v3__check__num_cores <- function(num_cores) {
   # Goal: Check number of cores requested
@@ -491,44 +240,6 @@ auction_v3__check__common_distrib <- function(common_distributions) {
     auction__gen_err_msg(res)
   }
   return(common_distributions)
-}
-
-auction__input_data_consistency <- function(res, dat, colName_price, colName_num) {
-  # Goal: Make sure the input data has required columns
-
-  if (mode(dat) == "list" && is.character(colName_price) && is.character(colName_num)) {
-    # Get list of required column names
-    colList_req = c(colName_price, colName_num)
-
-    # Get list of column names
-    if (is.data.frame(dat)) {
-      colList = colnames(dat)
-    } else {
-      colList = names(dat)
-    }
-
-    # Make sure we aren't missing the required columns
-    listMissingColName = c()
-    for (reqCol in colList_req) {
-      if ( ! reqCol %in% colList ) {
-        listMissingColName = c(listMissingColName, reqCol)
-      }
-    }
-
-    if ( length(listMissingColName) > 0 ) {
-      res['err_code'] = 2
-      res['err_msg'] = paste0("Unable to find the following columns within input data: ",
-                              paste(listMissingColName, collapse=','))
-      auction__gen_err_msg(res)
-    }
-  } else {
-    res['err_code'] = 2
-    res['err_msg'] = "Invalid input for 'dat' and/or associated column names"
-  }
-  if (res['err_code'] != 0) {
-    auction__gen_err_msg(res)
-  }
-  return(res)
 }
 auction_v3__check_input_data <- function(dat, colName_price, colName_num) {
   # Goal: Make sure the input data has required columns
@@ -586,8 +297,6 @@ auction_v3__check_init_guess <- function(dat = dat,
   def_x = rep(0.5, nCol_X)
   #   Gather position indices
   idxList = auction__x0_indices()
-
-
 
 
 
@@ -689,7 +398,509 @@ auction_v3__get_unobs_params <- function(distrib_std_dev, id_distrib) {
   }
   return(listParam)
 }
+auction__get_distrib_params__lognorm <- function(distrib_std_dev) {
+  # Given std dev and E(X) = 1, calculate meanlog and sdlog
+  tmp = sqrt(log(1+distrib_std_dev^2))
+  return(list(sdlog=tmp, meanlog=-1/2*tmp))
+}
+auction__get_distrib_params__weibull <- function(distrib_std_dev, shape_prev = NULL) {
+  # Given std dev and E(X) = 1, calculate scale and shape
+  #   S^2 + 1 = GAMMA(1+2/shape) / [GAMMA(1+1/shape)]^2
+  #     need to numerically solve
+  #
+  # Define limitations
+  #   Std dev, S, must be positive
+  #   shape must be positive
+  #
+  # Prepare LUT
+  #   std dev = 0 -> shape = 127.6
+  #   std dev = 0.05 -> shape = 24.455
+  #   std dev = 0.1 -> shape - 12.090
+  #   std dev = 0.25 -> shape = 4.538
 
+
+
+
+  # if (is.null(shape_prev)) {
+  #   shape_prev = 1 # starting position for shape
+  # }
+  # tol = 0.0001
+  # max_iter = 10
+  #
+  # shape = shape_prev
+  # for (iter in 1:max_iter) {
+  #
+  #   res = gamma(1+2/shape) / gamma(1+1/shape)^2 - 1 - distrib_std_dev^2
+  #
+  #   shape_prev = shape
+  # }
+
+
+
+  print("Not ready to use Weibull")
+  res = list(result = -1, err_code = 1, err_msg = "Not ready to use Weibull")
+  auction__gen_err_msg(res)
+
+}
+auction__get_distrib_params__gamma <- function(distrib_std_dev) {
+  # Given std dev and E(X) = 1, calculate rate and shape
+  tmp = 1/distrib_std_dev^2
+  return(list(shape = tmp, rate = tmp))
+}
+
+auction__get_num_columns__dat <- function(dat) {
+  if (is.data.frame(dat)) {
+    nParams_dat = dim(dat)[2]
+  } else {
+    # Expected to be list, with each key-value pairing potentially having more than 1 column
+    #   e.g. either "x1", "x2", ... or "x_terms"
+    nParams_dat = 0
+    for (colName in names(dat)) {
+      nCol = dim(dat[[colName]])[2]
+      if (is.null(nCol)) {
+        nCol = 1
+      }
+      nParams_dat = nParams_dat + nCol
+    }
+  }
+  return(nParams_dat)
+}
+auction__x0_indices <- function() {
+  return( list(
+    pv_weibull_mu = 1,
+    pv_weibull_a = 2,
+    unobs_dist_param = 3,
+    x_terms__start = 4
+  ) )
+}
+
+f__ll_parallel__v4 = function(x0, dat_price, dat_num, dat_X, listFuncCall, cl){
+  # From iteration to iteration, only x0 is changing
+
+  # update } else if ( sum ( ... ) ) {
+
+  # Get position indices
+  listIdx = auction__x0_indices()
+
+  h = x0[listIdx$x_terms__start:(listIdx$x_terms__start+dim(dat_X)[2]-1)]
+  v__h = exp( colSums( h * t(dat_X) ) )
+
+  if (x0[listIdx$unobs_dist_param] <= 0.1) {
+    return(-Inf) # Check that these hold at estimated values
+  } else if ( sum (x0[listIdx$pv_weibull_mu] <= 0 ) > 0 ) {
+    return(-Inf)
+  } else if ( sum( x0[listIdx$pv_weibull_a] <= 0.01 ) > 0) {
+    return(-Inf)
+  } else {
+    # Y Component
+    v__gamma_1p1opa = gamma(1 + 1/x0[listIdx$pv_weibull_a])
+    v__w = dat_price / v__h
+
+    # Set E(X) = 1 for UnObserved distribution
+    listFuncCall$argList = auction_v3__get_unobs_params(
+      distrib_std_dev = x0[listIdx$unobs_dist_param],
+      id_distrib = listFuncCall$funcID)
+
+    # Run
+    v__f_w = parApply(cl = cl,
+                      X = cbind(v__w, dat_num, x0[listIdx$pv_weibull_mu], x0[listIdx$pv_weibull_a], v__gamma_1p1opa),
+                      MARGIN = 1,
+                      FUN = f__funk__v4,
+                      listFuncCall=listFuncCall
+    )
+
+    # Return output
+    ### print(paste("v__f_w", -sum(log(v__f_w / v__h))))
+    ### print(func__prob_distrib)
+    v__f_y = v__f_w / v__h
+    return(-sum(log(v__f_y)))
+  }
+}
+f__funk__v4 = function(data_vec, listFuncCall){
+  val = integrate(vf__w_integrand_z_fast__v4, w_bid=data_vec[1],
+                  num_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
+                  gamma_1p1oa=data_vec[5], listFuncCall=listFuncCall,
+                  lower=0, upper=Inf, abs.tol = 1e-10)
+  if(val$message != "OK")
+    stop("Integration failed.")
+  return(val$value)
+}
+vf__w_integrand_z_fast__v4 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, listFuncCall){
+
+  # Get "x"
+  b_z = vf__bid_function_fast__v4(price=z, num_bids=num_bids, mu=mu, alpha=alpha, gamma_1p1oa)
+  u_z = w_bid/b_z
+
+  # Add "x"
+  listFuncCall$argList$x = u_z
+
+  #Run
+  vals = num_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha-1)*
+    exp(-num_bids*(gamma_1p1oa/mu*z)^alpha)*
+    1/b_z*
+    do.call(
+      match.fun(listFuncCall$funcName),
+      listFuncCall$argList
+    )
+  ### dlnorm(u_z, meanlog=(-param_u^2*1/2), sdlog = param_u) # Note: can swap for different distributions
+
+  vals[(gamma_1p1oa/mu)^alpha == Inf] = 0
+  vals[exp(-num_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
+  return(vals)
+}
+f__bid_function_fast__v4 = function(price, num_bids, mu, alpha, gamma_1p1oa){
+
+  if (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha) == 0) {
+    return(price + mu/alpha*(num_bids-1)^(-1/alpha)*1/gamma_1p1oa*
+             ((num_bids-1)*(gamma_1p1oa/mu*price)^alpha)^(1/alpha-1))
+  }
+
+  price + 1/alpha*(mu/gamma_1p1oa)*(num_bids-1)^(-1/alpha)*
+    pgamma((num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha, 1/alpha, lower=FALSE)*
+    gamma(1/alpha)*
+    1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha)
+  # Check gamma(1/alpha) part
+}
+vf__bid_function_fast__v4 = Vectorize(FUN = f__bid_function_fast__v4,vectorize.args = "price")
+
+
+#############################
+# Test default distribution
+auction_v3(dat=auction__generate_data(obs=20), winning_bid = 'price', number_of_bids = 'num', num_cores = 3)
+
+# Test with two distributions
+res = auction_v3(common_distributions = c('dlnorm', 'dgamma'),
+                 dat=auction__generate_data(obs=100),
+                 winning_bid = 'price', number_of_bids = 'num',
+                 num_cores = 3)
+print(res)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+auction_v2 <- function(dat = NULL,
+                       winning_bid = NULL,
+                       number_of_bids = NULL,
+                       initial_guess = NULL,
+                       num_cores = NULL,
+                       func_list__unobs_distrib = NULL
+                       ) {
+  #
+  #
+  #   winning_bid
+  #     column name within dat that represents price or winning bid
+  #
+  #   number_of_bids
+  #     column name within dat that represents number of bids
+
+
+  # Initialize environment
+  #   Initialize
+  res = auction__init_env(num_cores=num_cores)
+  #   Unpack 'res'
+  num_cores = res$num_cores
+  res = res$res
+
+  # Validate that data, winning_bid and number_of_bids all match
+  res = auction__input_data_consistency(res=res,
+                                        dat=dat,
+                                        colName_price=winning_bid,
+                                        colName_num=number_of_bids)
+
+  # Check consistency of initial guess and distribution information for unobserved heterogeneity
+  res = auction__check_input__unobs_distrib_AND_initial_guess(func_list=func_list__unobs_distrib,
+                                                              initial_guess=initial_guess,
+                                                              dat=dat,
+                                                              res=res)
+  #     unpack results
+  func_list__unobs_distrib = res$func_list
+  initial_guess = res$initial_guess
+  res = res$res
+
+  # Set up parallelization
+  cl = makeCluster(num_cores)
+  clusterExport(cl,varlist=c("vf__bid_function_fast__v3",
+                             "vf__w_integrand_z_fast__v3",
+                             "f__funk__v3"))
+  # Run
+  run_result = list()
+  for (funcName in names(func_list__unobs_distrib)) {
+    sFuncName = as.character(funcName)
+
+    # Initialize results
+    run_result[[sFuncName]] = NULL
+
+    # Prepare inputs
+    #   unobserved heterogeneity distribution
+    func__unobs_distrib = func_list__unobs_distrib[[sFuncName]]
+
+    #   initial guess, step sizes, max iterations
+    conv_params = auction__conv__get_params(
+      func__unobs_distrib=func_list__unobs_distrib[[sFuncName]],
+      initial_guess=initial_guess )
+    #     unpack
+    I_unobs__const = conv_params$I_unobs__const
+    x0 = conv_params$initial_guess
+    conv_ctrl = conv_params$conv_ctrl
+
+    #   set I_unobs__const
+    func__unobs_distrib$I_unobs__const = I_unobs__const
+    func_list__unobs_distrib[[sFuncName]]$I_unobs__const = I_unobs__const
+
+    # Run
+    print(paste("Running |", sFuncName))
+
+    run_result[[sFuncName]] = optim(par=x0,
+                                    fn=f__ll_parallel__v3,
+                                    control=conv_ctrl,
+                                    dat_price=dat[[winning_bid]],
+                                    dat_num=dat[[number_of_bids]],
+                                    dat_X=dat[['x_terms']],
+                                    func__prob_distrib=func__unobs_distrib,
+                                    cl=cl)
+
+    print(paste("End of run |", sFuncName))
+    print(run_result[[sFuncName]])
+  }
+  # Release resources
+  stopCluster(cl)
+  # Inspect result
+  res$result = auction__output_org(run_result=run_result, func_list__unobs_distrib=func_list__unobs_distrib)
+  # Return result
+  return(res)
+}
+auction__output_org <- function(run_result, func_list__unobs_distrib) {
+
+  # Get standard deviations of the unobserved heterogeneity
+  run_result__raw = list()
+  run_result__df = list()
+  for (funcName in names(run_result)) {
+    sFuncName = as.character(funcName)
+
+    # What was the parameter being changed?
+    paramName = func_list__unobs_distrib[[sFuncName]]$argName_ctrl
+    # What was its final value?
+    if (func_list__unobs_distrib[[sFuncName]]$I_unobs__const) {
+      paramVal = func_list__unobs_distrib[[sFuncName]]$argList[[paramName]]
+    } else {
+      listIdx = auction__x0_indices()
+      paramVal = run_result[[sFuncName]]$par[listIdx$unobs_dist_param]
+    }
+
+    # Use auction__unobs_dist__exp_val_1() to get other parameter plus its value
+    func__prob_distrib = auction__unobs_dist__exp_val_1(func__prob_distrib = func_list__unobs_distrib[[sFuncName]],
+                                                        paramVal = paramVal)
+
+    # Get standard deviation of unobserved heterogeneity
+    unobs_std = auction__unobs_dist__std(func__prob_distrib = func__prob_distrib)
+
+    # Build output list
+    run_result__raw[[sFuncName]] = list()
+    run_result__raw[[sFuncName]]$invLogLikelyhood = run_result[[sFuncName]]$value
+    run_result__raw[[sFuncName]]$funcName = func__prob_distrib$funcName
+    run_result__raw[[sFuncName]]$argList = func__prob_distrib$argList
+    run_result__raw[[sFuncName]]$argName_ctrl = func__prob_distrib$argName_ctrl
+    run_result__raw[[sFuncName]]$I_unobs__const = func__prob_distrib$I_unobs__const
+    run_result__raw[[sFuncName]]$std = unobs_std
+
+    # Build dataframe result to organize by StdDev
+    run_result__df[[sFuncName]] = run_result__raw[[sFuncName]]
+    #   Remove parameters which are lists themselves
+    run_result__df[[sFuncName]]$argList = NULL
+    ##  (is.list() ) not working, try length()>1 ?
+    # for (argKey in names(run_result__df[[sFuncName]])) {
+    #   if (is.list( run_result__df[[sFuncName]][[as.character(argKey)]] )) {
+    #     run_result__df[[sFuncName]][[as.character(argKey)]] = NULL
+    #   }
+    # }
+
+  }
+  # Convert list to dataframe
+  run_result__df = do.call(rbind.data.frame, run_result__df)
+  # Sort by standard deviation
+  run_result__df = run_result__df[with(run_result__df, order(std)), ]
+  # Add distribution parameters back in
+  run_result__df['funcParam1'] = NaN
+  run_result__df['funcParam1_val'] = NaN
+  run_result__df['funcParam2'] = NaN
+  run_result__df['funcParam2_val'] = NaN
+  for (funcName in names(run_result)) {
+    sFuncName = as.character(funcName)
+
+    run_result__df[sFuncName, 'funcParam1'] = run_result__raw[[sFuncName]]$argName_ctrl
+
+    run_result__df[sFuncName, 'funcParam1_val'] = run_result__raw[[sFuncName]]$argList[[
+      run_result__raw[[sFuncName]]$argName_ctrl ]]
+
+    run_result__df[sFuncName, 'funcParam2'] = names(run_result__raw[[sFuncName]]$argList)[
+      ! names(run_result__raw[[sFuncName]]$argList) %in% run_result__df[sFuncName, 'funcParam1'] ]
+
+    run_result__df[sFuncName, 'funcParam2_val'] =
+      run_result__raw[[sFuncName]]$argList[[run_result__df[sFuncName, 'funcParam2']]]
+  }
+  # Re-org columns
+  #   [funcName, std, invLogLikelyhood, etc]
+  listColNames = c('funcName', 'std', 'invLogLikelyhood', 'argName_ctrl')
+  run_result__df = run_result__df[c(listColNames, colnames(run_result__df)[! colnames(run_result__df) %in% listColNames])]
+
+  return(run_result__df)
+}
+auction__generate_data <- function(obs = 200) {
+  # For testing purposes, we will generate sample data
+
+  # ensure that obs is integer greater than 0
+  set.seed(301)
+  # data = # Generate some data
+  # y, n, x1, x2: positive
+  # n: discrete and > 1
+  # y is some function of n, x1, x2
+
+  w = rlnorm(obs)
+  x1 = rlnorm(obs) + 0.5*w
+  x2 = 0.1*rlnorm(obs) + 0.3*w
+  e = 2*rlnorm(obs)
+  n = sample(2:10, obs, replace=TRUE)
+  y = 10 - 0.5*n + x1 + x2 + e
+
+  return( list(
+      price = y,
+      num = n,
+      x_terms = as.matrix( cbind( log(x1), log(x2) ) )
+    ) )
+}
+auction__gen_err_msg <- function(res) {
+  # Goal: Print out an error message and then stops execution of the main script
+
+  errMsg = paste('\n\tError Code=', res['err_code'], '\n\tError msg=', res['err_msg'], sep='')
+  stop(errMsg)
+}
+auction__init_env <- function (num_cores) {
+  # Goal:
+  #   - Prepare results/error handling
+  #   - Load all required packages, stop execution is any packages are missing
+  #   - Check number of cores requested
+  #   - Check parameters related to the unobserved heterogeneity
+
+  # Initialize output and error code + message
+  res = list(result = -1, err_code = 0, err_msg = "")
+
+  # Load required libraries
+  res = auction__load_packages_v2(res)
+
+  # Check the number of cores requested
+  #   result = list(res=res, num_cores=num_cores)
+  res = auction__check_input__num_cores__v2(res, num_cores)
+  #     unpack
+  num_cores = res$num_cores
+  res = res$res
+
+  return( list(
+    res = res,
+    num_cores = num_cores
+  ) )
+}
+auction__load_packages_v2 <- function (res) {
+  # Goal: Load all required packages, stop execution if any are missing
+
+  # Which packages are required?
+  listRequiredPackages = c('parallel')
+  # Try to load each required package, record which ones fail to load
+  listMissingPackages = c()
+  for (reqPkg in listRequiredPackages) {
+    if ( ! require(reqPkg, character.only=TRUE)) {
+      listMissingPackages = c(listMissingPackages, reqPkg)
+    }
+  }
+  # Report which packages failed to load, if any
+  if ( length(listMissingPackages) > 0 ) {
+    res['err_code'] = 1
+    res['err_msg'] = paste0("Unable to load the following packages: ",
+                            paste(listMissingPackages, collapse=','))
+
+    auction__gen_err_msg(res)
+  }
+  return(res)
+}
+auction__check_input__num_cores__v2 <- function(res, num_cores) {
+  # Goal: Check number of cores requested
+
+  # If no # workers requested, then set to 1
+  if (is.null(num_cores)) {
+    print(paste0("Setting number of cores to 1"))
+    num_cores = 1
+  }
+  # Check if valid input received
+  if (
+        ( ! is.numeric(num_cores) ) ||
+        ( num_cores%%1 != 0) ||
+        ( num_cores < 0 )
+    ) {
+    res['err_code'] = 2
+    res['err_msg'] = "Invalid input for 'num_cores' | Must be natural number"
+    auction__gen_err_msg(res)
+  } else {
+    # Check cores available
+    num_cores__avail = detectCores()
+    if ( num_cores > num_cores__avail ) {
+      print(paste0("Warning: You have requested ", num_cores,
+                   " cores but only have ", num_cores__avail,
+                   " cores available"))
+
+      # Adjust number of workers we will request
+      num_cores = num_cores__avail
+      print(paste0("\tSetting # parallel workers to", num_cores))
+    }
+  }
+  return(list(res=res, num_cores=num_cores))
+}
+auction__input_data_consistency <- function(res, dat, colName_price, colName_num) {
+  # Goal: Make sure the input data has required columns
+
+  if (mode(dat) == "list" && is.character(colName_price) && is.character(colName_num)) {
+    # Get list of required column names
+    colList_req = c(colName_price, colName_num)
+
+    # Get list of column names
+    if (is.data.frame(dat)) {
+      colList = colnames(dat)
+    } else {
+      colList = names(dat)
+    }
+
+    # Make sure we aren't missing the required columns
+    listMissingColName = c()
+    for (reqCol in colList_req) {
+      if ( ! reqCol %in% colList ) {
+        listMissingColName = c(listMissingColName, reqCol)
+      }
+    }
+
+    if ( length(listMissingColName) > 0 ) {
+      res['err_code'] = 2
+      res['err_msg'] = paste0("Unable to find the following columns within input data: ",
+                              paste(listMissingColName, collapse=','))
+      auction__gen_err_msg(res)
+    }
+  } else {
+    res['err_code'] = 2
+    res['err_msg'] = "Invalid input for 'dat' and/or associated column names"
+  }
+  if (res['err_code'] != 0) {
+    auction__gen_err_msg(res)
+  }
+  return(res)
+}
 auction__check_input__unobs_distrib_AND_initial_guess <- function(func_list, initial_guess, dat, res) {
 
   # Prepare 'func_list__unobs_distrib'
@@ -1524,11 +1735,6 @@ auction__unobs_dist__std__lognorm <- function(param_meanlog, param_sdlog) {
   #   var(x) = ( exp(s ^ 2) - 1 ) * exp(2 * mu + s ^ 2)
   return(sqrt( ( exp(param_sdlog ^ 2) - 1 ) * exp(2 * param_meanlog + param_sdlog ^ 2) ))
 }
-auction__get_distrib_params__lognorm <- function(distrib_std_dev) {
-  # Given std dev and E(X) = 1, calculate meanlog and sdlog
-  tmp = sqrt(log(1+distrib_std_dev^2))
-  return(list(sdlog=tmp, meanlog=-1/2*tmp))
-}
 auction__unobs_dist__exp_val_1__weibull <- function(param_scale = NULL, param_shape = NULL) {
   # Given either scale or shape, set the other such that E(x) = 1
   #   E(x) = scale * GAMMA(1 + 1 / shape)
@@ -1552,47 +1758,6 @@ auction__unobs_dist__std__weibull <- function(param_scale, param_shape) {
     param_scale ^ 2 * ( gamma(1 + 2 / param_shape) - (gamma(1 + 1 / param_shape)) ^ 2 )
   ))
 }
-auction__get_distrib_params__weibull <- function(distrib_std_dev, shape_prev = NULL) {
-  # Given std dev and E(X) = 1, calculate scale and shape
-  #   S^2 + 1 = GAMMA(1+2/shape) / [GAMMA(1+1/shape)]^2
-  #     need to numerically solve
-  #
-  # Define limitations
-  #   Std dev, S, must be positive
-  #   shape must be positive
-  #
-  # Prepare LUT
-  #   std dev = 0 -> shape = 127.6
-  #   std dev = 0.05 -> shape = 24.455
-  #   std dev = 0.1 -> shape - 12.090
-  #   std dev = 0.25 -> shape = 4.538
-
-
-
-
-  # if (is.null(shape_prev)) {
-  #   shape_prev = 1 # starting position for shape
-  # }
-  # tol = 0.0001
-  # max_iter = 10
-  #
-  # shape = shape_prev
-  # for (iter in 1:max_iter) {
-  #
-  #   res = gamma(1+2/shape) / gamma(1+1/shape)^2 - 1 - distrib_std_dev^2
-  #
-  #   shape_prev = shape
-  # }
-
-
-
-  print("Not ready to use Weibull")
-  res = list(result = -1, err_code = 1, err_msg = "Not ready to use Weibull")
-  auction__gen_err_msg(res)
-
-}
-
-
 auction__unobs_dist__exp_val_1__gamma <- function(param_rate = NULL, param_shape = NULL) {
   # Given either rate or shape, set the other such that E(x) = 1
   #   E(x) = shape / rate
@@ -1612,11 +1777,7 @@ auction__unobs_dist__std__gamma <- function(param_rate, param_shape) {
   #   var(x) = shape / (rate ^ 2)
   return(sqrt( param_shape / (param_rate ^ 2) ))
 }
-auction__get_distrib_params__gamma <- function(distrib_std_dev) {
-  # Given std dev and E(X) = 1, calculate rate and shape
-  tmp = 1/distrib_std_dev^2
-  return(list(shape = tmp, rate = tmp))
-}
+
 
 
 
@@ -1671,61 +1832,10 @@ f__ll_parallel__v3 = function(x0, dat_price, dat_num, dat_X, func__prob_distrib,
     return(-sum(log(v__f_y)))
   }
 }
-f__ll_parallel__v4 = function(x0, dat_price, dat_num, dat_X, listFuncCall, cl){
-  # From iteration to iteration, only x0 is changing
-
-  # update } else if ( sum ( ... ) ) {
-
-  # Get position indices
-  listIdx = auction__x0_indices()
-
-  h = x0[listIdx$x_terms__start:(listIdx$x_terms__start+dim(dat_X)[2]-1)]
-  v__h = exp( colSums( h * t(dat_X) ) )
-
-  if (x0[listIdx$unobs_dist_param] <= 0.1) {
-    return(-Inf) # Check that these hold at estimated values
-  } else if ( sum (x0[listIdx$pv_weibull_mu] <= 0 ) > 0 ) {
-    return(-Inf)
-  } else if ( sum( x0[listIdx$pv_weibull_a] <= 0.01 ) > 0) {
-    return(-Inf)
-  } else {
-    # Y Component
-    v__gamma_1p1opa = gamma(1 + 1/x0[listIdx$pv_weibull_a])
-    v__w = dat_price / v__h
-
-    # Set E(X) = 1 for UnObserved distribution
-    listFuncCall$argList = auction_v3__get_unobs_params(
-      distrib_std_dev = x0[listIdx$unobs_dist_param],
-      id_distrib = listFuncCall$funcID)
-
-    # Run
-    v__f_w = parApply(cl = cl,
-                      X = cbind(v__w, dat_num, x0[listIdx$pv_weibull_mu], x0[listIdx$pv_weibull_a], v__gamma_1p1opa),
-                      MARGIN = 1,
-                      FUN = f__funk__v4,
-                      listFuncCall=listFuncCall
-    )
-
-    # Return output
-    ### print(paste("v__f_w", -sum(log(v__f_w / v__h))))
-    ### print(func__prob_distrib)
-    v__f_y = v__f_w / v__h
-    return(-sum(log(v__f_y)))
-  }
-}
 f__funk__v3 = function(data_vec, func__prob_distrib){
   val = integrate(vf__w_integrand_z_fast__v3, w_bid=data_vec[1],
                   num_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
                   gamma_1p1oa=data_vec[5], func__prob_distrib=func__prob_distrib,
-                  lower=0, upper=Inf, abs.tol = 1e-10)
-  if(val$message != "OK")
-    stop("Integration failed.")
-  return(val$value)
-}
-f__funk__v4 = function(data_vec, listFuncCall){
-  val = integrate(vf__w_integrand_z_fast__v4, w_bid=data_vec[1],
-                  num_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
-                  gamma_1p1oa=data_vec[5], listFuncCall=listFuncCall,
                   lower=0, upper=Inf, abs.tol = 1e-10)
   if(val$message != "OK")
     stop("Integration failed.")
@@ -1759,29 +1869,6 @@ vf__w_integrand_z_fast__v3 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa
   vals[exp(-num_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
   return(vals)
 }
-vf__w_integrand_z_fast__v4 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, listFuncCall){
-
-  # Get "x"
-  b_z = vf__bid_function_fast__v4(price=z, num_bids=num_bids, mu=mu, alpha=alpha, gamma_1p1oa)
-  u_z = w_bid/b_z
-
-  # Add "x"
-  listFuncCall$argList$x = u_z
-
-  #Run
-  vals = num_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha-1)*
-    exp(-num_bids*(gamma_1p1oa/mu*z)^alpha)*
-    1/b_z*
-    do.call(
-      match.fun(listFuncCall$funcName),
-      listFuncCall$argList
-    )
-  ### dlnorm(u_z, meanlog=(-param_u^2*1/2), sdlog = param_u) # Note: can swap for different distributions
-
-  vals[(gamma_1p1oa/mu)^alpha == Inf] = 0
-  vals[exp(-num_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
-  return(vals)
-}
 f__bid_function_fast__v3 = function(price, num_bids, mu, alpha, gamma_1p1oa){
 
   if (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha) == 0) {
@@ -1795,21 +1882,8 @@ f__bid_function_fast__v3 = function(price, num_bids, mu, alpha, gamma_1p1oa){
     1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha)
   # Check gamma(1/alpha) part
 }
-f__bid_function_fast__v4 = function(price, num_bids, mu, alpha, gamma_1p1oa){
-
-  if (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha) == 0) {
-    return(price + mu/alpha*(num_bids-1)^(-1/alpha)*1/gamma_1p1oa*
-             ((num_bids-1)*(gamma_1p1oa/mu*price)^alpha)^(1/alpha-1))
-  }
-
-  price + 1/alpha*(mu/gamma_1p1oa)*(num_bids-1)^(-1/alpha)*
-    pgamma((num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha, 1/alpha, lower=FALSE)*
-    gamma(1/alpha)*
-    1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha)
-  # Check gamma(1/alpha) part
-}
 vf__bid_function_fast__v3 = Vectorize(FUN = f__bid_function_fast__v3,vectorize.args = "price")
-vf__bid_function_fast__v4 = Vectorize(FUN = f__bid_function_fast__v4,vectorize.args = "price")
+
 
 
 auction__x0_indices <- function() {
@@ -1913,16 +1987,6 @@ auction__x0_stepsizes__without_unobs_distrib <- function() {
 
 
 
-
-# Test default distribution
-auction_v3(dat=auction__generate_data(obs=20), winning_bid = 'price', number_of_bids = 'num', num_cores = 3)
-
-# Test with two distributions
-res = auction_v3(common_distributions = c('dlnorm', 'dgamma'),
-                 dat=auction__generate_data(obs=100),
-                 winning_bid = 'price', number_of_bids = 'num',
-                 num_cores = 3)
-print(res)
 
 
 
