@@ -24,6 +24,83 @@
 #'
 #'
 #' @export
+auction_v3 <- function(dat = NULL,
+                       winning_bid = NULL, number_of_bids = NULL,
+                       init_privatevalue_mu = NULL,
+                       init_privatevalue_a = NULL,
+                       init_control = NULL,
+                       init_common_sd = NULL,
+                       common_distributions = NULL,
+                       num_cores = NULL
+                       ) {
+  # Initialize environment
+  num_cores = auction_v3__init_env(num_cores=num_cores)
+
+  # Validate distributions requested for unobserved heterogeneity
+  common_distributions = auction_v3__check__common_distrib(common_distributions = common_distributions)
+
+  # Validate input data
+  auction_v3__check_input_data(dat = dat,
+                               colName_price = winning_bid, colName_num = number_of_bids
+                               )
+
+  # Prepare initial guesses
+  vecInitGuess = auction_v3__check_init_guess(dat = dat,
+                                               colName_price = winning_bid, colName_num = number_of_bids,
+                                               init_privatevalue_mu = init_privatevalue_mu,
+                                               init_privatevalue_a = init_privatevalue_a,
+                                               init_control = init_control,
+                                               init_common_sd = init_common_sd
+                                               )
+
+  # Prepare control parameters for numerical solver
+  conv_ctrl = auction_v3__get_conv_ctrl(vecInitGuess = vecInitGuess)
+
+  # Set up parallelization of numerical solver
+  cl = makeCluster(num_cores)
+  # do we need to include ?
+  #   do.call()
+  #   dgamma()
+  #   dlnorm()
+  #   dweibull
+  clusterExport(cl,
+                varlist=c("vf__bid_function_fast__v4",
+                          "vf__w_integrand_z_fast__v4",
+                          "f__funk__v4",
+                          "auction_v3__get_unobs_params",
+                          "auction__get_distrib_params__gamma",
+                          "auction__get_distrib_params__lognorm",
+                          "auction__get_distrib_params__weibull")
+                )
+  # Run
+  run_result = list()
+  for (funcName in common_distributions) {
+    sFuncName = as.character(funcName)
+
+    # Run
+    print(paste("Running |", sFuncName))
+    #   Build function call parameter
+    listFuncCall = list(funcName = sFuncName,
+                        funcID = auction_v3__get_id_distrib(sFuncName = sFuncName),
+                        argList = list())
+    #   Run
+    print("Fix dat_X=dat[['x_terms']] to a more generic solution")
+    run_result[[sFuncName]] = optim(par=vecInitGuess,
+                                    fn=f__ll_parallel__v4,
+                                    control=conv_ctrl,
+                                    dat_price=dat[[winning_bid]],
+                                    dat_num=dat[[number_of_bids]],
+                                    dat_X=dat[['x_terms']],
+                                    listFuncCall=listFuncCall,
+                                    cl=cl)
+    print(paste("End of run |", sFuncName))
+  }
+  # Release resources
+  stopCluster(cl)
+  # Prepare output
+  res = auction_v3__output_org(run_result)
+  return(res)
+}
 auction_v2 <- function(dat = NULL,
                        winning_bid = NULL,
                        number_of_bids = NULL,
@@ -116,8 +193,6 @@ auction_v2 <- function(dat = NULL,
   return(res)
 }
 
-
-# Called by auction_v2
 auction__output_org <- function(run_result, func_list__unobs_distrib) {
 
   # Get standard deviations of the unobserved heterogeneity
@@ -194,6 +269,31 @@ auction__output_org <- function(run_result, func_list__unobs_distrib) {
 
   return(run_result__df)
 }
+auction_v3__output_org <- function(run_result) {
+
+  # Initialize dataframe
+  nCol = length(run_result)
+
+  #   Initialize
+  df = data.frame(matrix(ncol = length(run_result), nrow=0))
+  #   Set columns
+  colnames(df) = names(run_result)
+  # Get indices for the 'par' data
+  idxList = auction__x0_indices()
+  # Fill
+  for (funcName in names(run_result)) {
+    sFuncName = as.character(funcName)
+
+    df['pv_weibull_mu', sFuncName] = run_result[[sFuncName]]$par[idxList$pv_weibull_mu]
+    df['pv_weibull_a', sFuncName] = run_result[[sFuncName]]$par[idxList$pv_weibull_a]
+    df['unobs_hetero__std_dev', sFuncName] = run_result[[sFuncName]]$par[idxList$unobs_dist_param]
+    for (iX in 1:(1+length(run_result[[sFuncName]]$par)-idxList$x_terms__start)) {
+      df[sprintf('X%d', iX), sFuncName] = run_result[[sFuncName]]$par[(idxList$x_terms__start+iX-1)]
+    }
+
+  }
+  return(df)
+}
 
 auction__generate_data <- function(obs = 200) {
   # For testing purposes, we will generate sample data
@@ -251,6 +351,17 @@ auction__init_env <- function (num_cores) {
     num_cores = num_cores
   ) )
 }
+auction_v3__init_env <- function(num_cores) {
+  # Goal:
+  #   - Load all required packages, stop execution is any packages are missing
+  #   - Check number of cores requested
+
+  # Load required packages
+  auction_v3__load_packages()
+  # Check number of cores requested
+  num_cores = auction_v3__check__num_cores(num_cores = num_cores)
+  return(num_cores)
+}
 auction__load_packages_v2 <- function (res) {
   # Goal: Load all required packages, stop execution if any are missing
 
@@ -265,6 +376,29 @@ auction__load_packages_v2 <- function (res) {
   }
   # Report which packages failed to load, if any
   if ( length(listMissingPackages) > 0 ) {
+    res['err_code'] = 1
+    res['err_msg'] = paste0("Unable to load the following packages: ",
+                            paste(listMissingPackages, collapse=','))
+
+    auction__gen_err_msg(res)
+  }
+  return(res)
+}
+auction_v3__load_packages <- function () {
+  # Goal: Load all required packages, stop execution if any are missing
+
+  # Which packages are required?
+  listRequiredPackages = c('parallel')
+  # Try to load each required package, record which ones fail to load
+  listMissingPackages = c()
+  for (reqPkg in listRequiredPackages) {
+    if ( ! require(reqPkg, character.only=TRUE)) {
+      listMissingPackages = c(listMissingPackages, reqPkg)
+    }
+  }
+  # Report which packages failed to load, if any
+  if ( length(listMissingPackages) > 0 ) {
+    res = list()
     res['err_code'] = 1
     res['err_msg'] = paste0("Unable to load the following packages: ",
                             paste(listMissingPackages, collapse=','))
@@ -305,6 +439,59 @@ auction__check_input__num_cores__v2 <- function(res, num_cores) {
   }
   return(list(res=res, num_cores=num_cores))
 }
+auction_v3__check__num_cores <- function(num_cores) {
+  # Goal: Check number of cores requested
+
+  # If no # workers requested, then set to 1
+  if (is.null(num_cores)) {
+    print(paste0("Setting number of cores to 1"))
+    num_cores = 1
+  }
+  # Check if valid input received
+  if (
+    ( ! is.numeric(num_cores) ) ||
+    ( num_cores%%1 != 0) ||
+    ( num_cores < 0 )
+  ) {
+    res = list()
+    res['err_code'] = 2
+    res['err_msg'] = "Invalid input for 'num_cores' | Must be natural number"
+    auction__gen_err_msg(res)
+  } else {
+    # Check cores available
+    num_cores__avail = detectCores()
+    if ( num_cores > num_cores__avail ) {
+      print(paste0("Warning: You have requested ", num_cores,
+                   " cores but only have ", num_cores__avail,
+                   " cores available"))
+
+      # Adjust number of workers we will request
+      num_cores = num_cores__avail
+      print(paste0("\tSetting # parallel workers to", num_cores))
+    }
+  }
+  return(num_cores)
+}
+auction_v3__check__common_distrib <- function(common_distributions) {
+  if (is.null(common_distributions)) {
+    common_distributions = 'dlnorm'
+  } else if (is.character(common_distributions)) {
+    for (distrib in common_distributions) {
+      if ((distrib != 'dlnorm') && (distrib != 'dweibull') && (distrib != 'dgamma')) {
+        res = list()
+        res['err_code'] = 2
+        res['err_msg'] = paste("Invalid input for 'common_distributions' | Entry '", distrib, "' is invalid", sep='')
+        auction__gen_err_msg(res)
+      }
+    }
+  } else {
+    res = list()
+    res['err_code'] = 2
+    res['err_msg'] = "Invalid input for 'common_distributions' | Must be string or vector of strings"
+    auction__gen_err_msg(res)
+  }
+  return(common_distributions)
+}
 
 auction__input_data_consistency <- function(res, dat, colName_price, colName_num) {
   # Goal: Make sure the input data has required columns
@@ -342,6 +529,165 @@ auction__input_data_consistency <- function(res, dat, colName_price, colName_num
     auction__gen_err_msg(res)
   }
   return(res)
+}
+auction_v3__check_input_data <- function(dat, colName_price, colName_num) {
+  # Goal: Make sure the input data has required columns
+
+  if (mode(dat) == "list" && is.character(colName_price) && is.character(colName_num)) {
+    # Get list of required column names
+    colList_req = c(colName_price, colName_num)
+
+    # Get list of column names
+    if (is.data.frame(dat)) {
+      colList = colnames(dat)
+    } else {
+      colList = names(dat)
+    }
+
+    # Make sure we aren't missing the required columns
+    listMissingColName = c()
+    for (reqCol in colList_req) {
+      if ( ! reqCol %in% colList ) {
+        listMissingColName = c(listMissingColName, reqCol)
+      }
+    }
+
+    if ( length(listMissingColName) > 0 ) {
+      res = list()
+      res['err_code'] = 2
+      res['err_msg'] = paste0("Unable to find the following columns within input data: ",
+                              paste(listMissingColName, collapse=','))
+      auction__gen_err_msg(res)
+    }
+  } else {
+    res = list()
+    res['err_code'] = 2
+    res['err_msg'] = "Invalid input for 'dat' and/or associated column names"
+    auction__gen_err_msg(res)
+  }
+}
+auction_v3__check_init_guess <- function(dat = dat,
+                                         colName_price, colName_num,
+                                         init_privatevalue_mu,
+                                         init_privatevalue_a,
+                                         init_control,
+                                         init_common_sd) {
+
+  # Find number of X parameters within dat
+  #   Total number of columns - column price - column number of bids
+  nCol_X = auction__get_num_columns__dat(dat) - 2
+  # Initialize initial guess vector
+  x0 = numeric(2 + 1 + nCol_X)
+  # Fill vector
+  #   Gather default values
+  def_pv_mu = 8
+  def_pv_a = 2
+  def_unobs_stddev = 0.5
+  def_x = rep(0.5, nCol_X)
+  #   Gather position indices
+  idxList = auction__x0_indices()
+
+
+
+
+
+  if (is.null(init_privatevalue_mu)) {
+    x0[idxList$pv_weibull_mu] = def_pv_mu
+  } else if (is.numeric(init_privatevalue_mu)) {
+    x0[idxList$pv_weibull_mu] = init_privatevalue_mu
+  } else {
+    res = list()
+    res['err_code'] = 2
+    res['err_msg'] = "Invalid input for 'init_privatevalue_mu'"
+    auction__gen_err_msg(res)
+  }
+  if (is.null(init_privatevalue_a)) {
+    x0[idxList$pv_weibull_a] = def_pv_a
+  } else if (is.numeric(init_privatevalue_a)) {
+    x0[idxList$pv_weibull_a] = init_privatevalue_a
+  } else {
+    res = list()
+    res['err_code'] = 2
+    res['err_msg'] = "Invalid input for 'init_privatevalue_a'"
+    auction__gen_err_msg(res)
+  }
+  if (is.null(init_common_sd)) {
+    x0[idxList$unobs_dist_param] = def_pv_mu
+  } else if (is.numeric(init_common_sd)) {
+    x0[idxList$unobs_dist_param] = init_common_sd
+  } else {
+    res = list()
+    res['err_code'] = 2
+    res['err_msg'] = "Invalid input for 'init_common_sd'"
+    auction__gen_err_msg(res)
+  }
+  if (is.null(init_control)) {
+    x0[idxList$x_terms__start:length(x0)] = def_x
+  } else if (is.numeric(init_control)) {
+    x0[idxList$x_terms__start:length(x0)] = init_control
+  } else {
+    res = list()
+    res['err_code'] = 2
+    res['err_msg'] = "Invalid input for 'init_control'"
+    auction__gen_err_msg(res)
+  }
+
+  return(x0)
+}
+auction_v3__get_conv_ctrl <- function(vecInitGuess) {
+  # Max number of iterations = maxit
+  maxit = 2000
+  # Step sizes
+  #   Initialize
+  parscale = numeric(length(vecInitGuess))
+  #   Gather position indices
+  idxList = auction__x0_indices()
+  #   Gather default values
+  def_pv_mu = 1
+  def_pv_a = 0.1
+  def_unobs_stddev = 1
+  def_x = c(0.1, rep(1, (length(vecInitGuess)-idxList$x_terms__start)) )
+  #
+  #   Fill
+  parscale[idxList$pv_weibull_mu] = def_pv_mu
+  parscale[idxList$pv_weibull_a] = def_pv_a
+  parscale[idxList$unobs_dist_param] = def_unobs_stddev
+  parscale[idxList$x_terms__start:length(vecInitGuess)] = def_x
+
+  return( list(maxit = maxit, parscale = parscale ) )
+}
+auction_v3__get_id_distrib <- function(sFuncName) {
+  if (sFuncName == 'dgamma') {
+    id_distrib = 1
+  } else if (sFuncName == 'dlnorm') {
+    id_distrib = 2
+  } else if (sFuncName == 'dweibull') {
+    id_distrib = 3
+  } else {
+    res = list()
+    res['err_code'] = 3
+    res['err_msg'] = paste("Unable to get id_distrib for '", sFuncName, "'", sep='')
+    auction__gen_err_msg(res)
+  }
+  return(id_distrib)
+}
+auction_v3__get_unobs_params <- function(distrib_std_dev, id_distrib) {
+  if (id_distrib == 1) {
+    # dgamma
+    listParam = auction__get_distrib_params__gamma(distrib_std_dev = distrib_std_dev)
+  } else if (id_distrib == 2) {
+    # dlnorm
+    listParam = auction__get_distrib_params__lognorm(distrib_std_dev = distrib_std_dev)
+  } else if (id_distrib == 3) {
+    # dweibull
+    listParam = auction__get_distrib_params__weibull(distrib_std_dev = distrib_std_dev)
+  } else {
+    res = list()
+    res['err_code'] = 3
+    res['err_msg'] = paste("Unknown id_distrib '", id_distrib, "'", sep='')
+    auction__gen_err_msg(res)
+  }
+  return(listParam)
 }
 
 auction__check_input__unobs_distrib_AND_initial_guess <- function(func_list, initial_guess, dat, res) {
@@ -1178,6 +1524,11 @@ auction__unobs_dist__std__lognorm <- function(param_meanlog, param_sdlog) {
   #   var(x) = ( exp(s ^ 2) - 1 ) * exp(2 * mu + s ^ 2)
   return(sqrt( ( exp(param_sdlog ^ 2) - 1 ) * exp(2 * param_meanlog + param_sdlog ^ 2) ))
 }
+auction__get_distrib_params__lognorm <- function(distrib_std_dev) {
+  # Given std dev and E(X) = 1, calculate meanlog and sdlog
+  tmp = sqrt(log(1+distrib_std_dev^2))
+  return(list(sdlog=tmp, meanlog=-1/2*tmp))
+}
 auction__unobs_dist__exp_val_1__weibull <- function(param_scale = NULL, param_shape = NULL) {
   # Given either scale or shape, set the other such that E(x) = 1
   #   E(x) = scale * GAMMA(1 + 1 / shape)
@@ -1201,6 +1552,47 @@ auction__unobs_dist__std__weibull <- function(param_scale, param_shape) {
     param_scale ^ 2 * ( gamma(1 + 2 / param_shape) - (gamma(1 + 1 / param_shape)) ^ 2 )
   ))
 }
+auction__get_distrib_params__weibull <- function(distrib_std_dev, shape_prev = NULL) {
+  # Given std dev and E(X) = 1, calculate scale and shape
+  #   S^2 + 1 = GAMMA(1+2/shape) / [GAMMA(1+1/shape)]^2
+  #     need to numerically solve
+  #
+  # Define limitations
+  #   Std dev, S, must be positive
+  #   shape must be positive
+  #
+  # Prepare LUT
+  #   std dev = 0 -> shape = 127.6
+  #   std dev = 0.05 -> shape = 24.455
+  #   std dev = 0.1 -> shape - 12.090
+  #   std dev = 0.25 -> shape = 4.538
+
+
+
+
+  # if (is.null(shape_prev)) {
+  #   shape_prev = 1 # starting position for shape
+  # }
+  # tol = 0.0001
+  # max_iter = 10
+  #
+  # shape = shape_prev
+  # for (iter in 1:max_iter) {
+  #
+  #   res = gamma(1+2/shape) / gamma(1+1/shape)^2 - 1 - distrib_std_dev^2
+  #
+  #   shape_prev = shape
+  # }
+
+
+
+  print("Not ready to use Weibull")
+  res = list(result = -1, err_code = 1, err_msg = "Not ready to use Weibull")
+  auction__gen_err_msg(res)
+
+}
+
+
 auction__unobs_dist__exp_val_1__gamma <- function(param_rate = NULL, param_shape = NULL) {
   # Given either rate or shape, set the other such that E(x) = 1
   #   E(x) = shape / rate
@@ -1219,6 +1611,11 @@ auction__unobs_dist__std__gamma <- function(param_rate, param_shape) {
   # Given rate and shape, calculate standard deviation of the unobserved heterogeneity
   #   var(x) = shape / (rate ^ 2)
   return(sqrt( param_shape / (param_rate ^ 2) ))
+}
+auction__get_distrib_params__gamma <- function(distrib_std_dev) {
+  # Given std dev and E(X) = 1, calculate rate and shape
+  tmp = 1/distrib_std_dev^2
+  return(list(shape = tmp, rate = tmp))
 }
 
 
@@ -1274,10 +1671,61 @@ f__ll_parallel__v3 = function(x0, dat_price, dat_num, dat_X, func__prob_distrib,
     return(-sum(log(v__f_y)))
   }
 }
+f__ll_parallel__v4 = function(x0, dat_price, dat_num, dat_X, listFuncCall, cl){
+  # From iteration to iteration, only x0 is changing
+
+  # update } else if ( sum ( ... ) ) {
+
+  # Get position indices
+  listIdx = auction__x0_indices()
+
+  h = x0[listIdx$x_terms__start:(listIdx$x_terms__start+dim(dat_X)[2]-1)]
+  v__h = exp( colSums( h * t(dat_X) ) )
+
+  if (x0[listIdx$unobs_dist_param] <= 0.1) {
+    return(-Inf) # Check that these hold at estimated values
+  } else if ( sum (x0[listIdx$pv_weibull_mu] <= 0 ) > 0 ) {
+    return(-Inf)
+  } else if ( sum( x0[listIdx$pv_weibull_a] <= 0.01 ) > 0) {
+    return(-Inf)
+  } else {
+    # Y Component
+    v__gamma_1p1opa = gamma(1 + 1/x0[listIdx$pv_weibull_a])
+    v__w = dat_price / v__h
+
+    # Set E(X) = 1 for UnObserved distribution
+    listFuncCall$argList = auction_v3__get_unobs_params(
+      distrib_std_dev = x0[listIdx$unobs_dist_param],
+      id_distrib = listFuncCall$funcID)
+
+    # Run
+    v__f_w = parApply(cl = cl,
+                      X = cbind(v__w, dat_num, x0[listIdx$pv_weibull_mu], x0[listIdx$pv_weibull_a], v__gamma_1p1opa),
+                      MARGIN = 1,
+                      FUN = f__funk__v4,
+                      listFuncCall=listFuncCall
+    )
+
+    # Return output
+    ### print(paste("v__f_w", -sum(log(v__f_w / v__h))))
+    ### print(func__prob_distrib)
+    v__f_y = v__f_w / v__h
+    return(-sum(log(v__f_y)))
+  }
+}
 f__funk__v3 = function(data_vec, func__prob_distrib){
   val = integrate(vf__w_integrand_z_fast__v3, w_bid=data_vec[1],
                   num_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
                   gamma_1p1oa=data_vec[5], func__prob_distrib=func__prob_distrib,
+                  lower=0, upper=Inf, abs.tol = 1e-10)
+  if(val$message != "OK")
+    stop("Integration failed.")
+  return(val$value)
+}
+f__funk__v4 = function(data_vec, listFuncCall){
+  val = integrate(vf__w_integrand_z_fast__v4, w_bid=data_vec[1],
+                  num_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
+                  gamma_1p1oa=data_vec[5], listFuncCall=listFuncCall,
                   lower=0, upper=Inf, abs.tol = 1e-10)
   if(val$message != "OK")
     stop("Integration failed.")
@@ -1311,6 +1759,29 @@ vf__w_integrand_z_fast__v3 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa
   vals[exp(-num_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
   return(vals)
 }
+vf__w_integrand_z_fast__v4 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, listFuncCall){
+
+  # Get "x"
+  b_z = vf__bid_function_fast__v4(price=z, num_bids=num_bids, mu=mu, alpha=alpha, gamma_1p1oa)
+  u_z = w_bid/b_z
+
+  # Add "x"
+  listFuncCall$argList$x = u_z
+
+  #Run
+  vals = num_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha-1)*
+    exp(-num_bids*(gamma_1p1oa/mu*z)^alpha)*
+    1/b_z*
+    do.call(
+      match.fun(listFuncCall$funcName),
+      listFuncCall$argList
+    )
+  ### dlnorm(u_z, meanlog=(-param_u^2*1/2), sdlog = param_u) # Note: can swap for different distributions
+
+  vals[(gamma_1p1oa/mu)^alpha == Inf] = 0
+  vals[exp(-num_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
+  return(vals)
+}
 f__bid_function_fast__v3 = function(price, num_bids, mu, alpha, gamma_1p1oa){
 
   if (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha) == 0) {
@@ -1324,7 +1795,21 @@ f__bid_function_fast__v3 = function(price, num_bids, mu, alpha, gamma_1p1oa){
     1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha)
   # Check gamma(1/alpha) part
 }
+f__bid_function_fast__v4 = function(price, num_bids, mu, alpha, gamma_1p1oa){
+
+  if (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha) == 0) {
+    return(price + mu/alpha*(num_bids-1)^(-1/alpha)*1/gamma_1p1oa*
+             ((num_bids-1)*(gamma_1p1oa/mu*price)^alpha)^(1/alpha-1))
+  }
+
+  price + 1/alpha*(mu/gamma_1p1oa)*(num_bids-1)^(-1/alpha)*
+    pgamma((num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha, 1/alpha, lower=FALSE)*
+    gamma(1/alpha)*
+    1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha)
+  # Check gamma(1/alpha) part
+}
 vf__bid_function_fast__v3 = Vectorize(FUN = f__bid_function_fast__v3,vectorize.args = "price")
+vf__bid_function_fast__v4 = Vectorize(FUN = f__bid_function_fast__v4,vectorize.args = "price")
 
 
 auction__x0_indices <- function() {
@@ -1363,69 +1848,81 @@ auction__x0_stepsizes__without_unobs_distrib <- function() {
 
 ### CODE START
 
-# log norm distribution
-listInputPDF = list(dlnorm=list()) # working
-auction_v2(dat = auction__generate_data(10),
-           winning_bid = 'price',
-           number_of_bids = 'num',
-           num_cores = 3,
-           func_list__unobs_distrib = listInputPDF)
+# # log norm distribution
+# listInputPDF = list(dlnorm=list()) # working
+# auction_v2(dat = auction__generate_data(10),
+#            winning_bid = 'price',
+#            number_of_bids = 'num',
+#            num_cores = 3,
+#            func_list__unobs_distrib = listInputPDF)
+#
+# #listInputPDF = lidlnorm=list()) # working
+# auction_v2(dat = auction__generate_data(10),
+#            winning_bid = 'price',
+#            number_of_bids = 'num',
+#            num_cores = 3,
+#            func_list__unobs_distrib = "dlnorm")
+#
+# # Weibull distribution
+# listInputPDF = list(dweibull=list()) # working
+# auction_v2(dat = auction__generate_data(10),
+#            winning_bid = 'price',
+#            number_of_bids = 'num',
+#            num_cores = 3,
+#            func_list__unobs_distrib = listInputPDF)
+#
+# # Gamma distribution
+# listInputPDF = list(dgamma=list()) # working
+# auction_v2(dat = auction__generate_data(10),
+#            winning_bid = 'price',
+#            number_of_bids = 'num',
+#            num_cores = 3,
+#            func_list__unobs_distrib = listInputPDF)
+#
+# # what happens if none specified?
+# listInputPDF = NULL # working
+# auction_v2(dat = auction__generate_data(10),
+#            winning_bid = 'price',
+#            number_of_bids = 'num',
+#            num_cores = 3,
+#            func_list__unobs_distrib = listInputPDF)
+#
+# # or what ahppens if wrong parameters specified?
+# listInputPDF = list(dlnorm=list(argList=list(meanlog=2)), dfake=list()) # working
+# auction_v2(dat = auction__generate_data(10),
+#            winning_bid = 'price',
+#            number_of_bids = 'num',
+#            num_cores = 3,
+#            func_list__unobs_distrib = listInputPDF)
+#
+# # Lognorm again with fixed distribution of unobserved
+# listInputPDF = list(dlnorm=list(argList=list(sdlog=2))) # working
+# auction_v2(dat = auction__generate_data(10),
+#            winning_bid = 'price',
+#            number_of_bids = 'num',
+#            num_cores = 3,
+#            func_list__unobs_distrib = listInputPDF)
+#
+# # run with multiple distributions requested
+# listInputPDF = list(dlnorm=list(), dweibull=list()) # working
+# auction_v2(dat = auction__generate_data(10),
+#            winning_bid = 'price',
+#            number_of_bids = 'num',
+#            num_cores = 3,
+#            func_list__unobs_distrib = listInputPDF)
 
-#listInputPDF = lidlnorm=list()) # working
-auction_v2(dat = auction__generate_data(10),
-           winning_bid = 'price',
-           number_of_bids = 'num',
-           num_cores = 3,
-           func_list__unobs_distrib = "dlnorm")
 
-# Weibull distribution
-listInputPDF = list(dweibull=list()) # working
-auction_v2(dat = auction__generate_data(10),
-           winning_bid = 'price',
-           number_of_bids = 'num',
-           num_cores = 3,
-           func_list__unobs_distrib = listInputPDF)
 
-# Gamma distribution
-listInputPDF = list(dgamma=list()) # working
-auction_v2(dat = auction__generate_data(10),
-           winning_bid = 'price',
-           number_of_bids = 'num',
-           num_cores = 3,
-           func_list__unobs_distrib = listInputPDF)
 
-# what happens if none specified?
-listInputPDF = NULL # working
-auction_v2(dat = auction__generate_data(10),
-           winning_bid = 'price',
-           number_of_bids = 'num',
-           num_cores = 3,
-           func_list__unobs_distrib = listInputPDF)
+# Test default distribution
+auction_v3(dat=auction__generate_data(obs=20), winning_bid = 'price', number_of_bids = 'num', num_cores = 3)
 
-# or what ahppens if wrong parameters specified?
-listInputPDF = list(dlnorm=list(argList=list(meanlog=2)), dfake=list()) # working
-auction_v2(dat = auction__generate_data(10),
-           winning_bid = 'price',
-           number_of_bids = 'num',
-           num_cores = 3,
-           func_list__unobs_distrib = listInputPDF)
-
-# Lognorm again with fixed distribution of unobserved
-listInputPDF = list(dlnorm=list(argList=list(sdlog=2))) # working
-auction_v2(dat = auction__generate_data(10),
-           winning_bid = 'price',
-           number_of_bids = 'num',
-           num_cores = 3,
-           func_list__unobs_distrib = listInputPDF)
-
-# run with multiple distributions requested
-listInputPDF = list(dlnorm=list(), dweibull=list()) # working
-auction_v2(dat = auction__generate_data(10),
-           winning_bid = 'price',
-           number_of_bids = 'num',
-           num_cores = 3,
-           func_list__unobs_distrib = listInputPDF)
-
+# Test with two distributions
+res = auction_v3(common_distributions = c('dlnorm', 'dgamma'),
+                 dat=auction__generate_data(obs=100),
+                 winning_bid = 'price', number_of_bids = 'num',
+                 num_cores = 3)
+print(res)
 
 
 
