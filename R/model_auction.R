@@ -400,8 +400,8 @@ auction_v3__get_unobs_params <- function(distrib_std_dev, id_distrib) {
 }
 auction__get_distrib_params__lognorm <- function(distrib_std_dev) {
   # Given std dev and E(X) = 1, calculate meanlog and sdlog
-  tmp = sqrt(log(1+distrib_std_dev^2))
-  return(list(sdlog=tmp, meanlog=-1/2*tmp))
+  tmp = log(1+distrib_std_dev^2)
+  return(list(sdlog=sqrt(tmp), meanlog=-1/2*tmp))
 }
 auction__get_distrib_params__weibull <- function(distrib_std_dev, shape_prev = NULL) {
   # Given std dev and E(X) = 1, calculate scale and shape
@@ -570,7 +570,7 @@ auction_v3(dat=auction__generate_data(obs=20), winning_bid = 'price', number_of_
 
 # Test with two distributions
 res = auction_v3(common_distributions = c('dlnorm', 'dgamma'),
-                 dat=auction__generate_data(obs=100),
+                 dat=auction__generate_data(obs=20),
                  winning_bid = 'price', number_of_bids = 'num',
                  num_cores = 3)
 print(res)
