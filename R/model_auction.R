@@ -403,44 +403,19 @@ auction__get_distrib_params__lognorm <- function(distrib_std_dev) {
   tmp = log(1+distrib_std_dev^2)
   return(list(sdlog=sqrt(tmp), meanlog=-1/2*tmp))
 }
-auction__get_distrib_params__weibull <- function(distrib_std_dev, shape_prev = NULL) {
+auction__get_distrib_params__weibull <- function(distrib_std_dev) {
   # Given std dev and E(X) = 1, calculate scale and shape
   #   S^2 + 1 = GAMMA(1+2/shape) / [GAMMA(1+1/shape)]^2
   #     need to numerically solve
-  #
-  # Define limitations
-  #   Std dev, S, must be positive
-  #   shape must be positive
-  #
-  # Prepare LUT
-  #   std dev = 0 -> shape = 127.6
-  #   std dev = 0.05 -> shape = 24.455
-  #   std dev = 0.1 -> shape - 12.090
-  #   std dev = 0.25 -> shape = 4.538
-
-
-
-
-  # if (is.null(shape_prev)) {
-  #   shape_prev = 1 # starting position for shape
-  # }
-  # tol = 0.0001
-  # max_iter = 10
-  #
-  # shape = shape_prev
-  # for (iter in 1:max_iter) {
-  #
-  #   res = gamma(1+2/shape) / gamma(1+1/shape)^2 - 1 - distrib_std_dev^2
-  #
-  #   shape_prev = shape
-  # }
-
-
-
-  print("Not ready to use Weibull")
-  res = list(result = -1, err_code = 1, err_msg = "Not ready to use Weibull")
-  auction__gen_err_msg(res)
-
+  res_solver = optimize(
+    f = function(shape, S){
+      return( abs( gamma(1+2/shape) / gamma(1+1/shape)^2 - 1 - S^2 ) )
+    },
+    interval = c(0.001, 127),
+    tol = 1e-5,
+    S = distrib_std_dev
+  )
+  return(list(shape = res_solver$minimum, scale = 1/gamma(1+1/res_solver$minimum)))
 }
 auction__get_distrib_params__gamma <- function(distrib_std_dev) {
   # Given std dev and E(X) = 1, calculate rate and shape
@@ -568,6 +543,10 @@ vf__bid_function_fast__v4 = Vectorize(FUN = f__bid_function_fast__v4,vectorize.a
 # Test default distribution
 auction_v3(dat=auction__generate_data(obs=20), winning_bid = 'price', number_of_bids = 'num', num_cores = 3)
 
+# Test weibull
+auction_v3(dat=auction__generate_data(obs=20), winning_bid = 'price', number_of_bids = 'num', num_cores = 3,
+           common_distributions = 'dweibull')
+
 # Test with two distributions
 res = auction_v3(common_distributions = c('dlnorm', 'dgamma'),
                  dat=auction__generate_data(obs=20),
@@ -575,8 +554,98 @@ res = auction_v3(common_distributions = c('dlnorm', 'dgamma'),
                  num_cores = 3)
 print(res)
 
+# Test with two distributions
+res = auction_v3(common_distributions = c('dlnorm', 'dgamma', 'dweibull'),
+                 dat=auction__generate_data(obs=100),
+                 winning_bid = 'price', number_of_bids = 'num',
+                 num_cores = 3)
+print(res)
 
 
+
+
+
+
+
+
+
+###########################
+# Test solver for weibull #
+###########################
+# Define the function
+#   let S be the supplied standard deviation
+#   S = sqrt( [ numerator / denominator ] -1)
+#     where numerator   = gamma( 1 + 2 / shape )
+#           denominator = [gamma( 1 + 1 / shape )]^2
+#
+#   re-write to get f(x) = 0
+#     0 = [ numerator / denominator ] - 1 - S^2
+tmpFunc <- function(shape, S) {
+  print(paste("shape=", shape, " | S=", S, sep=''))
+  return( gamma(1+2/shape) / gamma(1+1/shape)^2 - 1 - S^2 )
+}
+
+
+# use optim() with Brent method
+#   seems to ignore control parameters "abstol' and 'maxit'
+res = optim(
+  par=c(5),
+  fn=function(shape){
+    S=0.5
+    res = abs( gamma(1+2/shape) / gamma(1+1/shape)^2 - 1 - S^2 )
+    print(paste("optim - shape=", shape, " | S=", S, " | res=", res, sep=''))
+    return( res )
+    },
+  method='Brent', lower=0.01, upper=127,
+  control=list(abstol=1e-4, maxit=3))
+
+# Try using optimize() which appears to be based on Brent method
+#   again tolerance doesn't appear to be respected
+res = optimize(
+  f = function(shape){
+    S=0.5
+    res = abs( gamma(1+2/shape) / gamma(1+1/shape)^2 - 1 - S^2 )
+    print(paste("optimize - shape=", shape, " | S=", S, " | res=", res, sep=''))
+    return( res )
+    },
+  interval = c(0, 127),
+  tol = 1e-4
+  )
+
+# Time
+nRep = 1000
+
+supplied_standard_deviation = 0.05
+
+t0 = Sys.time()
+for (iRep in 1:nRep) {
+  res = optimize(
+    f = function(shape, S){
+      return( abs( gamma(1+2/shape) / gamma(1+1/shape)^2 - 1 - S^2 ) )
+    },
+    interval = c(0.001, 127),
+    tol = 1e-5,
+    S = supplied_standard_deviation
+  )
+}
+t_optimize = Sys.time()-t0
+res_optimize = res
+t0 = Sys.time()
+for (iRep in 1:nRep) {
+  res = optim(
+    par=c(5),
+    fn=function(shape, S){
+      return( abs( gamma(1+2/shape) / gamma(1+1/shape)^2 - 1 - S^2 ) )
+    },
+    method='Brent', lower=0.001, upper=127,
+    control=list(abstol=1e-5, maxit=20),
+    S = supplied_standard_deviation
+    )
+}
+t_optim = Sys.time()-t0
+res_optim = res
+print(paste("Runtime | ", nRep, " reps | t_optim=", t_optim, " | t_optimize=", t_optimize, sep=''))
+print(paste("Final value, shape given stddev=", supplied_standard_deviation, " | optim=", res_optim$par, " | optimize=", res_optimize$minimum, sep=''))
 
 
 
