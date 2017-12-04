@@ -1,0 +1,42 @@
+# Developing Packages with RStudio
+https://support.rstudio.com/hc/en-us/articles/200486488?version=1.0.153&mode=desktop
+
+# R packages
+http://r-pkgs.had.co.nz/
+
+    # basics
+    http://r-pkgs.had.co.nz/description.html
+    
+    # namespaces 
+    http://r-pkgs.had.co.nz/namespace.html#imports
+    
+
+# Advanced R
+
+    # functions
+    http://adv-r.had.co.nz/Functions.html
+    
+    
+    
+# IQSS QuickStart Guide
+https://iqss.gitbooks.io/statistical-software-development-best-practices/content/r_quickstart_guide.html
+#
+# Developing Statistical Softawre using R
+http://slides.com/christophergandrud/developing-statistical-software-using-iqss-best-practices#/34
+
+
+# Nice R Code
+https://nicercode.github.io/guides/functions/
+
+    # before
+    https://nicercode.github.io/guides/functions/before.html
+    # after
+    https://nicercode.github.io/guides/functions/after.html
+    
+    # Organizing Projects
+    https://nicercode.github.io/blog/2013-05-17-organising-my-project/
+
+    # Designing Project
+    https://nicercode.github.io/blog/2013-04-05-projects/
+    
+    
