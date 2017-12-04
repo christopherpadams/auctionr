@@ -1,3 +1,8 @@
+#######
+#
+# Examples on code use
+
+library(auctionmodeling)
 
 #############################
 # Test default distribution

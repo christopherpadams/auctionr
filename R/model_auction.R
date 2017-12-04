@@ -57,13 +57,13 @@ auction_v3 <- function(dat = NULL,
   conv_ctrl = auction_v3__get_conv_ctrl(vecInitGuess = vecInitGuess)
 
   # Set up parallelization of numerical solver
-  cl = makeCluster(num_cores)
+  cl = parallel::makeCluster(num_cores)
   # do we need to include ?
   #   do.call()
   #   dgamma()
   #   dlnorm()
   #   dweibull
-  clusterExport(cl,
+  parallel::clusterExport(cl,
                 varlist=c("vf__bid_function_fast__v4",
                           "vf__w_integrand_z_fast__v4",
                           "f__funk__v4",
@@ -85,7 +85,7 @@ auction_v3 <- function(dat = NULL,
                         argList = list())
     #   Run
     print("Fix dat_X=dat[['x_terms']] to a more generic solution")
-    run_result[[sFuncName]] = optim(par=vecInitGuess,
+    run_result[[sFuncName]] = stats::optim(par=vecInitGuess,
                                     fn=f__ll_parallel__v4,
                                     control=conv_ctrl,
                                     dat_price=dat[[winning_bid]],
@@ -96,11 +96,12 @@ auction_v3 <- function(dat = NULL,
     print(paste("End of run |", sFuncName))
   }
   # Release resources
-  stopCluster(cl)
+  parallel::stopCluster(cl)
   # Prepare output
   res = auction_v3__output_org(run_result)
   return(res)
 }
+
 auction_v3__output_org <- function(run_result) {
 
   # Initialize dataframe
@@ -126,6 +127,7 @@ auction_v3__output_org <- function(run_result) {
   }
   return(df)
 }
+
 auction__generate_data <- function(obs = 200) {
   # For testing purposes, we will generate sample data
 
@@ -136,10 +138,10 @@ auction__generate_data <- function(obs = 200) {
   # n: discrete and > 1
   # y is some function of n, x1, x2
 
-  w = rlnorm(obs)
-  x1 = rlnorm(obs) + 0.5*w
-  x2 = 0.1*rlnorm(obs) + 0.3*w
-  e = 2*rlnorm(obs)
+  w = stats::rlnorm(obs)
+  x1 = stats::rlnorm(obs) + 0.5*w
+  x2 = 0.1*stats::rlnorm(obs) + 0.3*w
+  e = 2*stats::rlnorm(obs)
   n = sample(2:10, obs, replace=TRUE)
   y = 10 - 0.5*n + x1 + x2 + e
 
@@ -149,12 +151,14 @@ auction__generate_data <- function(obs = 200) {
     x_terms = as.matrix( cbind( log(x1), log(x2) ) )
   ) )
 }
+
 auction__gen_err_msg <- function(res) {
   # Goal: Print out an error message and then stops execution of the main script
 
   errMsg = paste('\n\tError Code=', res['err_code'], '\n\tError msg=', res['err_msg'], sep='')
   stop(errMsg)
 }
+
 auction_v3__init_env <- function(num_cores) {
   # Goal:
   #   - Load all required packages, stop execution is any packages are missing
@@ -166,6 +170,7 @@ auction_v3__init_env <- function(num_cores) {
   num_cores = auction_v3__check__num_cores(num_cores = num_cores)
   return(num_cores)
 }
+
 auction_v3__load_packages <- function () {
   # Goal: Load all required packages, stop execution if any are missing
 
@@ -188,6 +193,7 @@ auction_v3__load_packages <- function () {
     auction__gen_err_msg(res)
   }
 }
+
 auction_v3__check__num_cores <- function(num_cores) {
   # Goal: Check number of cores requested
 
@@ -208,7 +214,7 @@ auction_v3__check__num_cores <- function(num_cores) {
     auction__gen_err_msg(res)
   } else {
     # Check cores available
-    num_cores__avail = detectCores()
+    num_cores__avail = parallel::detectCores()
     if ( num_cores > num_cores__avail ) {
       print(paste0("Warning: You have requested ", num_cores,
                    " cores but only have ", num_cores__avail,
@@ -221,6 +227,7 @@ auction_v3__check__num_cores <- function(num_cores) {
   }
   return(num_cores)
 }
+
 auction_v3__check__common_distrib <- function(common_distributions) {
   if (is.null(common_distributions)) {
     common_distributions = 'dlnorm'
@@ -241,6 +248,7 @@ auction_v3__check__common_distrib <- function(common_distributions) {
   }
   return(common_distributions)
 }
+
 auction_v3__check_input_data <- function(dat, colName_price, colName_num) {
   # Goal: Make sure the input data has required columns
 
@@ -277,6 +285,7 @@ auction_v3__check_input_data <- function(dat, colName_price, colName_num) {
     auction__gen_err_msg(res)
   }
 }
+
 auction_v3__check_init_guess <- function(dat = dat,
                                          colName_price, colName_num,
                                          init_privatevalue_mu,
@@ -343,6 +352,7 @@ auction_v3__check_init_guess <- function(dat = dat,
 
   return(x0)
 }
+
 auction_v3__get_conv_ctrl <- function(vecInitGuess) {
   # Max number of iterations = maxit
   maxit = 2000
@@ -365,6 +375,7 @@ auction_v3__get_conv_ctrl <- function(vecInitGuess) {
 
   return( list(maxit = maxit, parscale = parscale ) )
 }
+
 auction_v3__get_id_distrib <- function(sFuncName) {
   if (sFuncName == 'dgamma') {
     id_distrib = 1
@@ -380,6 +391,7 @@ auction_v3__get_id_distrib <- function(sFuncName) {
   }
   return(id_distrib)
 }
+
 auction_v3__get_unobs_params <- function(distrib_std_dev, id_distrib) {
   if (id_distrib == 1) {
     # dgamma
@@ -398,16 +410,18 @@ auction_v3__get_unobs_params <- function(distrib_std_dev, id_distrib) {
   }
   return(listParam)
 }
+
 auction__get_distrib_params__lognorm <- function(distrib_std_dev) {
   # Given std dev and E(X) = 1, calculate meanlog and sdlog
   tmp = log(1+distrib_std_dev^2)
   return(list(sdlog=sqrt(tmp), meanlog=-1/2*tmp))
 }
+
 auction__get_distrib_params__weibull <- function(distrib_std_dev) {
   # Given std dev and E(X) = 1, calculate scale and shape
   #   S^2 + 1 = GAMMA(1+2/shape) / [GAMMA(1+1/shape)]^2
   #     need to numerically solve
-  res_solver = optimize(
+  res_solver = stats::optimize(
     f = function(shape, S){
       return( abs( gamma(1+2/shape) / gamma(1+1/shape)^2 - 1 - S^2 ) )
     },
@@ -417,6 +431,7 @@ auction__get_distrib_params__weibull <- function(distrib_std_dev) {
   )
   return(list(shape = res_solver$minimum, scale = 1/gamma(1+1/res_solver$minimum)))
 }
+
 auction__get_distrib_params__gamma <- function(distrib_std_dev) {
   # Given std dev and E(X) = 1, calculate rate and shape
   tmp = 1/distrib_std_dev^2
@@ -440,6 +455,7 @@ auction__get_num_columns__dat <- function(dat) {
   }
   return(nParams_dat)
 }
+
 auction__x0_indices <- function() {
   return( list(
     pv_weibull_mu = 1,
@@ -477,7 +493,7 @@ f__ll_parallel__v4 = function(x0, dat_price, dat_num, dat_X, listFuncCall, cl){
       id_distrib = listFuncCall$funcID)
 
     # Run
-    v__f_w = parApply(cl = cl,
+    v__f_w = parallel::parApply(cl = cl,
                       X = cbind(v__w, dat_num, x0[listIdx$pv_weibull_mu], x0[listIdx$pv_weibull_a], v__gamma_1p1opa),
                       MARGIN = 1,
                       FUN = f__funk__v4,
@@ -491,8 +507,9 @@ f__ll_parallel__v4 = function(x0, dat_price, dat_num, dat_X, listFuncCall, cl){
     return(-sum(log(v__f_y)))
   }
 }
+
 f__funk__v4 = function(data_vec, listFuncCall){
-  val = integrate(vf__w_integrand_z_fast__v4, w_bid=data_vec[1],
+  val = stats::integrate(vf__w_integrand_z_fast__v4, w_bid=data_vec[1],
                   num_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
                   gamma_1p1oa=data_vec[5], listFuncCall=listFuncCall,
                   lower=0, upper=Inf, abs.tol = 1e-10)
@@ -500,6 +517,7 @@ f__funk__v4 = function(data_vec, listFuncCall){
     stop("Integration failed.")
   return(val$value)
 }
+
 vf__w_integrand_z_fast__v4 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, listFuncCall){
 
   # Get "x"
@@ -523,6 +541,7 @@ vf__w_integrand_z_fast__v4 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa
   vals[exp(-num_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
   return(vals)
 }
+
 f__bid_function_fast__v4 = function(price, num_bids, mu, alpha, gamma_1p1oa){
 
   if (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha) == 0) {
@@ -531,7 +550,7 @@ f__bid_function_fast__v4 = function(price, num_bids, mu, alpha, gamma_1p1oa){
   }
 
   price + 1/alpha*(mu/gamma_1p1oa)*(num_bids-1)^(-1/alpha)*
-    pgamma((num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha, 1/alpha, lower=FALSE)*
+    stats::pgamma((num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha, 1/alpha, lower=FALSE)*
     gamma(1/alpha)*
     1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha)
   # Check gamma(1/alpha) part

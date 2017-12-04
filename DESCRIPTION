@@ -13,6 +13,7 @@ Description: Package for R to estimate private-value auction models while
 License: GPL-3
 URL: http://gihub.com/alexmackay/auctionmodeling
 Imports: 
+  stats,
   parallel
 Encoding: UTF-8
 LazyData: TRUE
