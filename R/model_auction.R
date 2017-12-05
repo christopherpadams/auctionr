@@ -24,7 +24,7 @@
 #'
 #'
 #' @export
-auction_v3 <- function(dat = NULL,
+model_auction <- function(dat = NULL,
                        winning_bid = NULL, number_of_bids = NULL,
                        init_privatevalue_mu = NULL,
                        init_privatevalue_a = NULL,
