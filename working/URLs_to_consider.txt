@@ -15,8 +15,12 @@ http://r-pkgs.had.co.nz/
 
     # functions
     http://adv-r.had.co.nz/Functions.html
+            
+    # Style Guide
+    http://adv-r.had.co.nz/Style.html
     
-    
+    ## Google style guide
+    https://google.github.io/styleguide/Rguide.xml
     
 # IQSS QuickStart Guide
 https://iqss.gitbooks.io/statistical-software-development-best-practices/content/r_quickstart_guide.html
@@ -38,5 +42,4 @@ https://nicercode.github.io/guides/functions/
 
     # Designing Project
     https://nicercode.github.io/blog/2013-04-05-projects/
-    
     
