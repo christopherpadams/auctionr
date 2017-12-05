@@ -117,12 +117,35 @@ auction_v3__output_org <- function(run_result) {
   for (funcName in names(run_result)) {
     sFuncName = as.character(funcName)
 
-    df['pv_weibull_mu', sFuncName] = run_result[[sFuncName]]$par[idxList$pv_weibull_mu]
-    df['pv_weibull_a', sFuncName] = run_result[[sFuncName]]$par[idxList$pv_weibull_a]
-    df['unobs_hetero__std_dev', sFuncName] = run_result[[sFuncName]]$par[idxList$unobs_dist_param]
-    for (iX in 1:(1+length(run_result[[sFuncName]]$par)-idxList$x_terms__start)) {
-      df[sprintf('X%d', iX), sFuncName] = run_result[[sFuncName]]$par[(idxList$x_terms__start+iX-1)]
+    df['Private_Value', sFuncName] = ''
+    df['  mu', sFuncName] = sprintf('%.4f',
+                                    run_result[[sFuncName]]$par[idxList$pv_weibull_mu] )
+    df['  a', sFuncName] = sprintf('%.4f',
+                                   run_result[[sFuncName]]$par[idxList$pv_weibull_a] )
+
+    df['Unobserved_Hetero', sFuncName] = ''
+    listParam = auction_v3__get_unobs_params(distrib_std_dev =
+                                               run_result[[sFuncName]]$par[idxList$unobs_dist_param],
+                                             id_distrib =
+                                               auction_v3__get_id_distrib(
+                                                 sFuncName=sFuncName ) )
+    for (iParam in 1:length(listParam)){
+      df[sprintf('  param %d', iParam), sFuncName] = sprintf('%s = %.4f',
+                                                           names(listParam[iParam]),
+                                                           listParam[iParam] )
     }
+    # df['param 1', sFuncName] = paste(,sep='')
+
+    df['X_terms', sFuncName] = ''
+    for (iX in 1:(1+length(run_result[[sFuncName]]$par)-idxList$x_terms__start)) {
+      df[sprintf('  X%d', iX), sFuncName] = run_result[[sFuncName]]$par[(idxList$x_terms__start+iX-1)]
+    }
+    df['Statistics', sFuncName] = ''
+    df['  inv__log_likelihood', sFuncName] = run_result[[sFuncName]]$value
+    df['  StdDev__Private_Value', sFuncName] = ''
+    df['  StdDev__unobserved_hetero', sFuncName] = run_result[[sFuncName]]$par[idxList$unobs_dist_param]
+    df['  Iterations', sFuncName] = run_result[[sFuncName]]$counts['function']
+
 
   }
   return(df)
