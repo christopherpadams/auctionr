@@ -1,11 +1,15 @@
-#' Suite of functions to estimate private-value auction models
+#' Estimate private-value auction models
 #'
 #'
-#' @param cost XXnumber of observations to draw
-#' @param num_bids XXnon-negative alpha parameter of the beta distribution
-#' @param mu XXnon-negative beta parameter of the beta distribution
-#' @param alpha XXnon-negative beta parameter of the beta distribution
-#' @param gamma_1p1oa XXnon-negative beta parameter of the beta distribution
+#' @param dat List containing the winning bids, number of bids, and \code{X} variables that describe the data.
+#' @param winning_bid A key in list \code{dat} for the vector that holds the winning bids.
+#' @param num_bids A key in list \code{dat} for the vector that holds the number of bids.
+#' @param init_priv_mu XXnon-negative beta parameter of the beta distribution
+#' @param init_priv_a XXnon-negative beta parameter of the beta distribution
+#' @param init_control XXnon-negative beta parameter of the beta distribution
+#' @param init_common_sd XXnon-negative standard deviation parameter of the beta distribution
+#' @param common_distributions which distributions to
+#' @param num_cores The number of cores for running the model in parallel.
 #'
 #' @details The Beta distribution with parameters \eqn{a} and \eqn{b} has
 #' density:
@@ -16,22 +20,24 @@
 #'
 #' for \eqn{a > 0}, \eqn{b > 0} and \eqn{0 \le x \le 1}.
 #'
+#' @return The sum of \code{x} and \code{y}
+#'
 #' @examples
 #' # Draw from beta distribution with parameters a = 1 and b = 3
 #' beta_plot(a = 1, b = 3)
 #'
-#' @seealso \code{\link{rbeta}}, \code{\link{geom_density}}
+#' @seealso \code{\link{auction_generate_data}}
 #'
 #'
 #' @export
 model_auction <- function(dat = NULL,
                        winning_bid = NULL, number_of_bids = NULL,
-                       init_privatevalue_mu = NULL,
-                       init_privatevalue_a = NULL,
+                       init_priv_mu = NULL,
+                       init_priv_a = NULL,
                        init_control = NULL,
                        init_common_sd = NULL,
                        common_distributions = NULL,
-                       num_cores = NULL
+                       num_cores = 1
                        ) {
   # Initialize environment
   num_cores = auction_v3__init_env(num_cores=num_cores)
@@ -47,8 +53,8 @@ model_auction <- function(dat = NULL,
   # Prepare initial guesses
   vecInitGuess = auction_v3__check_init_guess(dat = dat,
                                                colName_price = winning_bid, colName_num = number_of_bids,
-                                               init_privatevalue_mu = init_privatevalue_mu,
-                                               init_privatevalue_a = init_privatevalue_a,
+                                               init_priv_mu = init_priv_mu,
+                                               init_priv_a = init_priv_a,
                                                init_control = init_control,
                                                init_common_sd = init_common_sd
                                                )
@@ -151,7 +157,34 @@ auction_v3__output_org <- function(run_result) {
   return(df)
 }
 
-auction__generate_data <- function(obs = 200) {
+#' Generate example data for running \code{\link{model_auction}}
+#'
+#'
+#' @param obs Number of observations to draw
+#'
+#' @details This function generates example data for feeding into model_auction(). Specifically, the
+#' winning bid, number of bids, and variables for the specified number of observations using random deviates of
+#' the log normal distruction.
+#'
+#' @return A list with three keys:
+#' \describe{
+#' \item{price}{a numeric vector whose elements are the winning bids}
+#' \item{num}{an integer vector containing the number of bids}
+#' \item{x_terms}{a matrix of numeric elements of the x terms that describe the shape of the data}
+#'}
+#' For all three lists, the length of the key's values are the number of observations specified by the \code{obs} parameter.
+#'
+#' @examples
+#' data <- auction_generate_data(100)
+#' data$price
+#' data$num
+#' data$x_terms
+#'
+#' @seealso \code{\link{model_auction}}
+#'
+#'
+#' @export
+auction_generate_data <- function(obs = 200) {
   # For testing purposes, we will generate sample data
 
   # ensure that obs is integer greater than 0
@@ -311,8 +344,8 @@ auction_v3__check_input_data <- function(dat, colName_price, colName_num) {
 
 auction_v3__check_init_guess <- function(dat = dat,
                                          colName_price, colName_num,
-                                         init_privatevalue_mu,
-                                         init_privatevalue_a,
+                                         init_priv_mu,
+                                         init_priv_a,
                                          init_control,
                                          init_common_sd) {
 
@@ -332,24 +365,24 @@ auction_v3__check_init_guess <- function(dat = dat,
 
 
 
-  if (is.null(init_privatevalue_mu)) {
+  if (is.null(init_priv_mu)) {
     x0[idxList$pv_weibull_mu] = def_pv_mu
-  } else if (is.numeric(init_privatevalue_mu)) {
-    x0[idxList$pv_weibull_mu] = init_privatevalue_mu
+  } else if (is.numeric(init_priv_mu)) {
+    x0[idxList$pv_weibull_mu] = init_priv_mu
   } else {
     res = list()
     res['err_code'] = 2
-    res['err_msg'] = "Invalid input for 'init_privatevalue_mu'"
+    res['err_msg'] = "Invalid input for 'init_priv_mu'"
     auction__gen_err_msg(res)
   }
-  if (is.null(init_privatevalue_a)) {
+  if (is.null(init_priv_a)) {
     x0[idxList$pv_weibull_a] = def_pv_a
-  } else if (is.numeric(init_privatevalue_a)) {
-    x0[idxList$pv_weibull_a] = init_privatevalue_a
+  } else if (is.numeric(init_priv_a)) {
+    x0[idxList$pv_weibull_a] = init_priv_a
   } else {
     res = list()
     res['err_code'] = 2
-    res['err_msg'] = "Invalid input for 'init_privatevalue_a'"
+    res['err_msg'] = "Invalid input for 'init_priv_a'"
     auction__gen_err_msg(res)
   }
   if (is.null(init_common_sd)) {
