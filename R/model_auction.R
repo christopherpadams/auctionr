@@ -2,29 +2,27 @@
 #'
 #'
 #' @param dat List containing the winning bids, number of bids, and \code{X} variables that describe the data.
-#' @param winning_bid A key in list \code{dat} for the vector that holds the winning bids.
-#' @param num_bids A key in list \code{dat} for the vector that holds the number of bids.
-#' @param init_priv_mu XXnon-negative beta parameter of the beta distribution
-#' @param init_priv_a XXnon-negative beta parameter of the beta distribution
-#' @param init_control XXnon-negative beta parameter of the beta distribution
-#' @param init_common_sd XXnon-negative standard deviation parameter of the beta distribution
-#' @param common_distributions which distributions to
+#' @param winning_bid In list \code{dat}, the key whose value is a vector that holds the winning bids.
+#' @param number_of_bids In list \code{dat}, the key whose value is a vector that holds the number of bids.
+#' @param init_priv_mu Value for \code{mu} for initial guess of the private value distribution.
+#' @param init_priv_a Value for \code{alpha} for initial guess of the private value distribution.
+#' @param init_control X terms used to describe parameters of the unobserved heterogeneity.
+#' @param init_common_sd Value for \code{sigma} for initial guess of the private value distribution.
+#' @param common_distributions Which distributions to test for modeling the unobserved heterogeneity.
 #' @param num_cores The number of cores for running the model in parallel.
 #'
-#' @details The Beta distribution with parameters \eqn{a} and \eqn{b} has
-#' density:
+#' @details FILL IN DETAILS ON HOW THIS WORKS HERE.
 #'
-#' \deqn{
-#'     \Gamma(a+b)/(\Gamma(a)\Gamma(b))x^(a-1)(1-x)^(b-1)
-#' }
+#' ALSO EXPLAIN IN DETAIL WHAT EACH OF THE PARAMETERS ARE AND WHAT IS EXPECTED
 #'
-#' for \eqn{a > 0}, \eqn{b > 0} and \eqn{0 \le x \le 1}.
-#'
-#' @return The sum of \code{x} and \code{y}
+#' @return For each of the distributions speicifed in \code{common_distributions}, ...
 #'
 #' @examples
-#' # Draw from beta distribution with parameters a = 1 and b = 3
-#' beta_plot(a = 1, b = 3)
+#'
+#' \dontrun{
+#' DOES IT MAKE SENSE TO INCLUDE EXAMPLE OUTPUT??
+#' PUT LONG EXAMPLE HERE
+#' }
 #'
 #' @seealso \code{\link{auction_generate_data}}
 #'
