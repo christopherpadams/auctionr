@@ -1,32 +1,37 @@
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-Auction Modeling
-----------------
+auctionmodeling
+===============
 
-Package for R to estimate private-value auction models while allowing
-for unobservable auction-specific heterogeneity. Extensions to the
-baseline model allow for endogenous entry and observing multiple bids
-per auction.
-
-Motivation
-----------
-
-This is a test.
-
-Examples
+Overview
 --------
 
-The `beta_plot` function allows you to simulate data from a beta
-distribution and plot the results.
+An R package for R to estimate private-value auction models while
+allowing for unobservable auction-specific heterogeneity. Extensions to
+the baseline model allow for endogenous entry and observing multiple
+bids per auction.
+
+Installation
+------------
+
+    # Install the R package from CRAN:
+    install.packages("auctionmodeling")
+
+    # Or the the development version from GitHub:
+    # install.packages("devtools")
+    devtools::install_github("alexjmac/auctionmodeling")
+
+Getting started
+---------------
 
     library(auctionmodeling)
     #MYFUNCTIONGOESHERE(withparams = TRUE)
 
-Including Plots
----------------
+xxx
 
-You can also embed plots, for example:
+For further information
+-----------------------
 
-![](man/figures/pressure-1.png)
+xxx
 
-Note that the `echo = FALSE` parameter was added to the code chunk to
-prevent printing of the R code that generated the plot.
+License
+-------

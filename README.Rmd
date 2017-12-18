@@ -17,33 +17,43 @@ knitr::opts_chunk$set(
 )
 ```
 
-## Auction Modeling
+# auctionmodeling
 
-Package for R to estimate private-value auction models while allowing for unobservable
+## Overview 
+
+An R package for R to estimate private-value auction models while allowing for unobservable
 auction-specific heterogeneity. Extensions to the baseline model allow for endogenous 
 entry and observing multiple bids per auction.
 
-## Motivation 
 
-This is a test.
+## Installation
 
-## Examples
+```{r, eval = FALSE}
+# Install the R package from CRAN:
+install.packages("auctionmodeling")
 
-The `beta_plot` function allows you to simulate data from a 
-beta distribution and plot the results.
+# Or the the development version from GitHub:
+# install.packages("devtools")
+devtools::install_github("alexjmac/auctionmodeling")
+```
+
+
+## Getting started
 
 ```{r}
 library(auctionmodeling)
 #MYFUNCTIONGOESHERE(withparams = TRUE)
 ```
 
+There are two functions availabe from the package:
 
-## Including Plots
+* `auction_generate_data()` which xxxx
 
-You can also embed plots, for example:
+* `model_auction()` which does the real work. Here, ...
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
+## For further information
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+xxx
+
+## License
+
