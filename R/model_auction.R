@@ -38,18 +38,18 @@ model_auction <- function(dat = NULL,
                        num_cores = 1
                        ) {
   # Initialize environment
-  num_cores = auction_v3__init_env(num_cores=num_cores)
+  num_cores = auction__init_env(num_cores=num_cores)
 
   # Validate distributions requested for unobserved heterogeneity
-  common_distributions = auction_v3__check__common_distrib(common_distributions = common_distributions)
+  common_distributions = auction__check__common_distrib(common_distributions = common_distributions)
 
   # Validate input data
-  auction_v3__check_input_data(dat = dat,
+  auction__check_input_data(dat = dat,
                                colName_price = winning_bid, colName_num = number_of_bids
                                )
 
   # Prepare initial guesses
-  vecInitGuess = auction_v3__check_init_guess(dat = dat,
+  vecInitGuess = auction__check_init_guess(dat = dat,
                                                colName_price = winning_bid, colName_num = number_of_bids,
                                                init_priv_mu = init_priv_mu,
                                                init_priv_a = init_priv_a,
@@ -58,7 +58,7 @@ model_auction <- function(dat = NULL,
                                                )
 
   # Prepare control parameters for numerical solver
-  conv_ctrl = auction_v3__get_conv_ctrl(vecInitGuess = vecInitGuess)
+  conv_ctrl = auction__get_conv_ctrl(vecInitGuess = vecInitGuess)
 
   # Set up parallelization of numerical solver
   cl = parallel::makeCluster(num_cores)
@@ -71,7 +71,7 @@ model_auction <- function(dat = NULL,
                 varlist=c("vf__bid_function_fast__v4",
                           "vf__w_integrand_z_fast__v4",
                           "f__funk__v4",
-                          "auction_v3__get_unobs_params",
+                          "auction__get_unobs_params",
                           "auction__get_distrib_params__gamma",
                           "auction__get_distrib_params__lognorm",
                           "auction__get_distrib_params__weibull")
@@ -85,7 +85,7 @@ model_auction <- function(dat = NULL,
     print(paste("Running |", sFuncName))
     #   Build function call parameter
     listFuncCall = list(funcName = sFuncName,
-                        funcID = auction_v3__get_id_distrib(sFuncName = sFuncName),
+                        funcID = auction__get_id_distrib(sFuncName = sFuncName),
                         argList = list())
     #   Run
     print("Fix dat_X=dat[['x_terms']] to a more generic solution")
@@ -102,11 +102,11 @@ model_auction <- function(dat = NULL,
   # Release resources
   parallel::stopCluster(cl)
   # Prepare output
-  res = auction_v3__output_org(run_result)
+  res = auction__output_org(run_result)
   return(res)
 }
 
-auction_v3__output_org <- function(run_result) {
+auction__output_org <- function(run_result) {
 
   # Initialize dataframe
   nCol = length(run_result)
@@ -128,10 +128,10 @@ auction_v3__output_org <- function(run_result) {
                                    run_result[[sFuncName]]$par[idxList$pv_weibull_a] )
 
     df['Unobserved_Hetero', sFuncName] = ''
-    listParam = auction_v3__get_unobs_params(distrib_std_dev =
+    listParam = auction__get_unobs_params(distrib_std_dev =
                                                run_result[[sFuncName]]$par[idxList$unobs_dist_param],
                                              id_distrib =
-                                               auction_v3__get_id_distrib(
+                                               auction__get_id_distrib(
                                                  sFuncName=sFuncName ) )
     for (iParam in 1:length(listParam)){
       df[sprintf('  param %d', iParam), sFuncName] = sprintf('%s = %.4f',
@@ -213,19 +213,19 @@ auction__gen_err_msg <- function(res) {
   stop(errMsg)
 }
 
-auction_v3__init_env <- function(num_cores) {
+auction__init_env <- function(num_cores) {
   # Goal:
   #   - Load all required packages, stop execution is any packages are missing
   #   - Check number of cores requested
 
   # Load required packages
-  auction_v3__load_packages()
+  auction__load_packages()
   # Check number of cores requested
-  num_cores = auction_v3__check__num_cores(num_cores = num_cores)
+  num_cores = auction__check__num_cores(num_cores = num_cores)
   return(num_cores)
 }
 
-auction_v3__load_packages <- function () {
+auction__load_packages <- function () {
   # Goal: Load all required packages, stop execution if any are missing
 
   # Which packages are required?
@@ -248,7 +248,7 @@ auction_v3__load_packages <- function () {
   }
 }
 
-auction_v3__check__num_cores <- function(num_cores) {
+auction__check__num_cores <- function(num_cores) {
   # Goal: Check number of cores requested
 
   # If no # workers requested, then set to 1
@@ -282,7 +282,7 @@ auction_v3__check__num_cores <- function(num_cores) {
   return(num_cores)
 }
 
-auction_v3__check__common_distrib <- function(common_distributions) {
+auction__check__common_distrib <- function(common_distributions) {
   if (is.null(common_distributions)) {
     common_distributions = 'dlnorm'
   } else if (is.character(common_distributions)) {
@@ -303,7 +303,7 @@ auction_v3__check__common_distrib <- function(common_distributions) {
   return(common_distributions)
 }
 
-auction_v3__check_input_data <- function(dat, colName_price, colName_num) {
+auction__check_input_data <- function(dat, colName_price, colName_num) {
   # Goal: Make sure the input data has required columns
 
   if (mode(dat) == "list" && is.character(colName_price) && is.character(colName_num)) {
@@ -340,7 +340,7 @@ auction_v3__check_input_data <- function(dat, colName_price, colName_num) {
   }
 }
 
-auction_v3__check_init_guess <- function(dat = dat,
+auction__check_init_guess <- function(dat = dat,
                                          colName_price, colName_num,
                                          init_priv_mu,
                                          init_priv_a,
@@ -407,7 +407,7 @@ auction_v3__check_init_guess <- function(dat = dat,
   return(x0)
 }
 
-auction_v3__get_conv_ctrl <- function(vecInitGuess) {
+auction__get_conv_ctrl <- function(vecInitGuess) {
   # Max number of iterations = maxit
   maxit = 2000
   # Step sizes
@@ -430,7 +430,7 @@ auction_v3__get_conv_ctrl <- function(vecInitGuess) {
   return( list(maxit = maxit, parscale = parscale ) )
 }
 
-auction_v3__get_id_distrib <- function(sFuncName) {
+auction__get_id_distrib <- function(sFuncName) {
   if (sFuncName == 'dgamma') {
     id_distrib = 1
   } else if (sFuncName == 'dlnorm') {
@@ -446,7 +446,7 @@ auction_v3__get_id_distrib <- function(sFuncName) {
   return(id_distrib)
 }
 
-auction_v3__get_unobs_params <- function(distrib_std_dev, id_distrib) {
+auction__get_unobs_params <- function(distrib_std_dev, id_distrib) {
   if (id_distrib == 1) {
     # dgamma
     listParam = auction__get_distrib_params__gamma(distrib_std_dev = distrib_std_dev)
@@ -542,7 +542,7 @@ f__ll_parallel__v4 = function(x0, dat_price, dat_num, dat_X, listFuncCall, cl){
     v__w = dat_price / v__h
 
     # Set E(X) = 1 for UnObserved distribution
-    listFuncCall$argList = auction_v3__get_unobs_params(
+    listFuncCall$argList = auction__get_unobs_params(
       distrib_std_dev = x0[listIdx$unobs_dist_param],
       id_distrib = listFuncCall$funcID)
 
