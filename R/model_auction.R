@@ -6,14 +6,43 @@
 #' @param number_of_bids In list \code{dat}, the key whose value is a vector that holds the number of bids.
 #' @param init_priv_mu Value for \code{mu} for initial guess of the private value distribution.
 #' @param init_priv_a Value for \code{alpha} for initial guess of the private value distribution.
-#' @param init_control X terms used to describe parameters of the unobserved heterogeneity.
+#' @param init_control Value(s) for the intial X terms used for the initla guess of the unobserved heterogeneity.
 #' @param init_common_sd Value for \code{sigma} for initial guess of the private value distribution.
 #' @param common_distributions Which distributions to test for modeling the unobserved heterogeneity.
 #' @param num_cores The number of cores for running the model in parallel.
 #'
-#' @details FILL IN DETAILS ON HOW THIS WORKS HERE.
+#' @details This function attempts to describe auction data as a combination of private value data and unobserved heterogeneity.
+#' Private values are modeled using the weibull distribution, while the unobserved heterogeneity can be modeled based on user input.
+#' The function attempts to describe the data by iterative optimization of a minimization function, with the best fit reported
+#' via the smallest standard deviation. X terms describing additional characterstics of the data can be supplied;
+#' the probability density functions to use, and intial values for the shapes of the distrubtions, and intials values for the X
+#' terms can be supplied, though they are optional. Initial, sample data can be supplied via the
+#' \code{\link{auction_generate_data}} function. Otherwise, a minimum of 3 bids is required.
 #'
-#' ALSO EXPLAIN IN DETAIL WHAT EACH OF THE PARAMETERS ARE AND WHAT IS EXPECTED
+#' \code{dat} must be a list having three keys, the names of which can be user-definted. The first key, \code{price}, is a numeric vector
+#' describing the winniding bids. The second key, \code{num}, descibes the number of bids. And the last key, \code{x_terms}, is a numeric matrix whose
+#' values describe the characteristics of the data. The key names must be supplied as the \code{winning_bid} and \code{number_of_bids} parameters.
+#' VERIFY! The \code{x_terms} are determined by all remaining numeric columns in \code{dat}.
+#'
+#' Modeling for the unobserved heterogeneity is controled by the \code{coimmon_distributions}. This is eitehr a string or vector of stings that
+#' state which distrubtions to use for modeling: \code{dlnorm}, \code{weibull}, and \code{weibull}. This parameter is optional; the log normal
+#' distribution \code{dlnrom} will be used if not supplied.
+#'
+#' \code{init_priv_mu}, \code{init_priv_a}, \code{init_common_sd}, and \code{init_control} are all optional parameters. If not supplied, XXX.
+#'
+#' If more than one distrubtion is specified, the optimization is attempted for each distribution. Accordingly, the private value distribution
+#' will change for each iteration of the optimization and again per distribution.
+#'
+#' The results are not displayed until all iterations and distributions are tested.
+#'
+#' This funtion utilizes the \code{Rsnow} framework within the \code{Rparallel} package. If \code{numcores} is not specified, this will be run using only
+#' one CPU/core. One can use \code{parallel::detectCores()} to determine how many are available on your system, but you are not advised
+#' to use all at once, as this may make your system unresponsive. Please see \code{Rparallel} and \code{Rsnow} for more details.
+#'
+#' VERIFY! Note that for supplied data, any rows with missing data will be removed prior to the numeric solver runs.
+#'
+#'
+#'
 #'
 #' @return For each of the distributions speicifed in \code{common_distributions}, ...
 #'
