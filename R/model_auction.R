@@ -73,9 +73,8 @@ model_auction <- function(dat = NULL,
   common_distributions = auction__check__common_distrib(common_distributions = common_distributions)
 
   # Validate input data
-  auction__check_input_data(dat = dat,
-                               colName_price = winning_bid, colName_num = number_of_bids
-                               )
+  dat = auction__check_input_data(dat = dat,
+                                  colName_price = winning_bid, colName_num = number_of_bids)
 
   # Prepare initial guesses
   vecInitGuess = auction__check_init_guess(dat = dat,
@@ -167,7 +166,6 @@ auction__output_org <- function(run_result) {
                                                            names(listParam[iParam]),
                                                            listParam[iParam] )
     }
-    # df['param 1', sFuncName] = paste(,sep='')
 
     df['X_terms', sFuncName] = ''
     for (iX in 1:(1+length(run_result[[sFuncName]]$par)-idxList$x_terms__start)) {
@@ -361,6 +359,77 @@ auction__check_input_data <- function(dat, colName_price, colName_num) {
                               paste(listMissingColName, collapse=','))
       auction__gen_err_msg(res)
     }
+
+
+    # Remove non-numeric columns
+    for (colName in colList) {
+      if ((class(dat[[colName]])=='factor') || (mode(dat[[colName]]) != 'numeric')) {
+        # Drop column
+        #   If price or number of bids, then abort
+        if ((colName == colName_price) || (colName == colName_num)){
+          # Abort
+          res = list()
+          res['err_code'] = 2
+          res['err_msg'] = "'price' and/or 'number of bids' has non-numeric data"
+          auction__gen_err_msg(res)
+        } else {
+          # Remove
+          dat[colName] = NULL
+          colList = colList[colName != colList]
+        }
+
+      }
+    }
+
+    # Remove rows with any missing data
+    #   Identify rows
+    listRow = c()
+    if (is.data.frame(dat)) {
+      # Dealing with a dataframe
+      for (iRow in 1:dim(dat)[1]) {
+        if (any(is.na(dat[iRow,]))) {
+          listRow = c(listRow, iRow)
+        }
+      }
+    } else {
+      # Dealing with a list
+      for (colName in colList) {
+        # Check if value for this key is a vector or a matrix/dataframe
+        nRow = dim(dat[[colName]])[1]
+        if (! is.null(nRow)) {
+          # Dealing with a dataframe
+          for (iRow in 1:nRow) {
+            if ((! iRow %in% listRow) && (any(is.na(dat[[colName]][iRow,])))) {
+              listRow = c(listRow, iRow)
+            }
+          }
+        } else {
+          # Dealing with a vector
+          nRow = length(dat[[colName]])
+          for (iRow in 1:nRow) {
+            if ((! iRow %in% listRow) && (any(is.na(dat[[colName]][iRow])))) {
+              listRow = c(listRow, iRow)
+            }
+          }
+        }
+      }
+    }
+    if (length(listRow) > 0) {
+      # Remove these rows
+      if (is.data.frame(dat)) {
+        dat = dat[-listRow,]
+      } else {
+        for (colName in colList) {
+          if (! is.null(dim(dat[[colName]]))) {
+            dat[[colName]] = dat[[colName]][-listRow,]
+          } else {
+            dat[[colName]] = dat[[colName]][-listRow]
+          }
+        }
+      }
+    }
+
+    return(dat)
   } else {
     res = list()
     res['err_code'] = 2
@@ -639,5 +708,4 @@ f__bid_function_fast__v4 = function(price, num_bids, mu, alpha, gamma_1p1oa){
   # Check gamma(1/alpha) part
 }
 vf__bid_function_fast__v4 = Vectorize(FUN = f__bid_function_fast__v4,vectorize.args = "price")
-
 
