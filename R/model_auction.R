@@ -102,8 +102,10 @@ model_auction <- function(dat = NULL,
                           "auction__get_unobs_params",
                           "auction__get_distrib_params__gamma",
                           "auction__get_distrib_params__lognorm",
-                          "auction__get_distrib_params__weibull")
+                          "auction__get_distrib_params__weibull"),
+                envir = environment(model_auction)
                 )
+
   # Run
   run_result = list()
   for (funcName in common_distributions) {
