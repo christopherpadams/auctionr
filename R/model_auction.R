@@ -96,9 +96,9 @@ model_auction <- function(dat = NULL,
   #   dlnorm()
   #   dweibull
   parallel::clusterExport(cl,
-                varlist=c("vf__bid_function_fast__v4",
-                          "vf__w_integrand_z_fast__v4",
-                          "f__funk__v4",
+                varlist=c("vf__bid_function_fast",
+                          "vf__w_integrand_z_fast",
+                          "f__funk",
                           "auction__get_unobs_params",
                           "auction__get_distrib_params__gamma",
                           "auction__get_distrib_params__lognorm",
@@ -118,7 +118,7 @@ model_auction <- function(dat = NULL,
     #   Run
     print("Fix dat_X=dat[['x_terms']] to a more generic solution")
     run_result[[sFuncName]] = stats::optim(par=vecInitGuess,
-                                    fn=f__ll_parallel__v4,
+                                    fn=f__ll_parallel,
                                     control=conv_ctrl,
                                     dat_price=dat[[winning_bid]],
                                     dat_num=dat[[number_of_bids]],
@@ -617,7 +617,7 @@ auction__x0_indices <- function() {
   ) )
 }
 
-f__ll_parallel__v4 = function(x0, dat_price, dat_num, dat_X, listFuncCall, cl){
+f__ll_parallel = function(x0, dat_price, dat_num, dat_X, listFuncCall, cl){
   # From iteration to iteration, only x0 is changing
 
   # update } else if ( sum ( ... ) ) {
@@ -648,7 +648,7 @@ f__ll_parallel__v4 = function(x0, dat_price, dat_num, dat_X, listFuncCall, cl){
     v__f_w = parallel::parApply(cl = cl,
                       X = cbind(v__w, dat_num, x0[listIdx$pv_weibull_mu], x0[listIdx$pv_weibull_a], v__gamma_1p1opa),
                       MARGIN = 1,
-                      FUN = f__funk__v4,
+                      FUN = f__funk,
                       listFuncCall=listFuncCall
     )
 
@@ -660,8 +660,8 @@ f__ll_parallel__v4 = function(x0, dat_price, dat_num, dat_X, listFuncCall, cl){
   }
 }
 
-f__funk__v4 = function(data_vec, listFuncCall){
-  val = stats::integrate(vf__w_integrand_z_fast__v4, w_bid=data_vec[1],
+f__funk = function(data_vec, listFuncCall){
+  val = stats::integrate(vf__w_integrand_z_fast, w_bid=data_vec[1],
                   num_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
                   gamma_1p1oa=data_vec[5], listFuncCall=listFuncCall,
                   lower=0, upper=Inf, abs.tol = 1e-10)
@@ -670,10 +670,10 @@ f__funk__v4 = function(data_vec, listFuncCall){
   return(val$value)
 }
 
-vf__w_integrand_z_fast__v4 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, listFuncCall){
+vf__w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, listFuncCall){
 
   # Get "x"
-  b_z = vf__bid_function_fast__v4(price=z, num_bids=num_bids, mu=mu, alpha=alpha, gamma_1p1oa)
+  b_z = vf__bid_function_fast(price=z, num_bids=num_bids, mu=mu, alpha=alpha, gamma_1p1oa)
   u_z = w_bid/b_z
 
   # Add "x"
@@ -694,7 +694,7 @@ vf__w_integrand_z_fast__v4 = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa
   return(vals)
 }
 
-f__bid_function_fast__v4 = function(price, num_bids, mu, alpha, gamma_1p1oa){
+f__bid_function_fast = function(price, num_bids, mu, alpha, gamma_1p1oa){
 
   if (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha) == 0) {
     return(price + mu/alpha*(num_bids-1)^(-1/alpha)*1/gamma_1p1oa*
@@ -707,5 +707,5 @@ f__bid_function_fast__v4 = function(price, num_bids, mu, alpha, gamma_1p1oa){
     1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*price)^alpha)
   # Check gamma(1/alpha) part
 }
-vf__bid_function_fast__v4 = Vectorize(FUN = f__bid_function_fast__v4,vectorize.args = "price")
+vf__bid_function_fast = Vectorize(FUN = f__bid_function_fast,vectorize.args = "price")
 
