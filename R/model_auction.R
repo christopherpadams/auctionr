@@ -118,25 +118,25 @@ model_auction <- function(dat = NULL,
                         funcID = auction__get_id_distrib(sFuncName = sFuncName),
                         argList = list())
     #   Run
-    print("Fix dat_X=dat[['x_terms']] to a more generic solution")
     run_result[[sFuncName]] = stats::optim(par=vecInitGuess,
-                                    fn=f__ll_parallel,
-                                    control=conv_ctrl,
-                                    dat_price=dat[[winning_bid]],
-                                    dat_num=dat[[number_of_bids]],
-                                    dat_X=dat[['x_terms']],
-                                    listFuncCall=listFuncCall,
-                                    cl=cl)
+                                           fn=f__ll_parallel,
+                                           control=conv_ctrl,
+                                           dat_price=dat[[winning_bid]],
+                                           dat_num=dat[[number_of_bids]],
+                                           dat_X=dat[ ! names(dat) %in% c(winning_bid, number_of_bids) ],
+                                           listFuncCall=listFuncCall,
+                                           cl=cl)
     print(paste("End of run |", sFuncName))
   }
   # Release resources
   parallel::stopCluster(cl)
   # Prepare output
-  res = auction__output_org(run_result)
+  res = auction__output_org(run_result=run_result,
+                            dat_X__fields = names(dat)[ ! names(dat) %in% c(winning_bid, number_of_bids) ])
   return(res)
 }
 
-auction__output_org <- function(run_result) {
+auction__output_org <- function(run_result, dat_X__fields) {
 
   # Initialize dataframe
   nCol = length(run_result)
@@ -159,26 +159,35 @@ auction__output_org <- function(run_result) {
 
     df['Unobserved_Hetero', sFuncName] = ''
     listParam = auction__get_unobs_params(distrib_std_dev =
-                                               run_result[[sFuncName]]$par[idxList$unobs_dist_param],
-                                             id_distrib =
-                                               auction__get_id_distrib(
-                                                 sFuncName=sFuncName ) )
+                                            run_result[[sFuncName]]$par[idxList$unobs_dist_param],
+                                          id_distrib =
+                                            auction__get_id_distrib(
+                                              sFuncName=sFuncName ) )
     for (iParam in 1:length(listParam)){
       df[sprintf('  param %d', iParam), sFuncName] = sprintf('%s = %.4f',
-                                                           names(listParam[iParam]),
-                                                           listParam[iParam] )
+                                                             names(listParam[iParam]),
+                                                             listParam[iParam] )
     }
 
     df['X_terms', sFuncName] = ''
     for (iX in 1:(1+length(run_result[[sFuncName]]$par)-idxList$x_terms__start)) {
-      df[sprintf('  X%d', iX), sFuncName] = run_result[[sFuncName]]$par[(idxList$x_terms__start+iX-1)]
+      df[sprintf('  %s', dat_X__fields[iX]),
+         sFuncName] = sprintf('%.5f',
+                              run_result[[sFuncName]]$par[(idxList$x_terms__start+iX-1)] )
     }
-    df['Statistics', sFuncName] = ''
-    df['  inv__log_likelihood', sFuncName] = run_result[[sFuncName]]$value
-    df['  StdDev__Private_Value', sFuncName] = ''
-    df['  StdDev__unobserved_hetero', sFuncName] = run_result[[sFuncName]]$par[idxList$unobs_dist_param]
-    df['  Iterations', sFuncName] = run_result[[sFuncName]]$counts['function']
 
+
+    df['Statistics', sFuncName] = ''
+    df['  inv__log_likelihood', sFuncName] = sprintf('%.5f',
+                                                     run_result[[sFuncName]]$value )
+    df['  StdDev__Private_Value', sFuncName] = sprintf('%.5f',
+                                                       auction__get_private_value_stats(
+                                                         weibull_scale=run_result[[sFuncName]]$par[idxList$pv_weibull_a],
+                                                         weibull_shape=run_result[[sFuncName]]$par[idxList$pv_weibull_mu]
+                                                       ))
+    df['  StdDev__unobserved_hetero', sFuncName] = sprintf('%.5f',
+                                                           run_result[[sFuncName]]$par[idxList$unobs_dist_param] )
+    df['  Iterations', sFuncName] = run_result[[sFuncName]]$counts['function']
 
   }
   return(df)
@@ -228,11 +237,12 @@ auction_generate_data <- function(obs = 200) {
   n = sample(2:10, obs, replace=TRUE)
   y = 10 - 0.5*n + x1 + x2 + e
 
-  return( list(
-    price = y,
-    num = n,
-    x_terms = as.matrix( cbind( log(x1), log(x2) ) )
-  ) )
+  # return( list(
+  #   price = y,
+  #   num = n,
+  #   x_terms = as.matrix( cbind( log(x1), log(x2) ) )
+  # ) )
+  return( data.frame(cbind(y, n, x1, x2)) )
 }
 
 auction__gen_err_msg <- function(res) {
@@ -335,109 +345,75 @@ auction__check__common_distrib <- function(common_distributions) {
 auction__check_input_data <- function(dat, colName_price, colName_num) {
   # Goal: Make sure the input data has required columns
 
-  if (mode(dat) == "list" && is.character(colName_price) && is.character(colName_num)) {
-    # Get list of required column names
+  # Ensure 'dat' is a dataframe
+  if (! is.data.frame(dat)) {
+    res['err_code'] = 2
+    res['err_msg'] = paste0("Unable to find the following columns within input data: ",
+                            paste(listMissingColName, collapse=','))
+    auction__gen_err_msg(res)
+  } else {
+
+    # Ensure 'dat' has all required columns
+    #   Get list of required column names
     colList_req = c(colName_price, colName_num)
 
-    # Get list of column names
-    if (is.data.frame(dat)) {
-      colList = colnames(dat)
-    } else {
-      colList = names(dat)
-    }
-
-    # Make sure we aren't missing the required columns
+    #   Get list of column names
+    colList = colnames(dat)
+    #   Compare list against list of required columns
     listMissingColName = c()
     for (reqCol in colList_req) {
       if ( ! reqCol %in% colList ) {
         listMissingColName = c(listMissingColName, reqCol)
       }
     }
-
     if ( length(listMissingColName) > 0 ) {
       res = list()
       res['err_code'] = 2
       res['err_msg'] = paste0("Unable to find the following columns within input data: ",
                               paste(listMissingColName, collapse=','))
       auction__gen_err_msg(res)
-    }
-
-
-    # Remove non-numeric columns
-    for (colName in colList) {
-      if ((class(dat[[colName]])=='factor') || (mode(dat[[colName]]) != 'numeric')) {
-        # Drop column
-        #   If price or number of bids, then abort
-        if ((colName == colName_price) || (colName == colName_num)){
-          # Abort
-          res = list()
-          res['err_code'] = 2
-          res['err_msg'] = "'price' and/or 'number of bids' has non-numeric data"
-          auction__gen_err_msg(res)
-        } else {
-          # Remove
-          dat[colName] = NULL
-          colList = colList[colName != colList]
-        }
-
-      }
-    }
-
-    # Remove rows with any missing data
-    #   Identify rows
-    listRow = c()
-    if (is.data.frame(dat)) {
-      # Dealing with a dataframe
-      for (iRow in 1:dim(dat)[1]) {
-        if (any(is.na(dat[iRow,]))) {
-          listRow = c(listRow, iRow)
-        }
-      }
     } else {
-      # Dealing with a list
-      for (colName in colList) {
-        # Check if value for this key is a vector or a matrix/dataframe
-        nRow = dim(dat[[colName]])[1]
-        if (! is.null(nRow)) {
-          # Dealing with a dataframe
-          for (iRow in 1:nRow) {
-            if ((! iRow %in% listRow) && (any(is.na(dat[[colName]][iRow,])))) {
-              listRow = c(listRow, iRow)
-            }
-          }
-        } else {
-          # Dealing with a vector
-          nRow = length(dat[[colName]])
-          for (iRow in 1:nRow) {
-            if ((! iRow %in% listRow) && (any(is.na(dat[[colName]][iRow])))) {
-              listRow = c(listRow, iRow)
-            }
-          }
-        }
-      }
-    }
-    if (length(listRow) > 0) {
-      # Remove these rows
-      if (is.data.frame(dat)) {
-        dat = dat[-listRow,]
-      } else {
-        for (colName in colList) {
-          if (! is.null(dim(dat[[colName]]))) {
-            dat[[colName]] = dat[[colName]][-listRow,]
-          } else {
-            dat[[colName]] = dat[[colName]][-listRow]
-          }
-        }
-      }
-    }
 
-    return(dat)
-  } else {
-    res = list()
-    res['err_code'] = 2
-    res['err_msg'] = "Invalid input for 'dat' and/or associated column names"
-    auction__gen_err_msg(res)
+      # Remove non-numeric columns
+      for (colName in colList) {
+        if ((class(dat[[colName]])=='factor') || (mode(dat[[colName]]) != 'numeric')) {
+          # Drop column
+          #   If price or number of bids, then abort
+          if ((colName == colName_price) || (colName == colName_num)){
+            # Abort
+            res = list()
+            res['err_code'] = 2
+            res['err_msg'] = "'price' and/or 'number of bids' has non-numeric data"
+            auction__gen_err_msg(res)
+          } else {
+            # Remove
+            dat[colName] = NULL
+            colList = colList[colName != colList]
+          }
+
+        }
+      }
+
+      # Remove rows with any missing data
+      #   Identify rows
+      listRow = c()
+      if (is.data.frame(dat)) {
+        # Dealing with a dataframe
+        for (iRow in 1:dim(dat)[1]) {
+          if (any(is.na(dat[iRow,]))) {
+            listRow = c(listRow, iRow)
+          }
+        }
+      }
+      if (length(listRow) > 0) {
+        # Remove these rows
+        dat = dat[-listRow,]
+      }
+
+      return(dat)
+    }
   }
+  return(NULL)
 }
 
 auction__check_init_guess <- function(dat = dat,
@@ -592,6 +568,16 @@ auction__get_distrib_params__gamma <- function(distrib_std_dev) {
   return(list(shape = tmp, rate = tmp))
 }
 
+auction__get_private_value_stats <- function(weibull_scale, weibull_shape) {
+  std_dev = sqrt(
+    weibull_scale^2 * (
+      gamma(1 + 2 / weibull_shape) - (gamma(1 + 1 / weibull_shape))^2
+    )
+  )
+
+  return(std_dev)
+}
+
 auction__get_num_columns__dat <- function(dat) {
   if (is.data.frame(dat)) {
     nParams_dat = dim(dat)[2]
@@ -622,8 +608,6 @@ auction__x0_indices <- function() {
 f__ll_parallel = function(x0, dat_price, dat_num, dat_X, listFuncCall, cl){
   # From iteration to iteration, only x0 is changing
 
-  # update } else if ( sum ( ... ) ) {
-
   # Get position indices
   listIdx = auction__x0_indices()
 
@@ -645,18 +629,18 @@ f__ll_parallel = function(x0, dat_price, dat_num, dat_X, listFuncCall, cl){
     listFuncCall$argList = auction__get_unobs_params(
       distrib_std_dev = x0[listIdx$unobs_dist_param],
       id_distrib = listFuncCall$funcID)
-
     # Run
     v__f_w = parallel::parApply(cl = cl,
-                      X = cbind(v__w, dat_num, x0[listIdx$pv_weibull_mu], x0[listIdx$pv_weibull_a], v__gamma_1p1opa),
-                      MARGIN = 1,
-                      FUN = f__funk,
-                      listFuncCall=listFuncCall
+                                X = cbind(v__w,
+                                          dat_num,
+                                          x0[listIdx$pv_weibull_mu],
+                                          x0[listIdx$pv_weibull_a],
+                                          v__gamma_1p1opa),
+                                MARGIN = 1,
+                                FUN = f__funk,
+                                listFuncCall=listFuncCall
     )
-
     # Return output
-    ### print(paste("v__f_w", -sum(log(v__f_w / v__h))))
-    ### print(func__prob_distrib)
     v__f_y = v__f_w / v__h
     return(-sum(log(v__f_y)))
   }
@@ -711,3 +695,65 @@ f__bid_function_fast = function(price, num_bids, mu, alpha, gamma_1p1oa){
 }
 vf__bid_function_fast = Vectorize(FUN = f__bid_function_fast,vectorize.args = "price")
 
+
+
+
+
+
+
+
+#######################################################
+# Load Data
+#######################################################
+set.seed(301)
+# data = # Generate some data
+# y, n, x1, x2: positive
+# n: discrete and > 1
+# y is some function of n, x1, x2
+
+obs = 10
+num_cores = 3
+
+w = rlnorm(obs)
+x1 = rlnorm(obs) + .5*w
+x2 = .1*rlnorm(obs) + .3*w
+e = 2*rlnorm(obs)
+n = sample(2:10, obs, replace=TRUE)
+y = 10 - .5*n + x1 + x2 + e
+data = data.frame(cbind(y, n, x1, x2))
+plot(n, y)
+
+v.y = data$y
+v.n = data$n
+m.h_x = as.matrix(cbind(log(data$x1),log(data$x2)))
+
+# inital parameter guess
+x0 =  c(8, 2, .5, .4, .6)
+
+
+# My estimation routine
+# $par
+# [1] 15.4977557  3.8299721  0.2145705  0.1577268  0.1068006
+# $value
+# [1] 508.4587
+# $counts
+# function gradient
+# 495       NA
+
+
+sdlog = x0[3]
+meanlog = -1/2*sdlog^2
+initial_guess_value =  sqrt((exp( sdlog^2 ) - 1) * exp( 2*meanlog + sdlog^2 ))
+
+
+data = data.frame("price" = v.y, "num" = v.n, "x1_name" = m.h_x[,1], "x2_name" = m.h_x[,2])
+model_auction(dat = data, winning_bid = 'price',
+              number_of_bids = 'num',
+              init_priv_mu = x0[1],
+              init_priv_a = x0[2],
+              init_common_sd = initial_guess_value,
+              init_control = x0[-c(1,2,3)],
+              num_cores = num_cores)
+
+print(paste("obs=", obs))
+print(paste("num_core=", num_cores))
