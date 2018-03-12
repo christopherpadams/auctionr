@@ -76,6 +76,10 @@ model_auction <- function(dat = NULL,
   dat = auction__check_input_data(dat = dat,
                                   colName_price = winning_bid, colName_num = number_of_bids)
 
+  # Log the X terms within the input data
+  dat[ ! names(dat) %in% c(winning_bid, number_of_bids) ] = log(
+    dat[ ! names(dat) %in% c(winning_bid, number_of_bids) ] )
+
   # Prepare initial guesses
   vecInitGuess = auction__check_init_guess(dat = dat,
                                                colName_price = winning_bid, colName_num = number_of_bids,
@@ -725,7 +729,8 @@ plot(n, y)
 
 v.y = data$y
 v.n = data$n
-m.h_x = as.matrix(cbind(log(data$x1),log(data$x2)))
+# m.h_x = as.matrix(cbind(log(data$x1),log(data$x2)))
+m.h_x = as.matrix(cbind(data$x1,data$x2))
 
 # inital parameter guess
 x0 =  c(8, 2, .5, .4, .6)
