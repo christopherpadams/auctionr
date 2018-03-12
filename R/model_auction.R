@@ -3,9 +3,9 @@
 #'
 #' @param dat List containing the winning bids, number of bids, and \code{X} variables that describe the data.
 #' @param winning_bid In list \code{dat}, the key whose value is a vector that holds the winning bids.
-#' @param number_of_bids In list \code{dat}, the key whose value is a vector that holds the number of bids.
-#' @param init_priv_mu Value for \code{mu} for initial guess of the private value distribution.
-#' @param init_priv_a Value for \code{alpha} for initial guess of the private value distribution.
+#' @param n_bids In list \code{dat}, the key whose value is a vector that holds the number of bids.
+#' @param init_mu Value for \code{mu} for initial guess of the private value distribution.
+#' @param init_alpha Value for \code{alpha} for initial guess of the private value distribution.
 #' @param init_control Value(s) for the intial X terms used for the initla guess of the unobserved heterogeneity.
 #' @param init_common_sd Value for \code{sigma} for initial guess of the private value distribution.
 #' @param common_distributions Which distributions to test for modeling the unobserved heterogeneity.
@@ -21,14 +21,14 @@
 #'
 #' \code{dat} must be a list having three keys, the names of which can be user-definted. The first key, \code{price}, is a numeric vector
 #' describing the winniding bids. The second key, \code{num}, descibes the number of bids. And the last key, \code{x_terms}, is a numeric matrix whose
-#' values describe the characteristics of the data. The key names must be supplied as the \code{winning_bid} and \code{number_of_bids} parameters.
+#' values describe the characteristics of the data. The key names must be supplied as the \code{winning_bid} and \code{n_bids} parameters.
 #' VERIFY! The \code{x_terms} are determined by all remaining numeric columns in \code{dat}.
 #'
 #' Modeling for the unobserved heterogeneity is controled by the \code{coimmon_distributions}. This is eitehr a string or vector of stings that
 #' state which distrubtions to use for modeling: \code{dlnorm}, \code{weibull}, and \code{weibull}. This parameter is optional; the log normal
 #' distribution \code{dlnrom} will be used if not supplied.
 #'
-#' \code{init_priv_mu}, \code{init_priv_a}, \code{init_common_sd}, and \code{init_control} are all optional parameters. If not supplied, XXX.
+#' \code{init_mu}, \code{init_alpha}, \code{init_common_sd}, and \code{init_control} are all optional parameters. If not supplied, XXX.
 #'
 #' If more than one distrubtion is specified, the optimization is attempted for each distribution. Accordingly, the private value distribution
 #' will change for each iteration of the optimization and again per distribution.
@@ -58,11 +58,12 @@
 #'
 #' @export
 model_auction <- function(dat = NULL,
-                       winning_bid = NULL, number_of_bids = NULL,
-                       init_priv_mu = NULL,
-                       init_priv_a = NULL,
+                       winning_bid = NULL, n_bids = NULL,
+                       init_mu = NULL,
+                       init_alpha = NULL,
                        init_control = NULL,
                        init_common_sd = NULL,
+                       init_params = NULL,
                        common_distributions = NULL,
                        num_cores = 1
                        ) {
@@ -75,18 +76,19 @@ model_auction <- function(dat = NULL,
   # Validate input data
   dat = auction__check_input_data(dat = dat,
                                   colName__winning_bid = winning_bid,
-                                  colName__number_of_bids = number_of_bids)
+                                  colName__n_bids = n_bids)
 
   # Log the X terms within the input data
-  dat[ ! names(dat) %in% c(winning_bid, number_of_bids) ] = log(
-    dat[ ! names(dat) %in% c(winning_bid, number_of_bids) ] )
+  dat[ ! names(dat) %in% c(winning_bid, n_bids) ] = log(
+    dat[ ! names(dat) %in% c(winning_bid, n_bids) ] )
 
   # Prepare initial guesses
   vecInitGuess = auction__check_init_guess(dat = dat,
-                                           init_priv_mu = init_priv_mu,
-                                           init_priv_a = init_priv_a,
+                                           init_mu = init_mu,
+                                           init_alpha = init_alpha,
                                            init_control = init_control,
-                                           init_common_sd = init_common_sd
+                                           init_common_sd = init_common_sd,
+                                           init_params=init_params
                                            )
 
   # Prepare control parameters for numerical solver
@@ -126,8 +128,8 @@ model_auction <- function(dat = NULL,
                                            fn=f__ll_parallel,
                                            control=conv_ctrl,
                                            dat__winning_bid=dat[[winning_bid]],
-                                           dat__number_of_bids=dat[[number_of_bids]],
-                                           dat_X=dat[ ! names(dat) %in% c(winning_bid, number_of_bids) ],
+                                           dat__n_bids=dat[[n_bids]],
+                                           dat_X=dat[ ! names(dat) %in% c(winning_bid, n_bids) ],
                                            listFuncCall=listFuncCall,
                                            cl=cl)
     print(paste("End of run |", sFuncName))
@@ -136,7 +138,7 @@ model_auction <- function(dat = NULL,
   parallel::stopCluster(cl)
   # Prepare output
   res = auction__output_org(run_result=run_result,
-                            dat_X__fields = names(dat)[ ! names(dat) %in% c(winning_bid, number_of_bids) ])
+                            dat_X__fields = names(dat)[ ! names(dat) %in% c(winning_bid, n_bids) ])
   return(res)
 }
 
@@ -342,7 +344,7 @@ auction__check__common_distrib <- function(common_distributions) {
   }
   return(common_distributions)
 }
-auction__check_input_data <- function(dat, colName__winning_bid, colName__number_of_bids) {
+auction__check_input_data <- function(dat, colName__winning_bid, colName__n_bids) {
   # Goal: Make sure the input data has required columns
 
   # Ensure 'dat' is a dataframe
@@ -355,7 +357,7 @@ auction__check_input_data <- function(dat, colName__winning_bid, colName__number
 
     # Ensure 'dat' has all required columns
     #   Get list of required column names
-    colList_req = c(colName__winning_bid, colName__number_of_bids)
+    colList_req = c(colName__winning_bid, colName__n_bids)
 
     #   Get list of column names
     colList = colnames(dat)
@@ -416,10 +418,11 @@ auction__check_input_data <- function(dat, colName__winning_bid, colName__number
   return(NULL)
 }
 auction__check_init_guess <- function(dat = dat,
-                                      init_priv_mu,
-                                      init_priv_a,
+                                      init_mu,
+                                      init_alpha,
                                       init_control,
-                                      init_common_sd) {
+                                      init_common_sd,
+                                      init_params) {
 
   # Find number of X parameters within dat
   #   (Total number of columns) - (column winning bid) - (column number of bids)
@@ -436,48 +439,71 @@ auction__check_init_guess <- function(dat = dat,
   idxList = auction__x0_indices()
 
 
+  # Check to see if 'init_params' is given
+  if (! is.null(init_params)) {
+    print("init_params given, other initial guesses will be ignored")
 
-  if (is.null(init_priv_mu)) {
-    x0[idxList$pv_weibull_mu] = def_pv_mu
-  } else if (is.numeric(init_priv_mu)) {
-    x0[idxList$pv_weibull_mu] = init_priv_mu
+    # Must be vector with length 3 + number of X variables
+    if (! is.vector(init_params)) {
+      res = list()
+      res['err_code'] = 2
+      res['err_msg'] = "Invalid input for 'init_params' | must be a vector"
+      auction__gen_err_msg(res)
+    } else if (length(init_params) != length(x0)) {
+      res = list()
+      res['err_code'] = 2
+      res['err_msg'] = "Invalid input for 'init_params' | invalid vector length"
+      auction__gen_err_msg(res)
+    } else {
+      x0 = init_params
+    }
   } else {
-    res = list()
-    res['err_code'] = 2
-    res['err_msg'] = "Invalid input for 'init_priv_mu'"
-    auction__gen_err_msg(res)
-  }
-  if (is.null(init_priv_a)) {
-    x0[idxList$pv_weibull_a] = def_pv_a
-  } else if (is.numeric(init_priv_a)) {
-    x0[idxList$pv_weibull_a] = init_priv_a
-  } else {
-    res = list()
-    res['err_code'] = 2
-    res['err_msg'] = "Invalid input for 'init_priv_a'"
-    auction__gen_err_msg(res)
-  }
-  if (is.null(init_common_sd)) {
-    x0[idxList$unobs_dist_param] = def_pv_mu
-  } else if (is.numeric(init_common_sd)) {
-    x0[idxList$unobs_dist_param] = init_common_sd
-  } else {
-    res = list()
-    res['err_code'] = 2
-    res['err_msg'] = "Invalid input for 'init_common_sd'"
-    auction__gen_err_msg(res)
-  }
-  if (is.null(init_control)) {
-    x0[idxList$x_terms__start:length(x0)] = def_x
-  } else if (is.numeric(init_control)) {
-    x0[idxList$x_terms__start:length(x0)] = init_control
-  } else {
-    res = list()
-    res['err_code'] = 2
-    res['err_msg'] = "Invalid input for 'init_control'"
-    auction__gen_err_msg(res)
-  }
 
+    if (is.null(init_mu)) {
+      x0[idxList$pv_weibull_mu] = def_pv_mu
+    } else if (is.numeric(init_mu)) {
+      x0[idxList$pv_weibull_mu] = init_mu
+    } else {
+      res = list()
+      res['err_code'] = 2
+      res['err_msg'] = "Invalid input for 'init_mu'"
+      auction__gen_err_msg(res)
+    }
+
+    if (is.null(init_alpha)) {
+      x0[idxList$pv_weibull_a] = def_pv_a
+    } else if (is.numeric(init_alpha)) {
+      x0[idxList$pv_weibull_a] = init_alpha
+    } else {
+      res = list()
+      res['err_code'] = 2
+      res['err_msg'] = "Invalid input for 'init_alpha'"
+      auction__gen_err_msg(res)
+    }
+
+    if (is.null(init_common_sd)) {
+      x0[idxList$unobs_dist_param] = def_pv_mu
+    } else if (is.numeric(init_common_sd)) {
+      x0[idxList$unobs_dist_param] = init_common_sd
+    } else {
+      res = list()
+      res['err_code'] = 2
+      res['err_msg'] = "Invalid input for 'init_common_sd'"
+      auction__gen_err_msg(res)
+    }
+
+    if (is.null(init_control)) {
+      x0[idxList$x_terms__start:length(x0)] = def_x
+    } else if (is.numeric(init_control)) {
+      x0[idxList$x_terms__start:length(x0)] = init_control
+    } else {
+      res = list()
+      res['err_code'] = 2
+      res['err_msg'] = "Invalid input for 'init_control'"
+      auction__gen_err_msg(res)
+    }
+
+  }
   return(x0)
 }
 auction__get_conv_ctrl <- function(vecInitGuess) {
@@ -599,7 +625,7 @@ auction__x0_indices <- function() {
   ) )
 }
 
-f__ll_parallel = function(x0, dat__winning_bid, dat__number_of_bids, dat_X, listFuncCall, cl){
+f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall, cl){
   # From iteration to iteration, only x0 is changing
 
   # Get position indices
@@ -626,7 +652,7 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__number_of_bids, dat_X, list
     # Run
     v__f_w = parallel::parApply(cl = cl,
                                 X = cbind(v__w,
-                                          dat__number_of_bids,
+                                          dat__n_bids,
                                           x0[listIdx$pv_weibull_mu],
                                           x0[listIdx$pv_weibull_a],
                                           v__gamma_1p1opa),
@@ -641,18 +667,18 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__number_of_bids, dat_X, list
 }
 f__funk = function(data_vec, listFuncCall){
   val = stats::integrate(vf__w_integrand_z_fast, w_bid=data_vec[1],
-                  number_of_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
+                  n_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
                   gamma_1p1oa=data_vec[5], listFuncCall=listFuncCall,
                   lower=0, upper=Inf, abs.tol = 1e-10)
   if(val$message != "OK")
     stop("Integration failed.")
   return(val$value)
 }
-vf__w_integrand_z_fast = function(z, w_bid, number_of_bids, mu, alpha, gamma_1p1oa,
+vf__w_integrand_z_fast = function(z, w_bid, n_bids, mu, alpha, gamma_1p1oa,
                                   listFuncCall){
 
   # Get "x"
-  b__winning_bid = vf__bid_function_fast(winning_bid=z, number_of_bids=number_of_bids,
+  b__winning_bid = vf__bid_function_fast(winning_bid=z, n_bids=n_bids,
                               mu=mu, alpha=alpha, gamma_1p1oa)
   u__winning_bid = w_bid/b__winning_bid
 
@@ -660,8 +686,8 @@ vf__w_integrand_z_fast = function(z, w_bid, number_of_bids, mu, alpha, gamma_1p1
   listFuncCall$argList$x = u__winning_bid
 
   #Run
-  vals = number_of_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha-1)*
-    exp(-number_of_bids*(gamma_1p1oa/mu*z)^alpha)*
+  vals = n_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha-1)*
+    exp(-n_bids*(gamma_1p1oa/mu*z)^alpha)*
     1/b__winning_bid*
     do.call(
       match.fun(listFuncCall$funcName),
@@ -670,20 +696,20 @@ vf__w_integrand_z_fast = function(z, w_bid, number_of_bids, mu, alpha, gamma_1p1
   ### dlnorm(u_z, meanlog=(-param_u^2*1/2), sdlog = param_u) # Note: can swap for different distributions
 
   vals[(gamma_1p1oa/mu)^alpha == Inf] = 0
-  vals[exp(-number_of_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
+  vals[exp(-n_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
   return(vals)
 }
-f__bid_function_fast = function(winning_bid, number_of_bids, mu, alpha, gamma_1p1oa){
+f__bid_function_fast = function(winning_bid, n_bids, mu, alpha, gamma_1p1oa){
 
-  if (exp(-(number_of_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha) == 0) {
-    return(winning_bid + mu/alpha*(number_of_bids-1)^(-1/alpha)*1/gamma_1p1oa*
-             ((number_of_bids-1)*(gamma_1p1oa/mu*winning_bid)^alpha)^(1/alpha-1))
+  if (exp(-(n_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha) == 0) {
+    return(winning_bid + mu/alpha*(n_bids-1)^(-1/alpha)*1/gamma_1p1oa*
+             ((n_bids-1)*(gamma_1p1oa/mu*winning_bid)^alpha)^(1/alpha-1))
   }
 
-  winning_bid + 1/alpha*(mu/gamma_1p1oa)*(number_of_bids-1)^(-1/alpha)*
-    stats::pgamma((number_of_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha, 1/alpha, lower=FALSE)*
+  winning_bid + 1/alpha*(mu/gamma_1p1oa)*(n_bids-1)^(-1/alpha)*
+    stats::pgamma((n_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha, 1/alpha, lower=FALSE)*
     gamma(1/alpha)*
-    1/exp(-(number_of_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha)
+    1/exp(-(n_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha)
   # Check gamma(1/alpha) part
 }
 vf__bid_function_fast = Vectorize(FUN = f__bid_function_fast,vectorize.args = "winning_bid")
@@ -742,15 +768,23 @@ initial_guess_value =  sqrt((exp( sdlog^2 ) - 1) * exp( 2*meanlog + sdlog^2 ))
 initial_guess_value = sdlog
 
 
+
+
+init_params = c(x0[1], x0[2], initial_guess_value, x0[-c(1,2,3)])
+
+
+
+
 data = data.frame("price" = v.y, "num" = v.n, "x1_name" = m.h_x[,1], "x2_name" = m.h_x[,2])
 for (num_cores in c(2)) {
   t2 = system.time({
   res = model_auction(dat = data, winning_bid = 'price',
-                number_of_bids = 'num',
-                init_priv_mu = x0[1],
-                init_priv_a = x0[2],
+                n_bids = 'num',
+                init_mu = x0[1],
+                init_alpha = x0[2],
                 init_common_sd = initial_guess_value,
                 init_control = x0[-c(1,2,3)],
+                init_params = init_params,
                 num_cores = num_cores)
   })[[3]]
   print(paste("obs=", obs))
