@@ -250,7 +250,145 @@ auction_generate_data <- function(obs = 200) {
   # ) )
   return( data.frame(cbind(y, n, x1, x2)) )
 }
+auction_generate_data__new <- function(obs = NULL,
+                                       n_bids = NULL,
+                                       mu = NULL,
+                                       alpha = NULL,
+                                       sigma = NULL,
+                                       beta = NULL,
+                                       params = NULL,
+                                       u_dist = NULL,
+                                       x_vars = NULL,
+                                       new_x_meanlog = NULL,
+                                       new_x_sdlog = NULL) {
+  if (is.null(params) && (is.null(mu)
+                          || is.null(alpha)
+                          || is.null(sigma)
+                          || is.null(beta))) {
+    print("Must specify either (mu, alpha, sigma, beta) or 'params'")
+    return(NULL)
+  } else if (is.null(obs)) {
+    print("Must specify 'obs'")
+    return(NULL)
+  } else {
 
+    if ((! is.numeric(obs)) || (length(obs) != 1)) {
+      print("'obs' must be numeric value")
+      return(NULL)
+    }
+
+    # Inspect 'n_bids'
+    #   'n_bids' may be a vector of number of bids.
+    #   If specified, the length must be equal to
+    #   obs. If not specified, they are drawn with
+    #   replacement [sample(2:10, obs, replace=TRUE)]
+    if (! is.null(n_bids)) {
+      if ((! is.numeric(n_bids))
+          || (! is.vector(n_bids))
+          || (length(n_bids) != obs)) {
+        print("'n_bids' must be vector, with length equal to 'obs")
+        return(NULL)
+      }
+    } else {
+      n_bids = sample(2:10, obs, replace=TRUE)
+    }
+
+    # Inspect x_vars
+    #   x_vars is a data.frame of control variables.
+    #   The number of observations must be equal
+    #   to obs.
+    if ((! is.data.frame(x_vars))
+        || (nrow(x_vars) != obs)) {
+      print("'x_vars' must be dataframe with nrows='obs'")
+      return(NULL)
+    }
+
+    # Inspect beta
+    #   length of beta must be equal to
+    #   the number of columns in x_vars
+    #   plus the length of new_x_meanlog
+    if ((! is.numeric(beta))
+        || (! is.vector(beta))
+        || (length(beta) !=
+            ncol(x_vars) + length(new_x_meanlog))) {
+      print(paste("'beta' must be vector of length",
+                  "[# columns of 'x_vars'",
+                  "+ length of 'new_x_meanlog']"))
+      return(NULL)
+    }
+
+    # Inspect new_x_meanlog and new_x_sdlog
+    if (! is.null(new_x_meanlog)) {
+      if ((! is.numeric(new_x_meanlog))
+          || (! is.vector(new_x_meanlog))) {
+        print("'new_x_meanlog' must be numeric vector")
+        return(NULL)
+      } else if (is.null(new_x_sdlog)) {
+        new_x_sdlog = rep(1, length(new_x_meanlog))
+      } else if ((! is.numeric(new_x_sdlog))
+                 || (! is.vector(new_x_sdlog))
+                 || (length(new_x_sdlog) != length(new_x_meanlog))) {
+        print(paste("'new_x_sdlog' must be numeric vector",
+                    "of same length as 'new_x_meanlog'"))
+        return(NULL)
+      }
+    } else {
+      if (! is.null(new_x_sdlog)) {
+        print("'new_x_sdlog' given but not 'new_x_meanlog'")
+        return(NULL)
+      }
+    }
+
+  }
+
+
+  # Number of bids
+  v.n = n_bids
+
+  # Winning bids
+  v.w_bid = rep(NA, obs)
+  v.w_cost = rep(NA, obs)
+  gamma_1p1oa = gamma(1 + 1/alpha)
+  for(i in 1:obs){
+    costs = (mu/gamma(1+1/alpha))*(-log(1-runif(v.n[i])))^(1/alpha)
+    min_cost = min(costs)
+    v.w_cost[i] = min(costs)
+    # v.w_bid[i] = f.bid_function(cost=min_cost, num_bids=v.n[i], mu=mu, alpha=alpha)
+    v.w_bid[i] = f__bid_function_fast(winning_bid=min_cost,
+                                      n_bids=v.n[i],
+                                      mu=mu,
+                                      alpha=alpha,
+                                      gamma_1p1oa=gamma_1p1oa)
+  }
+  stopifnot(mean(is.na(v.w_bid)) == 0)
+
+
+
+
+  # Unobserved heterogeneity
+  sdlog = sqrt(log(sigma^2+1))
+  v.u = rlnorm(n = obs, meanlog = -1/2*sdlog^2, sdlog = sdlog )
+
+  # Observed heterogeneity
+  new_x_vars = matrix(NA, obs, length(new_x_meanlog))
+  colList = c()
+  for(i.new_x in 1:length(new_x_meanlog)){
+    new_x_vars[, i.new_x] = rlnorm(obs,
+                                   meanlog = new_x_meanlog[i.new_x],
+                                   sdlog = new_x_sdlog[i.new_x])
+    colList = c(colList, paste0('X', i.new_x, '__rlnorm'))
+  }
+  colnames(new_x_vars) = colList
+
+  # Gather all X terms
+  all_x_vars = data.frame(x_vars, new_x_vars)
+  # Calculate winning bid
+  v.h_x = exp(colSums(beta*t(log(all_x_vars))))
+  v.winning_bid = v.w_bid*v.u*v.h_x
+  # Build dataframe
+  dat = data.frame(winning_bid = v.winning_bid, n_bids = v.n, all_x_vars)
+  return(dat)
+}
 auction__gen_err_msg <- function(res) {
   # Goal: Print out an error message and then stops execution of the main script
 
@@ -721,6 +859,10 @@ vf__bid_function_fast = Vectorize(FUN = f__bid_function_fast,vectorize.args = "w
 
 
 
+
+
+
+
 #######################################################
 # Load Data
 #######################################################
@@ -793,3 +935,60 @@ for (num_cores in c(2)) {
 
   print(res)
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Test Alex's auction_generate_data code
+obs = 200
+mu = 5
+alpha = 2
+sigma = .5
+beta = c(.3, .2, .1, .4, .5)
+new_x_meanlog = c(2, 1, .5)
+new_x_sdlog = c(1, 1, 1)
+
+w = rlnorm(obs)
+x1 = rlnorm(obs) + .5*w
+x2 = .1*rlnorm(obs) + .3*w
+x_vars = data.frame(x1, x2)
+
+
+# n_bids = sample(2:10, obs, replace=TRUE)
+n_bids = NULL # -> v.n
+
+params = NULL
+u_dist = NULL # -> v.u
+
+
+data = auction_generate_data__new(obs=obs,
+                                  n_bids=n_bids,
+                                  mu=mu,
+                                  alpha=alpha,
+                                  sigma=sigma,
+                                  beta=beta,
+                                  params=params,
+                                  u_dist=u_dist,
+                                  x_vars=x_vars,
+                                  new_x_meanlog=new_x_meanlog,
+                                  new_x_sdlog=new_x_sdlog)
+
+init_params =  c(mu, alpha, sigma, rep(0.5, ncol(data)-2))
+num_cores = 2
+
+# Try running with this data
+res = model_auction(dat = data,
+                    winning_bid = 'winning_bid',
+                    n_bids = 'n_bids',
+                    init_params = init_params,
+                    num_cores = num_cores)
