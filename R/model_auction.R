@@ -226,31 +226,7 @@ auction__output_org <- function(run_result, dat_X__fields) {
 #'
 #'
 #' @export
-auction_generate_data <- function(obs = 200) {
-  # For testing purposes, we will generate sample data
-
-  # ensure that obs is integer greater than 0
-  set.seed(301)
-  # data = # Generate some data
-  # y, n, x1, x2: positive
-  # n: discrete and > 1
-  # y is some function of n, x1, x2
-
-  w = stats::rlnorm(obs)
-  x1 = stats::rlnorm(obs) + 0.5*w
-  x2 = 0.1*stats::rlnorm(obs) + 0.3*w
-  e = 2*stats::rlnorm(obs)
-  n = sample(2:10, obs, replace=TRUE)
-  y = 10 - 0.5*n + x1 + x2 + e
-
-  # return( list(
-  #   price = y,
-  #   num = n,
-  #   x_terms = as.matrix( cbind( log(x1), log(x2) ) )
-  # ) )
-  return( data.frame(cbind(y, n, x1, x2)) )
-}
-auction_generate_data__new <- function(obs = NULL,
+auction_generate_data <- function(obs = NULL,
                                        n_bids = NULL,
                                        mu = NULL,
                                        alpha = NULL,
@@ -389,6 +365,31 @@ auction_generate_data__new <- function(obs = NULL,
   dat = data.frame(winning_bid = v.winning_bid, n_bids = v.n, all_x_vars)
   return(dat)
 }
+# auction_generate_data <- function(obs = 200) {
+#   # For testing purposes, we will generate sample data
+#
+#   # ensure that obs is integer greater than 0
+#   set.seed(301)
+#   # data = # Generate some data
+#   # y, n, x1, x2: positive
+#   # n: discrete and > 1
+#   # y is some function of n, x1, x2
+#
+#   w = stats::rlnorm(obs)
+#   x1 = stats::rlnorm(obs) + 0.5*w
+#   x2 = 0.1*stats::rlnorm(obs) + 0.3*w
+#   e = 2*stats::rlnorm(obs)
+#   n = sample(2:10, obs, replace=TRUE)
+#   y = 10 - 0.5*n + x1 + x2 + e
+#
+#   # return( list(
+#   #   price = y,
+#   #   num = n,
+#   #   x_terms = as.matrix( cbind( log(x1), log(x2) ) )
+#   # ) )
+#   return( data.frame(cbind(y, n, x1, x2)) )
+# }
+
 auction__gen_err_msg <- function(res) {
   # Goal: Print out an error message and then stops execution of the main script
 
@@ -701,11 +702,11 @@ auction__get_unobs_params <- function(distrib_std_dev, id_distrib) {
 }
 
 auction__get_distrib_params__lognorm <- function(distrib_std_dev) {
-  # # Given std dev and E(X) = 1, calculate meanlog and sdlog
-  # tmp = log(1+distrib_std_dev^2)
-  # return(list(sdlog=sqrt(tmp), meanlog=-1/2*tmp))
+  # Given std dev and E(X) = 1, calculate meanlog and sdlog
+  tmp = log(1+distrib_std_dev^2)
+  return(list(sdlog=sqrt(tmp), meanlog=-1/2*tmp))
 
-  return(list( meanlog=(-distrib_std_dev^2*1/2), sdlog = distrib_std_dev ))
+  # return(list( meanlog=(-distrib_std_dev^2*1/2), sdlog = distrib_std_dev ))
 }
 auction__get_distrib_params__weibull <- function(distrib_std_dev) {
   # Given std dev and E(X) = 1, calculate scale and shape
@@ -860,135 +861,137 @@ vf__bid_function_fast = Vectorize(FUN = f__bid_function_fast,vectorize.args = "w
 
 
 
+test_code <- function() {
+
+  # #######################################################
+  # # Load Data
+  # #######################################################
+  # set.seed(301)
+  # # data = # Generate some data
+  # # y, n, x1, x2: positive
+  # # n: discrete and > 1
+  # # y is some function of n, x1, x2
+  #
+  # obs = 200
+  # num_cores = 3
+  #
+  # w = rlnorm(obs)
+  # x1 = rlnorm(obs) + .5*w
+  # x2 = .1*rlnorm(obs) + .3*w
+  # e = 2*rlnorm(obs)
+  # n = sample(2:10, obs, replace=TRUE)
+  # y = 10 - .5*n + x1 + x2 + e
+  # data = data.frame(cbind(y, n, x1, x2))
+  # plot(n, y)
+  #
+  # v.y = data$y
+  # v.n = data$n
+  # # m.h_x = as.matrix(cbind(log(data$x1),log(data$x2)))
+  # m.h_x = as.matrix(cbind(data$x1,data$x2))
+  #
+  # # inital parameter guess
+  # x0 =  c(8, 2, .5, .4, .6)
+  #
+  #
+  # # My estimation routine
+  # # $par
+  # # [1] 15.4977557  3.8299721  0.2145705  0.1577268  0.1068006
+  # # $value
+  # # [1] 508.4587
+  # # $counts
+  # # function gradient
+  # # 495       NA
+  #
+  #
+  # sdlog = x0[3]
+  # meanlog = -1/2*sdlog^2
+  # initial_guess_value =  sqrt((exp( sdlog^2 ) - 1) * exp( 2*meanlog + sdlog^2 ))
+  #
+  # initial_guess_value = sdlog
+  #
+  #
+  #
+  #
+  # init_params = c(x0[1], x0[2], initial_guess_value, x0[-c(1,2,3)])
+  #
+  #
+  #
+  #
+  # data = data.frame("price" = v.y, "num" = v.n, "x1_name" = m.h_x[,1], "x2_name" = m.h_x[,2])
+  # for (num_cores in c(2)) {
+  #   t2 = system.time({
+  #     res = model_auction(dat = data, winning_bid = 'price',
+  #                         n_bids = 'num',
+  #                         init_mu = x0[1],
+  #                         init_alpha = x0[2],
+  #                         init_common_sd = initial_guess_value,
+  #                         init_control = x0[-c(1,2,3)],
+  #                         init_params = init_params,
+  #                         num_cores = num_cores)
+  #   })[[3]]
+  #   print(paste("obs=", obs))
+  #   print(paste("num_core=", num_cores))
+  #   print(paste("runtime=", t2))
+  #
+  #   print(res)
+  # }
 
 
 
-#######################################################
-# Load Data
-#######################################################
-set.seed(301)
-# data = # Generate some data
-# y, n, x1, x2: positive
-# n: discrete and > 1
-# y is some function of n, x1, x2
-
-obs = 200
-num_cores = 3
-
-w = rlnorm(obs)
-x1 = rlnorm(obs) + .5*w
-x2 = .1*rlnorm(obs) + .3*w
-e = 2*rlnorm(obs)
-n = sample(2:10, obs, replace=TRUE)
-y = 10 - .5*n + x1 + x2 + e
-data = data.frame(cbind(y, n, x1, x2))
-plot(n, y)
-
-v.y = data$y
-v.n = data$n
-# m.h_x = as.matrix(cbind(log(data$x1),log(data$x2)))
-m.h_x = as.matrix(cbind(data$x1,data$x2))
-
-# inital parameter guess
-x0 =  c(8, 2, .5, .4, .6)
-
-
-# My estimation routine
-# $par
-# [1] 15.4977557  3.8299721  0.2145705  0.1577268  0.1068006
-# $value
-# [1] 508.4587
-# $counts
-# function gradient
-# 495       NA
-
-
-sdlog = x0[3]
-meanlog = -1/2*sdlog^2
-initial_guess_value =  sqrt((exp( sdlog^2 ) - 1) * exp( 2*meanlog + sdlog^2 ))
-
-initial_guess_value = sdlog
 
 
 
 
-init_params = c(x0[1], x0[2], initial_guess_value, x0[-c(1,2,3)])
 
 
 
 
-data = data.frame("price" = v.y, "num" = v.n, "x1_name" = m.h_x[,1], "x2_name" = m.h_x[,2])
-for (num_cores in c(2)) {
-  t2 = system.time({
-  res = model_auction(dat = data, winning_bid = 'price',
-                n_bids = 'num',
-                init_mu = x0[1],
-                init_alpha = x0[2],
-                init_common_sd = initial_guess_value,
-                init_control = x0[-c(1,2,3)],
-                init_params = init_params,
-                num_cores = num_cores)
-  })[[3]]
-  print(paste("obs=", obs))
-  print(paste("num_core=", num_cores))
-  print(paste("runtime=", t2))
 
-  print(res)
+
+
+  # Test Alex's auction_generate_data code
+  set.seed(301)
+  obs = 200
+  mu = 5
+  alpha = 2
+  sigma = .5
+  beta = c(.3, .2, .1, .4, .5)
+  new_x_meanlog = c(2, 1, .5)
+  new_x_sdlog = c(1, 1, 1)
+
+  w = rlnorm(obs)
+  x1 = rlnorm(obs) + .5*w
+  x2 = .1*rlnorm(obs) + .3*w
+  x_vars = data.frame(x1, x2)
+
+
+  # n_bids = sample(2:10, obs, replace=TRUE)
+  n_bids = NULL # -> v.n
+
+  params = NULL
+  u_dist = NULL # -> v.u
+
+
+  data = auction_generate_data(obs=obs,
+                               n_bids=n_bids,
+                               mu=mu,
+                               alpha=alpha,
+                               sigma=sigma,
+                               beta=beta,
+                               params=params,
+                               u_dist=u_dist,
+                               x_vars=x_vars,
+                               new_x_meanlog=new_x_meanlog,
+                               new_x_sdlog=new_x_sdlog)
+
+  init_params =  c(mu, alpha, sigma, rep(0.5, ncol(data)-2))
+  num_cores = 2
+
+  # Try running with this data
+  res = model_auction(dat = data,
+                      winning_bid = 'winning_bid',
+                      n_bids = 'n_bids',
+                      init_params = init_params,
+                      num_cores = num_cores)
+  return(res)
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Test Alex's auction_generate_data code
-obs = 200
-mu = 5
-alpha = 2
-sigma = .5
-beta = c(.3, .2, .1, .4, .5)
-new_x_meanlog = c(2, 1, .5)
-new_x_sdlog = c(1, 1, 1)
-
-w = rlnorm(obs)
-x1 = rlnorm(obs) + .5*w
-x2 = .1*rlnorm(obs) + .3*w
-x_vars = data.frame(x1, x2)
-
-
-# n_bids = sample(2:10, obs, replace=TRUE)
-n_bids = NULL # -> v.n
-
-params = NULL
-u_dist = NULL # -> v.u
-
-
-data = auction_generate_data__new(obs=obs,
-                                  n_bids=n_bids,
-                                  mu=mu,
-                                  alpha=alpha,
-                                  sigma=sigma,
-                                  beta=beta,
-                                  params=params,
-                                  u_dist=u_dist,
-                                  x_vars=x_vars,
-                                  new_x_meanlog=new_x_meanlog,
-                                  new_x_sdlog=new_x_sdlog)
-
-init_params =  c(mu, alpha, sigma, rep(0.5, ncol(data)-2))
-num_cores = 2
-
-# Try running with this data
-res = model_auction(dat = data,
-                    winning_bid = 'winning_bid',
-                    n_bids = 'n_bids',
-                    init_params = init_params,
-                    num_cores = num_cores)
