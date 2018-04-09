@@ -4,11 +4,14 @@ https://support.rstudio.com/hc/en-us/articles/200486488?version=1.0.153&mode=des
 # R packages
 http://r-pkgs.had.co.nz/
 
+    # R code
+    http://r-pkgs.had.co.nz/r.html
     # basics
     http://r-pkgs.had.co.nz/description.html
-    
     # namespaces 
     http://r-pkgs.had.co.nz/namespace.html#imports
+    # documentation
+    http://r-pkgs.had.co.nz/man.html
     
 
 # Advanced R
@@ -27,7 +30,8 @@ https://iqss.gitbooks.io/statistical-software-development-best-practices/content
 #
 # Developing Statistical Softawre using R
 http://slides.com/christophergandrud/developing-statistical-software-using-iqss-best-practices#/34
-
+https://github.com/IQSS/social_science_software_toolkit/blob/master/documentation/roxygen_intro.md
+https://iqss.gitbooks.io/statistical-software-development-best-practices/content/r_quickstart_guide.html
 
 # Nice R Code
 https://nicercode.github.io/guides/functions/

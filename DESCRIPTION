@@ -1,15 +1,14 @@
 Package: auctionmodeling
 Type: Package
-Title: Estimate Private-Value Auction Models
+Title: Estimate First-Price Auction Model
 Version: 0.0.0.9000
 Authors@R: c( person("Alex", "MacKay",  email = "amackay@hbs.edu",            role = c("aut", "cre")),
               person("Bob",  "Freeman", email = "robert_freeman@harvard.edu", role = c("aut")),
               person("Paul", "Jonak",   email = "pjonak@hbs.edu",             role = c("aut"))
               )
-Description: Package for R to estimate private-value auction models while
-  allowing for unobservable auction-specific heterogeneity.  Extensions to
-  the baseline model allow for endogenous entry and observing multiple bids
-  per auction.
+Description: Package for R to estimates a first-price auction model with conditional independent private 
+  values. The model allows for unobserved heterogeneity that is common to all bidders 
+  in addition to observable heterogeneity. 
 License: GPL-3
 URL: http://gihub.com/alexmackay/auctionmodeling
 Imports: 

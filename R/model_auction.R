@@ -1,34 +1,44 @@
-#' Estimate private-value auction models
+#' Estimates a first-price auction model
 #'
 #'
-#' @param dat List containing the winning bids, number of bids, and \code{X} variables that describe the data.
+#' @param dat data.frame containing the winning bids, number of bids, and \code{X} variables that describe the data.
 #' @param winning_bid In list \code{dat}, the key whose value is a vector that holds the winning bids.
 #' @param n_bids In list \code{dat}, the key whose value is a vector that holds the number of bids.
 #' @param init_mu Value for \code{mu} for initial guess of the private value distribution.
 #' @param init_alpha Value for \code{alpha} for initial guess of the private value distribution.
-#' @param init_control Value(s) for the intial X terms used for the initla guess of the unobserved heterogeneity.
-#' @param init_common_sd Value for \code{sigma} for initial guess of the private value distribution.
-#' @param common_distributions Which distributions to test for modeling the unobserved heterogeneity.
+#' @param init_sigma Value for \code{sigma} for the initial guess of the unobserved heterogeneity.
+#' @param init_beta Value for \code{beta} for initial guess of the private value distribution.
+#' @param init_params Vector of init_mu, init_alpha, init_sigma, and init_beta, if not supplied separately
+#' @param u_distributions Which distributions to represent the unobserved heterogeneity.
 #' @param num_cores The number of cores for running the model in parallel.
+#' @param debug
 #'
-#' @details This function attempts to describe auction data as a combination of private value data and unobserved heterogeneity.
-#' Private values are modeled using the weibull distribution, while the unobserved heterogeneity can be modeled based on user input.
-#' The function attempts to describe the data by iterative optimization of a minimization function, with the best fit reported
-#' via the smallest standard deviation. X terms describing additional characterstics of the data can be supplied;
-#' the probability density functions to use, and intial values for the shapes of the distrubtions, and intials values for the X
-#' terms can be supplied, though they are optional. Initial, sample data can be supplied via the
-#' \code{\link{auction_generate_data}} function. Otherwise, a minimum of 3 bids is required.
 #'
-#' \code{dat} must be a list having three keys, the names of which can be user-definted. The first key, \code{price}, is a numeric vector
-#' describing the winniding bids. The second key, \code{num}, descibes the number of bids. And the last key, \code{x_terms}, is a numeric matrix whose
-#' values describe the characteristics of the data. The key names must be supplied as the \code{winning_bid} and \code{n_bids} parameters.
-#' VERIFY! The \code{x_terms} are determined by all remaining numeric columns in \code{dat}.
+#' @details This function estimates a first-price auction model with conditional independent private values.
+#' The model allows for unobserved heterogeneity that is common to all bidders in addition to observable
+#' heterogeneity. The winning bid (Y) takes the form
 #'
-#' Modeling for the unobserved heterogeneity is controled by the \code{coimmon_distributions}. This is eitehr a string or vector of stings that
-#' state which distrubtions to use for modeling: \code{dlnorm}, \code{weibull}, and \code{weibull}. This parameter is optional; the log normal
-#' distribution \code{dlnrom} will be used if not supplied.
+#' Y = B * U * h(X)
 #'
-#' \code{init_mu}, \code{init_alpha}, \code{init_common_sd}, and \code{init_control} are all optional parameters. If not supplied, XXX.
+#' where B Is the proportional winning bid, U is the unobserved heterogeneity, and h(X) controls for
+#' observed heterogeneity. The model is log-linear so that
+#' log(Y) = log(B) + log(U) + log(h(X)) and log(h(X)) = beta1 * X1 + beta2 * X2 + … .
+#'
+#' The (conditionally) independent private costs are drawn from a Weibull distribution
+#' with parameters mu and alpha. The CDF of this distribution is given by
+#'
+#' F(c) = 1 – exp(- (c * 1/mu * Gamma(1 + 1/alpha))^(alpha))
+#'
+#' The unobserved heterogeneity can take on several different distributions, which are selected
+#'  by the argument u_dist. It is normalized to have a mean of 1,
+#'  with a free parameter sigma representing the standard deviation.
+#'
+#'
+#' Representing the unobserved heterogeneity is controled by \code{u_distributions}. This is either a string or vector of strings for
+#' which distrubtions to use: \code{dlnorm} (default, if not supplied), \code{weibull}, and \code{weibull}.
+#'
+#' Either \code{ini_params} or the set \code{init_mu}, \code{init_alpha}, \code{init_beta}, and \code{init_sigma} must be supplied.
+#' If \code{init_params} is supplied, the others are ignored.
 #'
 #' If more than one distrubtion is specified, the optimization is attempted for each distribution. Accordingly, the private value distribution
 #' will change for each iteration of the optimization and again per distribution.
@@ -42,9 +52,7 @@
 #' VERIFY! Note that for supplied data, any rows with missing data will be removed prior to the numeric solver runs.
 #'
 #'
-#'
-#'
-#' @return For each of the distributions speicifed in \code{common_distributions}, ...
+#' @return For each of the distributions speicifed in \code{u_distributions}, ...
 #'
 #' @examples
 #'
@@ -57,21 +65,22 @@
 #'
 #'
 #' @export
-model_auction <- function(dat = NULL,
-                       winning_bid = NULL, n_bids = NULL,
+auction_model <- function(dat = NULL,
+                       winning_bid = NULL,
+                       n_bids = NULL,
                        init_mu = NULL,
                        init_alpha = NULL,
-                       init_control = NULL,
-                       init_common_sd = NULL,
+                       init_sigma = NULL,  #init_control
+                       init_beta = NULL,   #init_common_sd
                        init_params = NULL,
-                       common_distributions = NULL,
+                       u_distributions = NULL, #common_distributions
                        num_cores = 1
                        ) {
   # Initialize environment
   num_cores = auction__init_env(num_cores=num_cores)
 
   # Validate distributions requested for unobserved heterogeneity
-  common_distributions = auction__check__common_distrib(common_distributions = common_distributions)
+  u_distributions = auction__check__common_distrib(u_distributions = u_distributions)
 
   # Validate input data
   dat = auction__check_input_data(dat = dat,
@@ -86,9 +95,9 @@ model_auction <- function(dat = NULL,
   vecInitGuess = auction__check_init_guess(dat = dat,
                                            init_mu = init_mu,
                                            init_alpha = init_alpha,
-                                           init_control = init_control,
-                                           init_common_sd = init_common_sd,
-                                           init_params=init_params
+                                           init_sigma = init_sigma,
+                                           init_beta = init_beta,
+                                           init_params = init_params
                                            )
 
   # Prepare control parameters for numerical solver
@@ -101,12 +110,12 @@ model_auction <- function(dat = NULL,
                 varlist=c("vf__bid_function_fast",
                           "vf__w_integrand_z_fast",
                           "f__funk"),
-                envir = environment(model_auction)
+                envir = environment(auction_model)
                 )
 
   # Run
   run_result = list()
-  for (funcName in common_distributions) {
+  for (funcName in u_distributions) {
     sFuncName = as.character(funcName)
 
     # Run
@@ -190,12 +199,12 @@ auction__output_org <- function(run_result, dat_X__fields) {
   return(df)
 }
 
-#' Generate example data for running \code{\link{model_auction}}
+#' Generate example data for running \code{\link{auction_model}}
 #'
 #'
 #' @param obs Number of observations to draw
 #'
-#' @details This function generates example data for feeding into model_auction(). Specifically, the
+#' @details This function generates example data for feeding into auction_model(). Specifically, the
 #' winning bid, number of bids, and variables for the specified number of observations using random deviates of
 #' the log normal distruction.
 #'
@@ -213,7 +222,7 @@ auction__output_org <- function(run_result, dat_X__fields) {
 #' data$num
 #' data$x_terms
 #'
-#' @seealso \code{\link{model_auction}}
+#' @seealso \code{\link{auction_model}}
 #'
 #'
 #' @export
@@ -356,12 +365,14 @@ auction_generate_data <- function(obs = NULL,
   dat = data.frame(winning_bid = v.winning_bid, n_bids = v.n, all_x_vars)
   return(dat)
 }
+
 auction__gen_err_msg <- function(res) {
   # Goal: Print out an error message and then stops execution of the main script
 
   errMsg = paste('\n\tError Code=', res['err_code'], '\n\tError msg=', res['err_msg'], sep='')
   stop(errMsg)
 }
+
 auction__init_env <- function(num_cores) {
   # Goal:
   #   - Load all required packages, stop execution is any packages are missing
@@ -373,6 +384,7 @@ auction__init_env <- function(num_cores) {
   num_cores = auction__check__num_cores(num_cores = num_cores)
   return(num_cores)
 }
+
 auction__load_packages <- function () {
   # Goal: Load all required packages, stop execution if any are missing
 
@@ -395,6 +407,7 @@ auction__load_packages <- function () {
     auction__gen_err_msg(res)
   }
 }
+
 auction__check__num_cores <- function(num_cores) {
   # Goal: Check number of cores requested
 
@@ -428,26 +441,28 @@ auction__check__num_cores <- function(num_cores) {
   }
   return(num_cores)
 }
-auction__check__common_distrib <- function(common_distributions) {
-  if (is.null(common_distributions)) {
-    common_distributions = 'dlnorm'
-  } else if (is.character(common_distributions)) {
-    for (distrib in common_distributions) {
+
+auction__check__common_distrib <- function(u_distributions) {
+  if (is.null(u_distributions)) {
+    u_distributions = 'dlnorm'
+  } else if (is.character(u_distributions)) {
+    for (distrib in u_distributions) {
       if ((distrib != 'dlnorm') && (distrib != 'dweibull') && (distrib != 'dgamma')) {
         res = list()
         res['err_code'] = 2
-        res['err_msg'] = paste("Invalid input for 'common_distributions' | Entry '", distrib, "' is invalid", sep='')
+        res['err_msg'] = paste("Invalid input for 'u_distributions' | Entry '", distrib, "' is invalid", sep='')
         auction__gen_err_msg(res)
       }
     }
   } else {
     res = list()
     res['err_code'] = 2
-    res['err_msg'] = "Invalid input for 'common_distributions' | Must be string or vector of strings"
+    res['err_msg'] = "Invalid input for 'u_distributions' | Must be string or vector of strings"
     auction__gen_err_msg(res)
   }
-  return(common_distributions)
+  return(u_distributions)
 }
+
 auction__check_input_data <- function(dat, colName__winning_bid, colName__n_bids) {
   # Goal: Make sure the input data has required columns
 
@@ -521,11 +536,12 @@ auction__check_input_data <- function(dat, colName__winning_bid, colName__n_bids
   }
   return(NULL)
 }
+
 auction__check_init_guess <- function(dat = dat,
                                       init_mu,
                                       init_alpha,
-                                      init_control,
-                                      init_common_sd,
+                                      init_sigma,
+                                      init_beta,
                                       init_params) {
 
   # Find number of X parameters within dat
@@ -585,31 +601,32 @@ auction__check_init_guess <- function(dat = dat,
       auction__gen_err_msg(res)
     }
 
-    if (is.null(init_common_sd)) {
+    if (is.null(init_beta)) {
       x0[idxList$unobs_dist_param] = def_pv_mu
-    } else if (is.numeric(init_common_sd)) {
-      x0[idxList$unobs_dist_param] = init_common_sd
+    } else if (is.numeric(init_beta)) {
+      x0[idxList$unobs_dist_param] = init_beta
     } else {
       res = list()
       res['err_code'] = 2
-      res['err_msg'] = "Invalid input for 'init_common_sd'"
+      res['err_msg'] = "Invalid input for 'init_beta'"
       auction__gen_err_msg(res)
     }
 
-    if (is.null(init_control)) {
+    if (is.null(init_sigma)) {
       x0[idxList$x_terms__start:length(x0)] = def_x
-    } else if (is.numeric(init_control)) {
-      x0[idxList$x_terms__start:length(x0)] = init_control
+    } else if (is.numeric(init_sigma)) {
+      x0[idxList$x_terms__start:length(x0)] = init_sigma
     } else {
       res = list()
       res['err_code'] = 2
-      res['err_msg'] = "Invalid input for 'init_control'"
+      res['err_msg'] = "Invalid input for 'init_sigma'"
       auction__gen_err_msg(res)
     }
 
   }
   return(x0)
 }
+
 auction__get_conv_ctrl <- function(vecInitGuess) {
   # Max number of iterations = maxit
   maxit = 2000
@@ -633,6 +650,7 @@ auction__get_conv_ctrl <- function(vecInitGuess) {
 
   return( list(maxit = maxit, parscale = parscale ) )
 }
+
 auction__get_id_distrib <- function(sFuncName) {
   if (sFuncName == 'dgamma') {
     id_distrib = 1
@@ -648,6 +666,7 @@ auction__get_id_distrib <- function(sFuncName) {
   }
   return(id_distrib)
 }
+
 auction__get_unobs_params <- function(distrib_std_dev, id_distrib) {
   if (id_distrib == 1) {
     # dgamma
@@ -666,11 +685,13 @@ auction__get_unobs_params <- function(distrib_std_dev, id_distrib) {
   }
   return(listParam)
 }
+
 auction__get_distrib_params__lognorm <- function(distrib_std_dev) {
   # Given std dev and E(X) = 1, calculate meanlog and sdlog
   tmp = log(1+distrib_std_dev^2)
   return(list(sdlog=sqrt(tmp), meanlog=-1/2*tmp))
 }
+
 auction__get_distrib_params__weibull <- function(distrib_std_dev) {
   # Given std dev and E(X) = 1, calculate scale and shape
   #   S^2 + 1 = GAMMA(1+2/shape) / [GAMMA(1+1/shape)]^2
@@ -685,11 +706,13 @@ auction__get_distrib_params__weibull <- function(distrib_std_dev) {
   )
   return(list(shape = res_solver$minimum, scale = 1/gamma(1+1/res_solver$minimum)))
 }
+
 auction__get_distrib_params__gamma <- function(distrib_std_dev) {
   # Given std dev and E(X) = 1, calculate rate and shape
   tmp = 1/distrib_std_dev^2
   return(list(shape = tmp, rate = tmp))
 }
+
 auction__get_private_value_stats <- function(weibull_scale, weibull_shape) {
   std_dev = sqrt(
     weibull_scale^2 * (
@@ -699,6 +722,7 @@ auction__get_private_value_stats <- function(weibull_scale, weibull_shape) {
 
   return(std_dev)
 }
+
 auction__get_num_columns__dat <- function(dat) {
   if (is.data.frame(dat)) {
     nParams_dat = dim(dat)[2]
@@ -716,6 +740,7 @@ auction__get_num_columns__dat <- function(dat) {
   }
   return(nParams_dat)
 }
+
 auction__x0_indices <- function() {
   return( list(
     pv_weibull_mu = 1,
@@ -751,6 +776,7 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall
   v.f_y = v.f_w/v.h
   return(-sum(log(v.f_y)))
 }
+
 f__funk = function(data_vec, listFuncCall){
   val = integrate(vf__w_integrand_z_fast, w_bid=data_vec[1],
                   n_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
@@ -759,6 +785,7 @@ f__funk = function(data_vec, listFuncCall){
   if(val$message != "OK") stop("Integration failed.")
   return(val$value)
 }
+
 vf__w_integrand_z_fast = function(z, w_bid, n_bids, mu, alpha, gamma_1p1oa, listFuncCall){
 
   b_z = vf__bid_function_fast(winning_bid=z, n_bids=n_bids, mu=mu, alpha=alpha, gamma_1p1oa)
@@ -777,6 +804,7 @@ vf__w_integrand_z_fast = function(z, w_bid, n_bids, mu, alpha, gamma_1p1oa, list
   vals[exp(-n_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
   return(vals)
 }
+
 f__bid_function_fast = function(winning_bid, n_bids, mu, alpha, gamma_1p1oa){
 
   if (exp(-(n_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha) == 0) {
@@ -789,4 +817,5 @@ f__bid_function_fast = function(winning_bid, n_bids, mu, alpha, gamma_1p1oa){
     gamma(1/alpha)*
     1/exp(-(n_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha)
 }
+
 vf__bid_function_fast = Vectorize(FUN = f__bid_function_fast,vectorize.args = "winning_bid")
