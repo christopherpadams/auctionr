@@ -9,9 +9,9 @@
 #' @param init_sigma Value for \code{sigma} for the initial guess of the unobserved heterogeneity.
 #' @param init_beta Value for \code{beta} for initial guess of the private value distribution.
 #' @param init_params Vector of init_mu, init_alpha, init_sigma, and init_beta, if not supplied separately
-#' @param u_distributions Which distributions to represent the unobserved heterogeneity.
+#' @param u_dist Which distributions to represent the unobserved heterogeneity.
 #' @param num_cores The number of cores for running the model in parallel.
-#' @param debug
+#' @param report Show optimization progress every X iterations, where X is defined by \code{report}
 #'
 #'
 #' @details This function estimates a first-price auction model with conditional independent private values.
@@ -34,7 +34,7 @@
 #'  with a free parameter sigma representing the standard deviation.
 #'
 #'
-#' Representing the unobserved heterogeneity is controled by \code{u_distributions}. This is either a string or vector of strings for
+#' Representing the unobserved heterogeneity is controled by \code{u_dist}. This is either a string or vector of strings for
 #' which distrubtions to use: \code{dlnorm} (default, if not supplied), \code{weibull}, and \code{weibull}.
 #'
 #' Either \code{ini_params} or the set \code{init_mu}, \code{init_alpha}, \code{init_beta}, and \code{init_sigma} must be supplied.
@@ -52,7 +52,7 @@
 #' VERIFY! Note that for supplied data, any rows with missing data will be removed prior to the numeric solver runs.
 #'
 #'
-#' @return For each of the distributions speicifed in \code{u_distributions}, ...
+#' @return For each of the distributions speicifed in \code{u_dist}, ...
 #'
 #' @examples
 #'
@@ -73,14 +73,15 @@ auction_model <- function(dat = NULL,
                        init_sigma = NULL,  #init_control
                        init_beta = NULL,   #init_common_sd
                        init_params = NULL,
-                       u_distributions = NULL, #common_distributions
-                       num_cores = 1
+                       u_dist = NULL, #common_distributions
+                       num_cores = 1,
+                       report=0
                        ) {
   # Initialize environment
   num_cores = auction__init_env(num_cores=num_cores)
 
   # Validate distributions requested for unobserved heterogeneity
-  u_distributions = auction__check__common_distrib(u_distributions = u_distributions)
+  u_dist = auction__check__common_distrib(u_dist = u_dist)
 
   # Validate input data
   dat = auction__check_input_data(dat = dat,
@@ -115,8 +116,11 @@ auction_model <- function(dat = NULL,
 
   # Run
   run_result = list()
-  for (funcName in u_distributions) {
+  for (funcName in u_dist) {
     sFuncName = as.character(funcName)
+    
+    # Prepare tracker object
+    hTracker = auction__tracker__build(report=report)
 
     # Run
     print(paste("Running |", sFuncName))
@@ -131,6 +135,7 @@ auction_model <- function(dat = NULL,
                                            dat__n_bids=dat[[n_bids]],
                                            dat_X=t( dat[ ! names(dat) %in% c(winning_bid, n_bids) ] ),
                                            listFuncCall=listFuncCall,
+                                           hTracker=hTracker,
                                            cl=cl)
     print(paste("End of run |", sFuncName))
   }
@@ -143,10 +148,10 @@ auction_model <- function(dat = NULL,
 }
 
 auction__output_org <- function(run_result, dat_X__fields) {
-
+  
   # Initialize dataframe
   nCol = length(run_result)
-
+  
   #   Initialize
   df = data.frame(matrix(ncol = length(run_result), nrow=0))
   #   Set columns
@@ -156,45 +161,70 @@ auction__output_org <- function(run_result, dat_X__fields) {
   # Fill
   for (funcName in names(run_result)) {
     sFuncName = as.character(funcName)
-
-    df['Private_Value', sFuncName] = ''
+    
+    # Private Values
+    #   mu            VALUE
+    #   a             VALUE
+    df['Private Values', sFuncName] = ''
     df['  mu', sFuncName] = sprintf('%.4f',
                                     run_result[[sFuncName]]$par[idxList$pv_weibull_mu] )
     df['  a', sFuncName] = sprintf('%.4f',
                                    run_result[[sFuncName]]$par[idxList$pv_weibull_a] )
-
-    df['Unobserved_Hetero', sFuncName] = ''
+    
+    # Unobserved Heterogeneity
+    #   standard deviation        VALUE
+    # Implied Parameters for U
+    #   *  See manual *
+    #   param 1                  [VALUE]
+    #   param 2                  [VALUE]
+    df['Unobserved Heterogeneity', sFuncName] = ''
+    df['  standard deviation', sFuncName] = sprintf('%.4f', run_result[[sFuncName]]$par[idxList$unobs_dist_param] )
+    df['Implied Parameters for U', sFuncName] = ''
+    df['  * See manual *', sFuncName] = ''
     listParam = auction__get_unobs_params(distrib_std_dev =
                                             run_result[[sFuncName]]$par[idxList$unobs_dist_param],
                                           id_distrib =
                                             auction__get_id_distrib(
                                               sFuncName=sFuncName ) )
     for (iParam in 1:length(listParam)){
-      df[sprintf('  param %d', iParam), sFuncName] = sprintf('%s = %.4f',
-                                                             names(listParam[iParam]),
-                                                             listParam[iParam] )
+      # # df[sprintf('  param %d', iParam), sFuncName] = sprintf('%s = %.4f',
+      # #                                                        names(listParam[iParam]),
+      # #                                                        listParam[iParam] )
+      # df[sprintf('  param %d', iParam), sFuncName] = sprintf('[%.4f (%s)]',
+      #                                                        listParam[iParam],
+      #                                                        names(listParam[iParam]) )
+      df[sprintf('  param %d', iParam), sFuncName] = sprintf('[%.4f]',
+                                                             listParam[iParam],
+                                                             names(listParam[iParam]) )
     }
-
-    df['X_terms', sFuncName] = ''
+    
+    # Observed Heterogeneity
+    #   x1                    VALUE
+    #   x2                    VALUE
+    df['Observed Heterogeneity', sFuncName] = ''
     for (iX in 1:(1+length(run_result[[sFuncName]]$par)-idxList$x_terms__start)) {
       df[sprintf('  %s', dat_X__fields[iX]),
-         sFuncName] = sprintf('%.5f',
+         sFuncName] = sprintf('%.4f',
                               run_result[[sFuncName]]$par[(idxList$x_terms__start+iX-1)] )
     }
-
-
+    
+    # Statistics
+    #   log likelihood              VALUE
+    #   Iterations                  VALUE
+    #   StdDev: ln(Winning bids)    VALUE
+    #   StdDev:                     VALUE
     df['Statistics', sFuncName] = ''
-    df['  inv__log_likelihood', sFuncName] = sprintf('%.5f',
-                                                     run_result[[sFuncName]]$value )
-    df['  StdDev__Private_Value', sFuncName] = sprintf('%.5f',
-                                                       auction__get_private_value_stats(
-                                                         weibull_scale=run_result[[sFuncName]]$par[idxList$pv_weibull_a],
-                                                         weibull_shape=run_result[[sFuncName]]$par[idxList$pv_weibull_mu]
-                                                       ))
-    df['  StdDev__unobserved_hetero', sFuncName] = sprintf('%.5f',
-                                                           run_result[[sFuncName]]$par[idxList$unobs_dist_param] )
+    df['  log likelihood', sFuncName] = sprintf('%.4f', run_result[[sFuncName]]$value )
     df['  Iterations', sFuncName] = run_result[[sFuncName]]$counts['function']
-
+    df['  StdDev: ln(Winning bids)', sFuncName] = ''
+    df['  StdDev: ln(Private Values)', sFuncName] = sprintf('%.4f',
+                                                            log(auction__get_private_value_stats(
+                                                              weibull_scale=run_result[[sFuncName]]$par[idxList$pv_weibull_a],
+                                                              weibull_shape=run_result[[sFuncName]]$par[idxList$pv_weibull_mu] )
+                                                            ))
+    df['  StdDev: ln(Unobs. Hetero.)', sFuncName] = sprintf('%.4f',
+                                                            log(run_result[[sFuncName]]$par[idxList$unobs_dist_param]) )
+    df['  StdDev: ln(Obs. Hetero.)', sFuncName] = ''
   }
   return(df)
 }
@@ -377,11 +407,15 @@ auction__init_env <- function(num_cores) {
   # Goal:
   #   - Load all required packages, stop execution is any packages are missing
   #   - Check number of cores requested
-
+  
   # Load required packages
   auction__load_packages()
   # Check number of cores requested
   num_cores = auction__check__num_cores(num_cores = num_cores)
+  
+  # Create reference for tracking numeric-solver progress
+  auction__tracker__create_class()
+  
   return(num_cores)
 }
 
@@ -442,25 +476,25 @@ auction__check__num_cores <- function(num_cores) {
   return(num_cores)
 }
 
-auction__check__common_distrib <- function(u_distributions) {
-  if (is.null(u_distributions)) {
-    u_distributions = 'dlnorm'
-  } else if (is.character(u_distributions)) {
-    for (distrib in u_distributions) {
+auction__check__common_distrib <- function(u_dist) {
+  if (is.null(u_dist)) {
+    u_dist = 'dlnorm'
+  } else if (is.character(u_dist)) {
+    for (distrib in u_dist) {
       if ((distrib != 'dlnorm') && (distrib != 'dweibull') && (distrib != 'dgamma')) {
         res = list()
         res['err_code'] = 2
-        res['err_msg'] = paste("Invalid input for 'u_distributions' | Entry '", distrib, "' is invalid", sep='')
+        res['err_msg'] = paste("Invalid input for 'u_dist' | Entry '", distrib, "' is invalid", sep='')
         auction__gen_err_msg(res)
       }
     }
   } else {
     res = list()
     res['err_code'] = 2
-    res['err_msg'] = "Invalid input for 'u_distributions' | Must be string or vector of strings"
+    res['err_msg'] = "Invalid input for 'u_dist' | Must be string or vector of strings"
     auction__gen_err_msg(res)
   }
-  return(u_distributions)
+  return(u_dist)
 }
 
 auction__check_input_data <- function(dat, colName__winning_bid, colName__n_bids) {
@@ -687,9 +721,10 @@ auction__get_unobs_params <- function(distrib_std_dev, id_distrib) {
 }
 
 auction__get_distrib_params__lognorm <- function(distrib_std_dev) {
-  # Given std dev and E(X) = 1, calculate meanlog and sdlog
-  tmp = log(1+distrib_std_dev^2)
-  return(list(sdlog=sqrt(tmp), meanlog=-1/2*tmp))
+  # # Given std dev and E(X) = 1, calculate meanlog and sdlog
+  # tmp = log(1+distrib_std_dev^2)
+  # return(list(sdlog=sqrt(tmp), meanlog=-1/2*tmp))
+  return(list( meanlog=(-distrib_std_dev^2*1/2), sdlog = distrib_std_dev ))
 }
 
 auction__get_distrib_params__weibull <- function(distrib_std_dev) {
@@ -750,20 +785,43 @@ auction__x0_indices <- function() {
   ) )
 }
 
-f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall, cl){
-  listIdx = auction__x0_indices()
+auction__tracker__create_class <-function() {
+  setRefClass("auction_modeling__tracker",
+              fields=list(
+                iter="numeric",
+                report="numeric"
+              ))
+}
 
+auction__tracker__build <-function (report) {
+  # 'report' must be a numeric, greater than or equal to 0
+  #   round 'report' just in case
+  if ((is.null(report)) || (! is.numeric(report)) || report < 0) {
+    report = 0
+  } else {
+    report = round(report)
+  }
+  # build
+  hTracker = new("auction_modeling__tracker", iter=0, report=report)
+  
+  return(hTracker)
+}
+
+f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall, hTracker, cl){
+  
+  listIdx = auction__x0_indices()
+  
   if(x0[listIdx$unobs_dist_param] <= 0.1) return(-Inf)
   if(sum(x0[listIdx$pv_weibull_mu] <= 0) > 0) return(-Inf)
   if(sum(x0[listIdx$pv_weibull_a] <= 0.01) > 0) return(-Inf)
-
+  
   param.h = x0[listIdx$x_terms__start:(listIdx$x_terms__start+dim(dat_X)[1]-1)]
   v.h = exp(colSums(param.h*dat_X))
-
+  
   listFuncCall$argList = auction__get_unobs_params(
     distrib_std_dev = x0[listIdx$unobs_dist_param],
     id_distrib = listFuncCall$funcID)
-
+  
   v.f_w = parallel::parApply(cl = cl,
                              X = cbind(dat__winning_bid/v.h,
                                        dat__n_bids,
@@ -773,8 +831,40 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall
                              MARGIN = 1,
                              FUN = f__funk,
                              listFuncCall=listFuncCall)
+  
   v.f_y = v.f_w/v.h
-  return(-sum(log(v.f_y)))
+  
+  log_likelihood = -sum(log(v.f_y))
+  
+  
+  if (hTracker$report != 0) {
+    hTracker$iter = hTracker$iter + 1
+    if (hTracker$iter %% hTracker$report == 0) {
+      # Print to user
+      #   Iteration
+      #   log-likelihood [2-digits]
+      #   parameter values that are passed to f__ll_parallel() [4-digits]
+      #     x0
+      #       mu, alpha, sd_U, beta(s)
+      #     listFuncCall
+      #       function name
+      
+      sDebug = sprintf('Iteration %d | distrib %s | log-likelihood %.2f | mu %.4f | alpha %.4f | sd_U %.4f | beta(s) %s',
+                       hTracker$iter,
+                       listFuncCall$funcName,
+                       log_likelihood,
+                       x0[listIdx$pv_weibull_mu],
+                       x0[listIdx$pv_weibull_a],
+                       x0[listIdx$unobs_dist_param],
+                       paste(
+                         sapply(listIdx$x_terms__start:(listIdx$x_terms__start+dim(dat_X)[1]-1),
+                                function(i) sprintf('%.4f', x0[i])),
+                         sep='', collapse=', '))
+      print(sDebug)
+    }
+  }
+  
+  return(log_likelihood)
 }
 
 f__funk = function(data_vec, listFuncCall){
