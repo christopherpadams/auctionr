@@ -118,7 +118,7 @@ auction_model <- function(dat = NULL,
   run_result = list()
   for (funcName in u_dist) {
     sFuncName = as.character(funcName)
-    
+
     # Prepare tracker object
     hTracker = auction__tracker__build(report=report)
 
@@ -147,11 +147,26 @@ auction_model <- function(dat = NULL,
   return(res)
 }
 
+
+auction_model_likelihood <- function(dat = NULL,
+                                     winning_bid = NULL,
+                                     n_bids = NULL,
+                                     init_mu = NULL,
+                                     init_alpha = NULL,
+                                     init_sigma = NULL,
+                                     init_beta = NULL,
+                                     init_params = NULL,
+                                     u_dist = NULL,
+                                     num_cores = 1 ) {
+  # Placeholder
+}
+
+
 auction__output_org <- function(run_result, dat_X__fields) {
-  
+
   # Initialize dataframe
   nCol = length(run_result)
-  
+
   #   Initialize
   df = data.frame(matrix(ncol = length(run_result), nrow=0))
   #   Set columns
@@ -161,7 +176,7 @@ auction__output_org <- function(run_result, dat_X__fields) {
   # Fill
   for (funcName in names(run_result)) {
     sFuncName = as.character(funcName)
-    
+
     # Private Values
     #   mu            VALUE
     #   a             VALUE
@@ -170,7 +185,7 @@ auction__output_org <- function(run_result, dat_X__fields) {
                                     run_result[[sFuncName]]$par[idxList$pv_weibull_mu] )
     df['  a', sFuncName] = sprintf('%.4f',
                                    run_result[[sFuncName]]$par[idxList$pv_weibull_a] )
-    
+
     # Unobserved Heterogeneity
     #   standard deviation        VALUE
     # Implied Parameters for U
@@ -197,7 +212,7 @@ auction__output_org <- function(run_result, dat_X__fields) {
                                                              listParam[iParam],
                                                              names(listParam[iParam]) )
     }
-    
+
     # Observed Heterogeneity
     #   x1                    VALUE
     #   x2                    VALUE
@@ -207,7 +222,7 @@ auction__output_org <- function(run_result, dat_X__fields) {
          sFuncName] = sprintf('%.4f',
                               run_result[[sFuncName]]$par[(idxList$x_terms__start+iX-1)] )
     }
-    
+
     # Statistics
     #   log likelihood              VALUE
     #   Iterations                  VALUE
@@ -407,15 +422,15 @@ auction__init_env <- function(num_cores) {
   # Goal:
   #   - Load all required packages, stop execution is any packages are missing
   #   - Check number of cores requested
-  
+
   # Load required packages
   auction__load_packages()
   # Check number of cores requested
   num_cores = auction__check__num_cores(num_cores = num_cores)
-  
+
   # Create reference for tracking numeric-solver progress
   auction__tracker__create_class()
-  
+
   return(num_cores)
 }
 
@@ -803,25 +818,25 @@ auction__tracker__build <-function (report) {
   }
   # build
   hTracker = new("auction_modeling__tracker", iter=0, report=report)
-  
+
   return(hTracker)
 }
 
 f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall, hTracker, cl){
-  
+
   listIdx = auction__x0_indices()
-  
+
   if(x0[listIdx$unobs_dist_param] <= 0.1) return(-Inf)
   if(sum(x0[listIdx$pv_weibull_mu] <= 0) > 0) return(-Inf)
   if(sum(x0[listIdx$pv_weibull_a] <= 0.01) > 0) return(-Inf)
-  
+
   param.h = x0[listIdx$x_terms__start:(listIdx$x_terms__start+dim(dat_X)[1]-1)]
   v.h = exp(colSums(param.h*dat_X))
-  
+
   listFuncCall$argList = auction__get_unobs_params(
     distrib_std_dev = x0[listIdx$unobs_dist_param],
     id_distrib = listFuncCall$funcID)
-  
+
   v.f_w = parallel::parApply(cl = cl,
                              X = cbind(dat__winning_bid/v.h,
                                        dat__n_bids,
@@ -831,12 +846,12 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall
                              MARGIN = 1,
                              FUN = f__funk,
                              listFuncCall=listFuncCall)
-  
+
   v.f_y = v.f_w/v.h
-  
+
   log_likelihood = -sum(log(v.f_y))
-  
-  
+
+
   if (hTracker$report != 0) {
     hTracker$iter = hTracker$iter + 1
     if (hTracker$iter %% hTracker$report == 0) {
@@ -848,7 +863,7 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall
       #       mu, alpha, sd_U, beta(s)
       #     listFuncCall
       #       function name
-      
+
       sDebug = sprintf('Iteration %d | distrib %s | log-likelihood %.2f | mu %.4f | alpha %.4f | sd_U %.4f | beta(s) %s',
                        hTracker$iter,
                        listFuncCall$funcName,
@@ -863,7 +878,7 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall
       print(sDebug)
     }
   }
-  
+
   return(log_likelihood)
 }
 
