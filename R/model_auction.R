@@ -111,8 +111,7 @@ auction_model <- function(dat = NULL,
                 varlist=c("vf__bid_function_fast",
                           "vf__w_integrand_z_fast",
                           "f__funk"),
-                envir = environment(auction_model)
-                )
+                envir = environment(auction_model) )
 
   # Run
   run_result = list()
@@ -143,10 +142,10 @@ auction_model <- function(dat = NULL,
   parallel::stopCluster(cl)
   # Prepare output
   res = auction__output_org(run_result=run_result,
-                            dat_X__fields = names(dat)[ ! names(dat) %in% c(winning_bid, n_bids) ])
+                            dat_X__fields=names(dat)[ ! names(dat) %in% c(winning_bid, n_bids) ],
+                            dat__winning_bid=dat[[winning_bid]])
   return(res)
 }
-
 
 auction_model_likelihood <- function(dat = NULL,
                                      winning_bid = NULL,
@@ -158,11 +157,78 @@ auction_model_likelihood <- function(dat = NULL,
                                      init_params = NULL,
                                      u_dist = NULL,
                                      num_cores = 1 ) {
-  # Placeholder
+  # Initialize environment
+  num_cores = auction__init_env(num_cores=num_cores)
+
+  # Validate distributions requested for unobserved heterogeneity
+  u_dist = auction__check__common_distrib(u_dist = u_dist)
+
+  # Validate input data
+  dat = auction__check_input_data(dat = dat,
+                                  colName__winning_bid = winning_bid,
+                                  colName__n_bids = n_bids)
+
+  # Log the X terms within the input data
+  dat[ ! names(dat) %in% c(winning_bid, n_bids) ] = log(
+    dat[ ! names(dat) %in% c(winning_bid, n_bids) ] )
+
+  # Prepare initial guesses
+  vecInitGuess = auction__check_init_guess(dat = dat,
+                                           init_mu = init_mu,
+                                           init_alpha = init_alpha,
+                                           init_sigma = init_sigma,
+                                           init_beta = init_beta,
+                                           init_params = init_params
+  )
+
+  # Set up parallelization of numerical solver
+  cl = parallel::makeCluster(num_cores)
+
+  parallel::clusterExport(cl,
+                          varlist=c("vf__bid_function_fast",
+                                    "vf__w_integrand_z_fast",
+                                    "f__funk"),
+                          envir = environment(auction_model) )
+
+  # Run
+  run_result = list()
+  for (funcName in u_dist) {
+    sFuncName = as.character(funcName)
+
+    # Prepare tracker object
+    #   Set report=0 to ensure no reporting
+    hTracker = auction__tracker__build(report=0)
+
+    # Run
+    print(paste("Running |", sFuncName))
+    #   Build function call parameter
+    listFuncCall = list(funcName = sFuncName,
+                        funcID = auction__get_id_distrib(sFuncName = sFuncName))
+    #   Run
+    run_result[[sFuncName]] = f__ll_parallel(x0=vecInitGuess,
+                                             dat__winning_bid=dat[[winning_bid]],
+                                             dat__n_bids=dat[[n_bids]],
+                                             dat_X=t( dat[ ! names(dat) %in% c(winning_bid, n_bids) ] ),
+                                             listFuncCall=listFuncCall,
+                                             hTracker=hTracker,
+                                             cl=cl)
+    print(paste("End of run |", sFuncName))
+  }
+  # Release resources
+  parallel::stopCluster(cl)
+
+
+  # Output from each run was negative log_likelihood
+  #   Adjust
+  for (keyResult in names(run_result)) {
+    run_result[[keyResult]] = -run_result[[keyResult]]
+  }
+
+  return(run_result)
 }
 
 
-auction__output_org <- function(run_result, dat_X__fields) {
+auction__output_org <- function(run_result, dat_X__fields, dat__winning_bid) {
 
   # Initialize dataframe
   nCol = length(run_result)
@@ -231,14 +297,9 @@ auction__output_org <- function(run_result, dat_X__fields) {
     df['Statistics', sFuncName] = ''
     df['  log likelihood', sFuncName] = sprintf('%.4f', run_result[[sFuncName]]$value )
     df['  Iterations', sFuncName] = run_result[[sFuncName]]$counts['function']
-    df['  StdDev: ln(Winning bids)', sFuncName] = ''
-    df['  StdDev: ln(Private Values)', sFuncName] = sprintf('%.4f',
-                                                            log(auction__get_private_value_stats(
-                                                              weibull_scale=run_result[[sFuncName]]$par[idxList$pv_weibull_a],
-                                                              weibull_shape=run_result[[sFuncName]]$par[idxList$pv_weibull_mu] )
-                                                            ))
-    df['  StdDev: ln(Unobs. Hetero.)', sFuncName] = sprintf('%.4f',
-                                                            log(run_result[[sFuncName]]$par[idxList$unobs_dist_param]) )
+    df['  StdDev: ln(Winning bids)', sFuncName] = sprintf('%.4f', sd(log(dat__winning_bid)))
+    df['  StdDev: ln(Private Values)', sFuncName] = ''
+    df['  StdDev: ln(Unobs. Hetero.)', sFuncName] = sprintf('%.4f', run_result[[sFuncName]]$par[idxList$unobs_dist_param])
     df['  StdDev: ln(Obs. Hetero.)', sFuncName] = ''
   }
   return(df)
@@ -736,10 +797,10 @@ auction__get_unobs_params <- function(distrib_std_dev, id_distrib) {
 }
 
 auction__get_distrib_params__lognorm <- function(distrib_std_dev) {
-  # # Given std dev and E(X) = 1, calculate meanlog and sdlog
-  # tmp = log(1+distrib_std_dev^2)
-  # return(list(sdlog=sqrt(tmp), meanlog=-1/2*tmp))
-  return(list( meanlog=(-distrib_std_dev^2*1/2), sdlog = distrib_std_dev ))
+  # Given std dev and E(X) = 1, calculate meanlog and sdlog
+  tmp = log(1+distrib_std_dev^2)
+  return(list(sdlog=sqrt(tmp), meanlog=-1/2*tmp))
+  # return(list( meanlog=(-distrib_std_dev^2*1/2), sdlog = distrib_std_dev ))
 }
 
 auction__get_distrib_params__weibull <- function(distrib_std_dev) {
@@ -831,7 +892,7 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall
   if(sum(x0[listIdx$pv_weibull_a] <= 0.01) > 0) return(-Inf)
 
   param.h = x0[listIdx$x_terms__start:(listIdx$x_terms__start+dim(dat_X)[1]-1)]
-  v.h = exp(colSums(param.h*dat_X))
+  v.h = exp( colSums(param.h * dat_X) )
 
   listFuncCall$argList = auction__get_unobs_params(
     distrib_std_dev = x0[listIdx$unobs_dist_param],
@@ -848,9 +909,7 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall
                              listFuncCall=listFuncCall)
 
   v.f_y = v.f_w/v.h
-
   log_likelihood = -sum(log(v.f_y))
-
 
   if (hTracker$report != 0) {
     hTracker$iter = hTracker$iter + 1
