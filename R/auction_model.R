@@ -155,11 +155,11 @@ auction_model <- function(dat = NULL,
 #' @param dat data.frame containing the winning bids, number of bids, and \code{X} variables that describe the data.
 #' @param winning_bid In list \code{dat}, the key whose value is a vector that holds the winning bids.
 #' @param n_bids In list \code{dat}, the key whose value is a vector that holds the number of bids.
-#' @param init_mu Value for \code{mu} for initial guess of the private value distribution.
-#' @param init_alpha Value for \code{alpha} for initial guess of the private value distribution.
-#' @param init_sigma Value for \code{sigma} for the initial guess of the unobserved heterogeneity.
-#' @param init_beta Value for \code{beta} for initial guess of the private value distribution.
-#' @param init_params Vector of init_mu, init_alpha, init_sigma, and init_beta, if not supplied separately
+#' @param mu Value for \code{mu} of the private value distribution.
+#' @param alpha Value for \code{alpha} of the private value distribution.
+#' @param sigma Value for \code{sigma} of the unobserved heterogeneity.
+#' @param beta Value for \code{beta} of the private value distribution.
+#' @param params Vector of mu, alpha, sigma, and beta, if not supplied separately
 #' @param u_dist Which distributions to represent the unobserved heterogeneity.
 #' @param num_cores The number of cores for running the model in parallel.
 #'
@@ -173,11 +173,11 @@ auction_model <- function(dat = NULL,
 auction_model_likelihood <- function(dat = NULL,
                                      winning_bid = NULL,
                                      n_bids = NULL,
-                                     init_mu = NULL,
-                                     init_alpha = NULL,
-                                     init_sigma = NULL,
-                                     init_beta = NULL,
-                                     init_params = NULL,
+                                     mu = NULL,
+                                     alpha = NULL,
+                                     sigma = NULL,
+                                     beta = NULL,
+                                     params = NULL,
                                      u_dist = NULL,
                                      num_cores = 1 ) {
 
@@ -199,11 +199,11 @@ auction_model_likelihood <- function(dat = NULL,
 
   # Prepare initial guesses
   vecInitGuess = auction__check_init_guess(dat = dat,
-                                           init_mu = init_mu,
-                                           init_alpha = init_alpha,
-                                           init_sigma = init_sigma,
-                                           init_beta = init_beta,
-                                           init_params = init_params
+                                           init_mu = mu,
+                                           init_alpha = alpha,
+                                           init_sigma = sigma,
+                                           init_beta = beta,
+                                           init_params = params
   )
 
   # Set up parallelization of numerical solver
