@@ -77,8 +77,10 @@ auction_model <- function(dat = NULL,
                        num_cores = 1,
                        report=0
                        ) {
+
   # Initialize environment
-  num_cores = auction__init_env(num_cores=num_cores)
+  hEnv_tmp = new.env()
+  num_cores = auction__init_env(num_cores=num_cores, hEnv_tmp=hEnv_tmp)
 
   # Validate distributions requested for unobserved heterogeneity
   u_dist = auction__check__common_distrib(u_dist = u_dist)
@@ -119,7 +121,7 @@ auction_model <- function(dat = NULL,
     sFuncName = as.character(funcName)
 
     # Prepare tracker object
-    hTracker = auction__tracker__build(report=report)
+    hTracker = auction__tracker__build(hEnv_tmp=hEnv_tmp, report=report)
 
     # Run
     print(paste("Running |", sFuncName))
@@ -147,6 +149,27 @@ auction_model <- function(dat = NULL,
   return(res)
 }
 
+#' NEW_TITLE - Estimates a first-price auction model
+#'
+#'
+#' @param dat data.frame containing the winning bids, number of bids, and \code{X} variables that describe the data.
+#' @param winning_bid In list \code{dat}, the key whose value is a vector that holds the winning bids.
+#' @param n_bids In list \code{dat}, the key whose value is a vector that holds the number of bids.
+#' @param init_mu Value for \code{mu} for initial guess of the private value distribution.
+#' @param init_alpha Value for \code{alpha} for initial guess of the private value distribution.
+#' @param init_sigma Value for \code{sigma} for the initial guess of the unobserved heterogeneity.
+#' @param init_beta Value for \code{beta} for initial guess of the private value distribution.
+#' @param init_params Vector of init_mu, init_alpha, init_sigma, and init_beta, if not supplied separately
+#' @param u_dist Which distributions to represent the unobserved heterogeneity.
+#' @param num_cores The number of cores for running the model in parallel.
+#'
+#'
+#' @details DETAILS_SECTION
+#' #'
+#' @return For each of the distributions specified in \code{u_dist}, ...
+#'
+#'
+#' @export
 auction_model_likelihood <- function(dat = NULL,
                                      winning_bid = NULL,
                                      n_bids = NULL,
@@ -157,8 +180,10 @@ auction_model_likelihood <- function(dat = NULL,
                                      init_params = NULL,
                                      u_dist = NULL,
                                      num_cores = 1 ) {
+
   # Initialize environment
-  num_cores = auction__init_env(num_cores=num_cores)
+  hEnv_tmp = new.env()
+  num_cores = auction__init_env(num_cores=num_cores, hEnv_tmp=hEnv_tmp)
 
   # Validate distributions requested for unobserved heterogeneity
   u_dist = auction__check__common_distrib(u_dist = u_dist)
@@ -197,7 +222,7 @@ auction_model_likelihood <- function(dat = NULL,
 
     # Prepare tracker object
     #   Set report=0 to ensure no reporting
-    hTracker = auction__tracker__build(report=0)
+    hTracker = auction__tracker__build(hEnv_tmp=hEnv_tmp, report=0)
 
     # Run
     print(paste("Running |", sFuncName))
@@ -479,7 +504,7 @@ auction__gen_err_msg <- function(res) {
   stop(errMsg)
 }
 
-auction__init_env <- function(num_cores) {
+auction__init_env <- function(num_cores, hEnv_tmp) {
   # Goal:
   #   - Load all required packages, stop execution is any packages are missing
   #   - Check number of cores requested
@@ -490,7 +515,7 @@ auction__init_env <- function(num_cores) {
   num_cores = auction__check__num_cores(num_cores = num_cores)
 
   # Create reference for tracking numeric-solver progress
-  auction__tracker__create_class()
+  auction__tracker__create_class(hEnv_tmp)
 
   return(num_cores)
 }
@@ -578,6 +603,7 @@ auction__check_input_data <- function(dat, colName__winning_bid, colName__n_bids
 
   # Ensure 'dat' is a dataframe
   if (! is.data.frame(dat)) {
+    res = list()
     res['err_code'] = 2
     res['err_msg'] = paste0("Unable to find the following columns within input data: ",
                             paste(listMissingColName, collapse=','))
@@ -711,25 +737,51 @@ auction__check_init_guess <- function(dat = dat,
       auction__gen_err_msg(res)
     }
 
-    if (is.null(init_beta)) {
-      x0[idxList$unobs_dist_param] = def_pv_mu
-    } else if (is.numeric(init_beta)) {
-      x0[idxList$unobs_dist_param] = init_beta
-    } else {
-      res = list()
-      res['err_code'] = 2
-      res['err_msg'] = "Invalid input for 'init_beta'"
-      auction__gen_err_msg(res)
-    }
+    # if (is.null(init_beta)) {
+    #   x0[idxList$unobs_dist_param] = def_pv_mu
+    # } else if (is.numeric(init_beta)) {
+    #
+    #   print(idxList$unobs_dist_param)
+    #   print(init_beta)
+    #
+    #   x0[idxList$unobs_dist_param] = init_beta
+    # } else {
+    #   res = list()
+    #   res['err_code'] = 2
+    #   res['err_msg'] = "Invalid input for 'init_beta'"
+    #   auction__gen_err_msg(res)
+    # }
+    #
+    # if (is.null(init_sigma)) {
+    #   x0[idxList$x_terms__start:length(x0)] = def_x
+    # } else if (is.numeric(init_sigma)) {
+    #   x0[idxList$x_terms__start:length(x0)] = init_sigma
+    # } else {
+    #   res = list()
+    #   res['err_code'] = 2
+    #   res['err_msg'] = "Invalid input for 'init_sigma'"
+    #   auction__gen_err_msg(res)
+    # }
 
     if (is.null(init_sigma)) {
-      x0[idxList$x_terms__start:length(x0)] = def_x
+      x0[idxList$unobs_dist_param] = def_pv_mu
     } else if (is.numeric(init_sigma)) {
-      x0[idxList$x_terms__start:length(x0)] = init_sigma
+      x0[idxList$unobs_dist_param] = init_sigma
     } else {
       res = list()
       res['err_code'] = 2
       res['err_msg'] = "Invalid input for 'init_sigma'"
+      auction__gen_err_msg(res)
+    }
+
+    if (is.null(init_beta)) {
+      x0[idxList$x_terms__start:length(x0)] = def_x
+    } else if (is.numeric(init_beta)) {
+      x0[idxList$x_terms__start:length(x0)] = init_beta
+    } else {
+      res = list()
+      res['err_code'] = 2
+      res['err_msg'] = "Invalid input for 'init_beta'"
       auction__gen_err_msg(res)
     }
 
@@ -861,26 +913,37 @@ auction__x0_indices <- function() {
   ) )
 }
 
-auction__tracker__create_class <-function() {
-  setRefClass("auction_modeling__tracker",
-              fields=list(
-                iter="numeric",
-                report="numeric"
-              ))
+auction__tracker__create_class <-function(hEnv_tmp) {
+
+  # with(hEnv_tmp, {
+  #   setRefClass("auction_modeling__tracker",
+  #               fields=list(
+  #                 iter="numeric",
+  #                 report="numeric"
+  #               ))
+  # } )
+
+  hEnv_tmp$iter = 0
+  hEnv_tmp$report = 0
+
 }
 
-auction__tracker__build <-function (report) {
-  # 'report' must be a numeric, greater than or equal to 0
-  #   round 'report' just in case
-  if ((is.null(report)) || (! is.numeric(report)) || report < 0) {
-    report = 0
-  } else {
-    report = round(report)
-  }
-  # build
-  hTracker = new("auction_modeling__tracker", iter=0, report=report)
+auction__tracker__build <-function (hEnv_tmp, report) {
+  # # 'report' must be a numeric, greater than or equal to 0
+  # #   round 'report' just in case
+  # if ((is.null(report)) || (! is.numeric(report)) || report < 0) {
+  #   report = 0
+  # } else {
+  #   report = round(report)
+  # }
+  # # build
+  # hTracker = new("auction_modeling__tracker", iter=0, report=report)
 
-  return(hTracker)
+  hEnv_tmp$iter = 0
+  hEnv_tmp$report = report
+
+  # return(hTracker)
+  return(hEnv_tmp)
 }
 
 f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall, hTracker, cl){
