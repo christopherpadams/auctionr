@@ -1,14 +1,14 @@
-#' Example usage of the package 'auctionmodeling'
+#' Example usage of the package 'auctionmodel'
 #'
 #'   The code within will run the three main functions from the package:
 #'
 #'       auction_generate_data()
 #'           generate sample data
 #'
-#'       auction_model()
+#'       auctionmodel()
 #'           run full simulation on the data to find best-fitting distribution parameters
 #'
-#'       auction_model_likelihood()
+#'       auctionmodel_likelihood()
 #'           run only one iteration of the simulation, with specific distribution parameters
 #'
 #'
@@ -16,22 +16,22 @@
 #'
 #' Comments
 #' --------
-#' Running a full simulation via function auction_model() may take considerable time.
+#' Running a full simulation via function auctionmodel() may take considerable time.
 #'
-#'     The function auction_model() is used in example(s):
-#'         Example 3: Simulation via function auction_model()
+#'     The function auctionmodel() is used in example(s):
+#'         Example 3: Simulation via function auctionmodel()
 #'
-#' It is recommended to first use function auction_model_likelihood() to verify
+#' It is recommended to first use function auctionmodel_likelihood() to verify
 #' your data is correctly structured and that appropriate input arguments have
 #' been set. This function will run only one iteration of the simulation, as
-#' opposed to auction_model() which runs to convergence.
+#' opposed to auctionmodel() which runs to convergence.
 #'
-#'     The function auction_model() is used in example(s):
-#'         Example 2: Quick run via function auction_model_likelihood()
+#'     The function auctionmodel() is used in example(s):
+#'         Example 2: Quick run via function auctionmodel_likelihood()
 
 rm(list = ls())
 
-library(auctionmodeling)
+library(auctionmodel)
 
 
 
@@ -83,8 +83,8 @@ examples <- function(num_cores=4) {
 
 
   ### ------------------------------------------------------------
-  ### Example 2: Quick run via function auction_model_likelihood()
-  print('Example 2: Quick run via function auction_model_likelihood()')
+  ### Example 2: Quick run via function auctionmodel_likelihood()
+  print('Example 2: Quick run via function auctionmodel_likelihood()')
 
   # Set input arguments related to the data
   #   Data
@@ -106,8 +106,8 @@ examples <- function(num_cores=4) {
   #         Use same parameters as from 'Example 1: Data generation...'
 
   # Run function
-  print('  Running auction_model_likelihood()')
-  res = auction_model_likelihood(dat = data,
+  print('  Running auctionmodel_likelihood()')
+  res = auctionmodel_likelihood(dat = data,
                                  winning_bid = "winning_bid",
                                  n_bids = "n_bids",
                                  u_dist = u_dist,
@@ -116,14 +116,14 @@ examples <- function(num_cores=4) {
                                  beta = beta,
                                  num_cores = num_cores)
 
-  print('  Result from "Running auction_model_likelihood()"')
+  print('  Result from "Running auctionmodel_likelihood()"')
   print(res)
 
 
 
   ### ------------------------------------------------------------
-  ### Example 3: Simulation via function auction_model()
-  print('Example 3: Simulation via function auction_model()')
+  ### Example 3: Simulation via function auctionmodel()
+  print('Example 3: Simulation via function auctionmodel()')
 
   # Set input arguments related to the data
   #   Data
@@ -149,15 +149,15 @@ examples <- function(num_cores=4) {
   report = 100
 
   # Run function
-  print('  Running auction_model()')
-  res = auction_model(dat = data,
+  print('  Running auctionmodel()')
+  res = auctionmodel(dat = data,
                       winning_bid = "winning_bid",
                       n_bids = "n_bids",
                       u_dist = u_dist,
                       num_cores = num_cores,
                       report = report)
 
-  print('  Result from "Running auction_model()"')
+  print('  Result from "Running auctionmodel()"')
   print(res)
 
 

@@ -1,4 +1,4 @@
-Package: auction_model
+Package: auctionmodel
 Type: Package
 Title: Estimate First-Price Auction Model
 Version: 0.0.0.9000

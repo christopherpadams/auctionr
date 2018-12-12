@@ -65,7 +65,7 @@
 #'
 #'
 #' @export
-auction_model <- function(dat = NULL,
+auctionmodel <- function(dat = NULL,
                        winning_bid = NULL,
                        n_bids = NULL,
                        init_mu = NULL,
@@ -113,7 +113,7 @@ auction_model <- function(dat = NULL,
                 varlist=c("vf__bid_function_fast",
                           "vf__w_integrand_z_fast",
                           "f__funk"),
-                envir = environment(auction_model) )
+                envir = environment(auctionmodel) )
 
   # Run
   run_result = list()
@@ -170,7 +170,7 @@ auction_model <- function(dat = NULL,
 #'
 #'
 #' @export
-auction_model_likelihood <- function(dat = NULL,
+auctionmodel_likelihood <- function(dat = NULL,
                                      winning_bid = NULL,
                                      n_bids = NULL,
                                      mu = NULL,
@@ -213,7 +213,7 @@ auction_model_likelihood <- function(dat = NULL,
                           varlist=c("vf__bid_function_fast",
                                     "vf__w_integrand_z_fast",
                                     "f__funk"),
-                          envir = environment(auction_model) )
+                          envir = environment(auctionmodel) )
 
   # Run
   run_result = list()
@@ -330,12 +330,12 @@ auction__output_org <- function(run_result, dat_X__fields, dat__winning_bid) {
   return(df)
 }
 
-#' Generate example data for running \code{\link{auction_model}}
+#' Generate example data for running \code{\link{auctionmodel}}
 #'
 #'
 #' @param obs Number of observations to draw
 #'
-#' @details This function generates example data for feeding into auction_model(). Specifically, the
+#' @details This function generates example data for feeding into auctionmodel(). Specifically, the
 #' winning bid, number of bids, and variables for the specified number of observations using random deviates of
 #' the log normal distruction.
 #'
@@ -353,7 +353,7 @@ auction__output_org <- function(run_result, dat_X__fields, dat__winning_bid) {
 #' data$num
 #' data$x_terms
 #'
-#' @seealso \code{\link{auction_model}}
+#' @seealso \code{\link{auctionmodel}}
 #'
 #'
 #' @export
@@ -916,7 +916,7 @@ auction__x0_indices <- function() {
 auction__tracker__create_class <-function(hEnv_tmp) {
 
   # with(hEnv_tmp, {
-  #   setRefClass("auction_modeling__tracker",
+  #   setRefClass("auctionmodel__tracker",
   #               fields=list(
   #                 iter="numeric",
   #                 report="numeric"
@@ -937,7 +937,7 @@ auction__tracker__build <-function (hEnv_tmp, report) {
   #   report = round(report)
   # }
   # # build
-  # hTracker = new("auction_modeling__tracker", iter=0, report=report)
+  # hTracker = new("auctionmodel__tracker", iter=0, report=report)
 
   hEnv_tmp$iter = 0
   hEnv_tmp$report = report

@@ -1,5 +1,5 @@
 ---
-title: "Auction Modeling"
+title: "Auction Model"
 output: md_document
 ---
 
@@ -17,7 +17,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# auctionmodeling
+# auctionmodel
 
 ## Overview 
 
@@ -30,18 +30,18 @@ entry and observing multiple bids per auction.
 
 ```{r, eval = FALSE}
 # Install the R package from CRAN:
-install.packages("auctionmodeling")
+install.packages("auctionmodel")
 
 # Or the the development version from GitHub:
 # install.packages("devtools")
-devtools::install_github("alexjmac/auctionmodeling")
+devtools::install_github("alexjmac/auction_model")
 ```
 
 
 ## Getting started
 
 ```{r}
-library(auctionmodeling)
+library(auctionmodel)
 #MYFUNCTIONGOESHERE(withparams = TRUE)
 ```
 
@@ -49,7 +49,7 @@ There are two functions availabe from the package:
 
 * `auction_generate_data()` which xxxx
 
-* `model_auction()` which does the real work. Here, ...
+* `modelauction()` which does the real work. Here, ...
 
 ## For further information
 
