@@ -1,4 +1,4 @@
-Package: auctionmodeling
+Package: auction_model
 Type: Package
 Title: Estimate First-Price Auction Model
 Version: 0.0.0.9000
@@ -10,12 +10,12 @@ Description: Package for R to estimates a first-price auction model with conditi
   values. The model allows for unobserved heterogeneity that is common to all bidders 
   in addition to observable heterogeneity. 
 License: GPL-3
-URL: http://gihub.com/alexmackay/auctionmodeling
-Imports: 
+URL: https://github.com/ajmack/auction_model
+Imports:
   stats,
   parallel
 Encoding: UTF-8
 LazyData: TRUE
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.1
 Suggests: testthat

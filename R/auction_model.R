@@ -322,7 +322,7 @@ auction__output_org <- function(run_result, dat_X__fields, dat__winning_bid) {
     df['Statistics', sFuncName] = ''
     df['  log likelihood', sFuncName] = sprintf('%.4f', run_result[[sFuncName]]$value )
     df['  Iterations', sFuncName] = run_result[[sFuncName]]$counts['function']
-    df['  StdDev: ln(Winning bids)', sFuncName] = sprintf('%.4f', sd(log(dat__winning_bid)))
+    df['  StdDev: ln(Winning bids)', sFuncName] = sprintf('%.4f', stats::sd(log(dat__winning_bid)))
     df['  StdDev: ln(Private Values)', sFuncName] = ''
     df['  StdDev: ln(Unobs. Hetero.)', sFuncName] = sprintf('%.4f', run_result[[sFuncName]]$par[idxList$unobs_dist_param])
     df['  StdDev: ln(Obs. Hetero.)', sFuncName] = ''
@@ -457,7 +457,7 @@ auction_generate_data <- function(obs = NULL,
   v.w_cost = rep(NA, obs)
   gamma_1p1oa = gamma(1 + 1/alpha)
   for(i in 1:obs){
-    costs = (mu/gamma(1+1/alpha))*(-log(1-runif(v.n[i])))^(1/alpha)
+    costs = (mu/gamma(1+1/alpha))*(-log(1-stats::runif(v.n[i])))^(1/alpha)
     min_cost = min(costs)
     v.w_cost[i] = min(costs)
     # v.w_bid[i] = f.bid_function(cost=min_cost, num_bids=v.n[i], mu=mu, alpha=alpha)
@@ -474,7 +474,7 @@ auction_generate_data <- function(obs = NULL,
 
   # Unobserved heterogeneity
   sdlog = sqrt(log(sigma^2+1))
-  v.u = rlnorm(n = obs, meanlog = -1/2*sdlog^2, sdlog = sdlog )
+  v.u = stats::rlnorm(n = obs, meanlog = -1/2*sdlog^2, sdlog = sdlog )
 
   # Observed heterogeneity
   new_x_vars = matrix(NA, obs, length(new_x_meanlog))
@@ -1004,8 +1004,8 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall
   return(log_likelihood)
 }
 
-f__funk = function(data_vec, listFuncCall){
-  val = integrate(vf__w_integrand_z_fast, w_bid=data_vec[1],
+f__funk = function(data_vec, listFuncCall) {
+  val = stats::integrate(vf__w_integrand_z_fast, w_bid=data_vec[1],
                   n_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
                   gamma_1p1oa=data_vec[5], listFuncCall=listFuncCall, lower=0, upper=Inf,
                   abs.tol = 1e-10)
@@ -1040,7 +1040,7 @@ f__bid_function_fast = function(winning_bid, n_bids, mu, alpha, gamma_1p1oa){
   }
 
   winning_bid + 1/alpha*(mu/gamma_1p1oa)*(n_bids-1)^(-1/alpha)*
-    pgamma((n_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha, 1/alpha, lower=FALSE)*
+    stats::pgamma((n_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha, 1/alpha, lower=FALSE)*
     gamma(1/alpha)*
     1/exp(-(n_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha)
 }

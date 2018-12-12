@@ -1,5 +1,6 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^working/*
 
 # Add template README.RMD and
 # README.Rmd to .Rbuildignore
