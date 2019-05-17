@@ -480,7 +480,7 @@ auction_generate_data <- function(obs = NULL,
   new_x_vars = matrix(NA, obs, length(new_x_meanlog))
   colList = c()
   for(i.new_x in 1:length(new_x_meanlog)){
-    new_x_vars[, i.new_x] = rlnorm(obs,
+    new_x_vars[, i.new_x] = stats::rlnorm(obs,
                                    meanlog = new_x_meanlog[i.new_x],
                                    sdlog = new_x_sdlog[i.new_x])
     colList = c(colList, paste0('X', i.new_x, '__rlnorm'))
