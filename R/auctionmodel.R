@@ -461,7 +461,7 @@ auction_generate_data <- function(obs = NULL,
     min_cost = min(costs)
     v.w_cost[i] = min(costs)
     # v.w_bid[i] = f.bid_function(cost=min_cost, num_bids=v.n[i], mu=mu, alpha=alpha)
-    v.w_bid[i] = f__bid_function_fast(winning_bid=min_cost,
+    v.w_bid[i] = f__bid_function_fast(cost=min_cost,
                                       n_bids=v.n[i],
                                       mu=mu,
                                       alpha=alpha,
@@ -1015,7 +1015,7 @@ f__funk = function(data_vec, listFuncCall) {
 
 vf__w_integrand_z_fast = function(z, w_bid, n_bids, mu, alpha, gamma_1p1oa, listFuncCall){
 
-  b_z = vf__bid_function_fast(winning_bid=z, n_bids=n_bids, mu=mu, alpha=alpha, gamma_1p1oa)
+  b_z = vf__bid_function_fast(cost=z, n_bids=n_bids, mu=mu, alpha=alpha, gamma_1p1oa)
 
   listFuncCall$argList$x = w_bid/b_z
 
@@ -1032,17 +1032,17 @@ vf__w_integrand_z_fast = function(z, w_bid, n_bids, mu, alpha, gamma_1p1oa, list
   return(vals)
 }
 
-f__bid_function_fast = function(winning_bid, n_bids, mu, alpha, gamma_1p1oa){
+f__bid_function_fast = function(cost, n_bids, mu, alpha, gamma_1p1oa){
 
-  if (exp(-(n_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha) == 0) {
-    return(winning_bid + mu/alpha*(n_bids-1)^(-1/alpha)*1/gamma_1p1oa*
-             ((n_bids-1)*(gamma_1p1oa/mu*winning_bid)^alpha)^(1/alpha-1))
+  if (exp(-(n_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha) == 0) {
+    return(cost + mu/alpha*(n_bids-1)^(-1/alpha)*1/gamma_1p1oa*
+             ((n_bids-1)*(gamma_1p1oa/mu*cost)^alpha)^(1/alpha-1))
   }
 
-  winning_bid + 1/alpha*(mu/gamma_1p1oa)*(n_bids-1)^(-1/alpha)*
-    stats::pgamma((n_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha, 1/alpha, lower=FALSE)*
+  cost + 1/alpha*(mu/gamma_1p1oa)*(n_bids-1)^(-1/alpha)*
+    stats::pgamma((n_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha, 1/alpha, lower=FALSE)*
     gamma(1/alpha)*
-    1/exp(-(n_bids-1)*(1/(mu/gamma_1p1oa)*winning_bid)^alpha)
+    1/exp(-(n_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha)
 }
 
-vf__bid_function_fast = Vectorize(FUN = f__bid_function_fast,vectorize.args = "winning_bid")
+vf__bid_function_fast = Vectorize(FUN = f__bid_function_fast,vectorize.args = "cost")
