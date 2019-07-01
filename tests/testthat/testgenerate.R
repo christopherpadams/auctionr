@@ -2,17 +2,15 @@ rm(list = ls())
 library(auctionmodel)
 library(devtools)
 library(testthat)
-library(fitdistrplus)
 
 context("Generate data")
 
-obs = 100
-mu = 5
-alpha = 3
-sigma = .6
-
 # tests without controls
 test_that("Requires appropriate parameters, obs, nbids", {
+  obs = 100
+  mu = 5
+  alpha = 3
+  sigma = .6
   # Requires parameters
   expect_equal(auction_generate_data(obs = obs),
                NULL)
@@ -51,6 +49,7 @@ test_that("Cost and bid generation",{
   alpha = 3
   sigma = .6
   n_bids = sample(2:10, obs, replace=TRUE)
+  set.seed(2539)
   test_cost = auctionmodel:::auction__generate_cost(obs = obs,
                                         mu = mu,
                                         v.n = n_bids,
@@ -62,6 +61,28 @@ test_that("Cost and bid generation",{
                0)
   # Check reasonable cost distribution
   plot(density(test_cost))
+
+  # Check some specific parameter values
+  mu = 0
+  test_cost = auctionmodel:::auction__generate_cost(obs = obs,
+                                                    mu = mu,
+                                                    v.n = n_bids,
+                                                    alpha = alpha)
+  expect_equal(max(test_cost),
+               0)
+  expect_equal(min(test_cost),
+               max(test_cost))
+
+  mu = 5
+  alpha = 1e10
+  test_cost = auctionmodel:::auction__generate_cost(obs = obs,
+                                                    mu = mu,
+                                                    v.n = n_bids,
+                                                    alpha = alpha)
+  expect_equal(max(test_cost),
+               5)
+  expect_equal(min(test_cost),
+               max(test_cost))
 
   # Non-negative bids
   gamma_1p1oa = gamma(1 + 1/alpha)
@@ -78,7 +99,7 @@ test_that("Cost and bid generation",{
     expect_gte(test_w_bid[i] - test_cost[i], 0)
   }
 }
-)
 
+)
 
 
