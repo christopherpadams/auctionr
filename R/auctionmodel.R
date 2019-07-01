@@ -35,7 +35,7 @@
 #'
 #'
 #' Representing the unobserved heterogeneity is controled by \code{u_dist}. This is either a string or vector of strings for
-#' which distrubtions to use: \code{dlnorm} (default, if not supplied), \code{weibull}, and \code{weibull}.
+#' which distrubtions to use: \code{dlnorm} (default, if not supplied), \code{weibull}, and \code{gamma}.
 #'
 #' Either \code{ini_params} or the set \code{init_mu}, \code{init_alpha}, \code{init_beta}, and \code{init_sigma} must be supplied.
 #' If \code{init_params} is supplied, the others are ignored.
@@ -65,18 +65,20 @@
 #'
 #'
 #' @export
-auctionmodel <- function(dat = NULL,
-                       winning_bid = NULL,
-                       n_bids = NULL,
-                       init_mu = NULL,
-                       init_alpha = NULL,
-                       init_sigma = NULL,  #init_control
-                       init_beta = NULL,   #init_common_sd
-                       init_params = NULL,
-                       u_dist = NULL, #common_distributions
-                       num_cores = 1,
-                       report=0
-                       ) {
+
+# Optimises f__ll_parallel
+auction_model <- function(dat = NULL,
+                          winning_bid = NULL,
+                          n_bids = NULL,
+                          init_mu = NULL,
+                          init_alpha = NULL,
+                          init_sigma = NULL,  #init_control
+                          init_beta = NULL,   #init_common_sd
+                          init_params = NULL,
+                          u_dist = NULL, #common_distributions
+                          num_cores = 1,
+                          report=0
+) {
 
   # Initialize environment
   hEnv_tmp = new.env()
@@ -101,7 +103,7 @@ auctionmodel <- function(dat = NULL,
                                            init_sigma = init_sigma,
                                            init_beta = init_beta,
                                            init_params = init_params
-                                           )
+  )
 
   # Prepare control parameters for numerical solver
   conv_ctrl = auction__get_conv_ctrl(vecInitGuess = vecInitGuess)
@@ -110,10 +112,10 @@ auctionmodel <- function(dat = NULL,
   cl = parallel::makeCluster(num_cores)
 
   parallel::clusterExport(cl,
-                varlist=c("vf__bid_function_fast",
-                          "vf__w_integrand_z_fast",
-                          "f__funk"),
-                envir = environment(auctionmodel) )
+                          varlist=c("vf__bid_function_fast",
+                                    "vf__w_integrand_z_fast",
+                                    "f__funk"),
+                          envir = environment(auctionmodel) )
 
   # Run
   run_result = list()
@@ -170,7 +172,9 @@ auctionmodel <- function(dat = NULL,
 #'
 #'
 #' @export
-auctionmodel_likelihood <- function(dat = NULL,
+
+# outputs log likelihood function
+auction_model_likelihood <- function(dat = NULL,
                                      winning_bid = NULL,
                                      n_bids = NULL,
                                      mu = NULL,
@@ -252,7 +256,7 @@ auctionmodel_likelihood <- function(dat = NULL,
   return(run_result)
 }
 
-
+# output setup
 auction__output_org <- function(run_result, dat_X__fields, dat__winning_bid) {
 
   # Initialize dataframe
@@ -358,144 +362,232 @@ auction__output_org <- function(run_result, dat_X__fields, dat__winning_bid) {
 #'
 #' @export
 auction_generate_data <- function(obs = NULL,
-                                       n_bids = NULL,
-                                       mu = NULL,
-                                       alpha = NULL,
-                                       sigma = NULL,
-                                       beta = NULL,
-                                       params = NULL,
-                                       u_dist = NULL,
-                                       x_vars = NULL,
-                                       new_x_meanlog = NULL,
-                                       new_x_sdlog = NULL) {
+                                  n_bids = NULL,
+                                  mu = NULL,
+                                  alpha = NULL,
+                                  sigma = NULL,
+                                  beta = NULL,
+                                  params = NULL,
+                                  u_dist = NULL,
+                                  x_vars = NULL,
+                                  new_x_meanlog = NULL,
+                                  new_x_sdlog = NULL) {
+  # Inspect parameters
+  if (is.null(x_vars) && (is.null(new_x_meanlog))){
+    beta = 0
+  }
   if (is.null(params) && (is.null(mu)
-                          || is.null(alpha)
-                          || is.null(sigma)
-                          || is.null(beta))) {
+                            || is.null(alpha)
+                            || is.null(sigma)
+                            || is.null(beta))) {
     print("Must specify either (mu, alpha, sigma, beta) or 'params'")
     return(NULL)
   } else if (is.null(obs)) {
     print("Must specify 'obs'")
     return(NULL)
-  } else {
-
-    if ((! is.numeric(obs)) || (length(obs) != 1)) {
+  } else if ((! is.numeric(obs)) || (length(obs) != 1)) {
       print("'obs' must be numeric value")
       return(NULL)
-    }
-
-    # Inspect 'n_bids'
-    #   'n_bids' may be a vector of number of bids.
-    #   If specified, the length must be equal to
-    #   obs. If not specified, they are drawn with
-    #   replacement [sample(2:10, obs, replace=TRUE)]
-    if (! is.null(n_bids)) {
-      if ((! is.numeric(n_bids))
-          || (! is.vector(n_bids))
-          || (length(n_bids) != obs)) {
-        print("'n_bids' must be vector, with length equal to 'obs")
-        return(NULL)
-      }
-    } else {
-      n_bids = sample(2:10, obs, replace=TRUE)
-    }
-
-    # Inspect x_vars
-    #   x_vars is a data.frame of control variables.
-    #   The number of observations must be equal
-    #   to obs.
-    if ((! is.data.frame(x_vars))
-        || (nrow(x_vars) != obs)) {
-      print("'x_vars' must be dataframe with nrows='obs'")
+  } else if (is.null(x_vars)){
+    x_vars = as.data.frame(rep(1, obs))
+    colnames(x_vars) = "x_vars"
+  }
+  # Inspect 'n_bids'
+  #   'n_bids' may be a vector of number of bids.
+  #   If specified, the length must be equal to
+  #   obs. If not specified, they are drawn with
+  #   replacement [sample(2:10, obs, replace=TRUE)]
+  if (! is.null(n_bids)) {
+    if ((! is.numeric(n_bids))
+        || (! is.vector(n_bids))
+        || (length(n_bids) != obs)) {
+      print("'n_bids' must be vector, with length equal to 'obs")
       return(NULL)
     }
-
-    # Inspect beta
-    #   length of beta must be equal to
-    #   the number of columns in x_vars
-    #   plus the length of new_x_meanlog
-    if ((! is.numeric(beta))
-        || (! is.vector(beta))
-        || (length(beta) !=
-            ncol(x_vars) + length(new_x_meanlog))) {
-      print(paste("'beta' must be vector of length",
-                  "[# columns of 'x_vars'",
-                  "+ length of 'new_x_meanlog']"))
-      return(NULL)
-    }
-
-    # Inspect new_x_meanlog and new_x_sdlog
-    if (! is.null(new_x_meanlog)) {
-      if ((! is.numeric(new_x_meanlog))
-          || (! is.vector(new_x_meanlog))) {
-        print("'new_x_meanlog' must be numeric vector")
-        return(NULL)
-      } else if (is.null(new_x_sdlog)) {
-        new_x_sdlog = rep(1, length(new_x_meanlog))
-      } else if ((! is.numeric(new_x_sdlog))
-                 || (! is.vector(new_x_sdlog))
-                 || (length(new_x_sdlog) != length(new_x_meanlog))) {
-        print(paste("'new_x_sdlog' must be numeric vector",
-                    "of same length as 'new_x_meanlog'"))
-        return(NULL)
-      }
-    } else {
-      if (! is.null(new_x_sdlog)) {
-        print("'new_x_sdlog' given but not 'new_x_meanlog'")
-        return(NULL)
-      }
-    }
-
+  } else {
+    n_bids = sample(2:10, obs, replace=TRUE)
   }
 
-
-  # Number of bids
   v.n = n_bids
-
-  # Winning bids
-  v.w_bid = rep(NA, obs)
-  v.w_cost = rep(NA, obs)
   gamma_1p1oa = gamma(1 + 1/alpha)
+
+  v.w_cost = auction__generate_cost(obs = obs,
+                                    mu = mu,
+                                    v.n = v.n,
+                                    alpha = alpha)
+
+  v.w_bid = auction__generate_w_bid(obs = obs,
+                                    v.w_cost = v.w_cost,
+                                    v.n = v.n,
+                                    mu = mu,
+                                    alpha = alpha,
+                                    gamma_1p1oa = gamma_1p1oa)
+
+  v.u = auction__generate_u(obs = obs, sigma = sigma)
+
+  all_x_vars = auction__generate_x(obs = obs,
+                                   x_vars = x_vars,
+                                   beta = beta,
+                                   new_x_meanlog = new_x_meanlog,
+                                   new_x_sdlog = new_x_sdlog)
+
+  v.winning_bid = auction__generate_winning(all_x_vars = all_x_vars,
+                                            beta = beta,
+                                            v.w_bid = v.w_bid,
+                                            v.u = v.u)
+  dat = data.frame(winning_bid = v.winning_bid, n_bids = v.n, all_x_vars)
+  return(dat)
+
+}
+
+auction__generate_cost <- function(obs,
+                                   mu,
+                                   v.n,
+                                   alpha) {
+  # Winning cost
+  v.w_cost = rep(NA, obs)
+  # Generate cost
   for(i in 1:obs){
     costs = (mu/gamma(1+1/alpha))*(-log(1-stats::runif(v.n[i])))^(1/alpha)
     min_cost = min(costs)
     v.w_cost[i] = min(costs)
-    # v.w_bid[i] = f.bid_function(cost=min_cost, num_bids=v.n[i], mu=mu, alpha=alpha)
-    v.w_bid[i] = f__bid_function_fast(cost=min_cost,
+  }
+  return(v.w_cost)
+}
+
+# v.w_bid[i] = f.bid_function(cost=min_cost, num_bids=v.n[i], mu=mu, alpha=alpha)
+# Proportional bid function
+auction__generate_w_bid <- function(obs,
+                                    v.w_cost,
+                                    v.n,
+                                    mu,
+                                    alpha,
+                                    gamma_1p1oa) {
+  v.w_bid = rep(NA, obs)
+  for(i in 1:obs){
+    v.w_bid[i] = f__bid_function_fast(cost=v.w_cost[i],
                                       n_bids=v.n[i],
                                       mu=mu,
                                       alpha=alpha,
                                       gamma_1p1oa=gamma_1p1oa)
   }
-  stopifnot(mean(is.na(v.w_bid)) == 0)
+  return(v.w_bid)
+}
 
-
-
-
-  # Unobserved heterogeneity
-  sdlog = sqrt(log(sigma^2+1))
-  v.u = stats::rlnorm(n = obs, meanlog = -1/2*sdlog^2, sdlog = sdlog )
-
-  # Observed heterogeneity
-  new_x_vars = matrix(NA, obs, length(new_x_meanlog))
-  colList = c()
-  for(i.new_x in 1:length(new_x_meanlog)){
-    new_x_vars[, i.new_x] = stats::rlnorm(obs,
-                                   meanlog = new_x_meanlog[i.new_x],
-                                   sdlog = new_x_sdlog[i.new_x])
-    colList = c(colList, paste0('X', i.new_x, '__rlnorm'))
+# Unobserved heterogeneity
+auction__generate_u <- function(obs,
+                                sigma,
+                                u_dist = "dlnorm") {
+  for (funcName in u_dist) {
+    sFuncName = as.character(funcName)
   }
-  colnames(new_x_vars) = colList
+  u_dist = auction__check__common_distrib(u_dist = u_dist)
+  id_distrib = auction__get_id_distrib(sFuncName = sFuncName)
+  listParam = auction__get_unobs_params(distrib_std_dev = sigma,
+                                        id_distrib = id_distrib)
+  if (id_distrib == 1) {
+    #dgamma
+    v.u = stats::rgamma(n = obs, shape = listParam$shape, rate = listParam$rate)
+  }
+  if (id_distrib == 2 || is.null(u_dist)) {
+    v.u = stats::rlnorm(n = obs, meanlog = listParam$meanlog, sdlog = listParam$sdlog)
+  }
+  if (id_distrib == 3) {
+    v.u = stats::rweibull(n = obs, shape = listParam$shape, scale = listParam$scale)
+  }
+  sdlog = sqrt(log(sigma^2 + 1))
+  v.u = stats::rlnorm(n = obs, meanlog = -1/2*sdlog^2, sdlog = sdlog)
+  return(v.u)
+}
+
+# Observed heterogeneity
+auction__generate_x <- function(obs,
+                                x_vars,
+                                new_x_meanlog,
+                                new_x_sdlog,
+                                beta = beta) {
+  # Inspect beta
+  #   length of beta must be equal to
+  #   the number of columns in x_vars
+  #   plus the length of new_x_meanlog
+    if ((! is.numeric(beta))
+        || (! is.vector(beta))
+        || (length(beta) !=
+            ncol(x_vars) + length(new_x_meanlog))) {
+      print(
+         paste(
+          "'beta' must be vector of length",
+          "[# columns of 'x_vars'",
+          "+ length of 'new_x_meanlog']"
+        )
+        )
+      return(NULL)
+    }
+
+  # Inspect x_vars
+  #   x_vars is a data.frame of control variables.
+  #   The number of observations must be equal
+  #   to obs.
+  if ((!is.data.frame(x_vars))
+      || (nrow(x_vars) != obs)) {
+    print("'x_vars' must be dataframe with nrows='obs'")
+    return(NULL)
+  }
+
+  # Inspect new_x_meanlog and new_x_sdlog
+  if (!is.null(new_x_meanlog)) {
+    if ((!is.numeric(new_x_meanlog))
+        || (!is.vector(new_x_meanlog))) {
+      print("'new_x_meanlog' must be numeric vector")
+      return(NULL)
+    } else if (is.null(new_x_sdlog)) {
+      new_x_sdlog = rep(1, length(new_x_meanlog))
+    } else if ((!is.numeric(new_x_sdlog))
+               || (!is.vector(new_x_sdlog))
+               ||
+               (length(new_x_sdlog) != length(new_x_meanlog))) {
+      print(paste(
+        "'new_x_sdlog' must be numeric vector",
+        "of same length as 'new_x_meanlog'"
+      ))
+      return(NULL)
+    }
+    # Generate new_x_vars
+    new_x_vars = matrix(NA, obs, length(new_x_meanlog))
+    colList = c()
+    for (i.new_x in 1:length(new_x_meanlog)) {
+      new_x_vars[, i.new_x] = stats::rlnorm(obs,
+                                            meanlog = new_x_meanlog[i.new_x],
+                                            sdlog = new_x_sdlog[i.new_x])
+      colList = c(colList, paste0('X', i.new_x, '__rlnorm'))
+    }
+    colnames(new_x_vars) = colList
+  } else if (is.null(new_x_meanlog)) {
+    if (! is.null(new_x_sdlog)) {
+      print("'new_x_sdlog' given but not 'new_x_meanlog'")
+      return(NULL)
+    }
+    else {
+      new_x_vars = rep(1, obs)
+    }
+  }
 
   # Gather all X terms
   all_x_vars = data.frame(x_vars, new_x_vars)
-  # Calculate winning bid
+  return(all_x_vars)
+}
+
+# Calculate winning bid
+auction__generate_winning <- function(all_x_vars,
+                                      beta,
+                                      v.w_bid,
+                                      v.u) {
   v.h_x = exp(colSums(beta*t(log(all_x_vars))))
   v.winning_bid = v.w_bid*v.u*v.h_x
-  # Build dataframe
-  dat = data.frame(winning_bid = v.winning_bid, n_bids = v.n, all_x_vars)
-  return(dat)
+  return(v.winning_bid)
 }
+
+
 
 auction__gen_err_msg <- function(res) {
   # Goal: Print out an error message and then stops execution of the main script
@@ -946,6 +1038,7 @@ auction__tracker__build <-function (hEnv_tmp, report) {
   return(hEnv_tmp)
 }
 
+# log likelihood of winning bids
 f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall, hTracker, cl){
 
   listIdx = auction__x0_indices()
@@ -961,6 +1054,7 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall
     distrib_std_dev = x0[listIdx$unobs_dist_param],
     id_distrib = listFuncCall$funcID)
 
+  # calculate bid density
   v.f_w = parallel::parApply(cl = cl,
                              X = cbind(dat__winning_bid/v.h,
                                        dat__n_bids,
@@ -970,8 +1064,9 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall
                              MARGIN = 1,
                              FUN = f__funk,
                              listFuncCall=listFuncCall)
-
+  # density of winning bid (w/ controls)
   v.f_y = v.f_w/v.h
+  # log likelihood for observed (winning) bid
   log_likelihood = -sum(log(v.f_y))
 
   if (hTracker$report != 0) {
@@ -1004,15 +1099,17 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall
   return(log_likelihood)
 }
 
+# bid density (integrate over vf__w_integrand_z_fast)
 f__funk = function(data_vec, listFuncCall) {
   val = stats::integrate(vf__w_integrand_z_fast, w_bid=data_vec[1],
-                  n_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
-                  gamma_1p1oa=data_vec[5], listFuncCall=listFuncCall, lower=0, upper=Inf,
-                  abs.tol = 1e-10)
+                         n_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
+                         gamma_1p1oa=data_vec[5], listFuncCall=listFuncCall, lower=0, upper=Inf,
+                         abs.tol = 1e-10)
   if(val$message != "OK") stop("Integration failed.")
   return(val$value)
 }
 
+# integrand for density of observed bid, given proportional bid function, cost dist., UH dist.
 vf__w_integrand_z_fast = function(z, w_bid, n_bids, mu, alpha, gamma_1p1oa, listFuncCall){
 
   b_z = vf__bid_function_fast(cost=z, n_bids=n_bids, mu=mu, alpha=alpha, gamma_1p1oa)
@@ -1032,6 +1129,7 @@ vf__w_integrand_z_fast = function(z, w_bid, n_bids, mu, alpha, gamma_1p1oa, list
   return(vals)
 }
 
+# proportional bid function given cost, pv dist parameters, no bids
 f__bid_function_fast = function(cost, n_bids, mu, alpha, gamma_1p1oa){
 
   if (exp(-(n_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha) == 0) {
