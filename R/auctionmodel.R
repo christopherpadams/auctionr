@@ -495,8 +495,6 @@ auction__generate_u <- function(obs,
   if (id_distrib == 3) {
     v.u = stats::rweibull(n = obs, shape = listParam$shape, scale = listParam$scale)
   }
-  sdlog = sqrt(log(sigma^2 + 1))
-  v.u = stats::rlnorm(n = obs, meanlog = -1/2*sdlog^2, sdlog = sdlog)
   return(v.u)
 }
 
