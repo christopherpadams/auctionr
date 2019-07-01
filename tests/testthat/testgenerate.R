@@ -2,6 +2,7 @@ rm(list = ls())
 library(auctionmodel)
 library(devtools)
 library(testthat)
+library(stubthat)
 
 context("Generate data")
 
@@ -102,10 +103,10 @@ test_that("Cost and bid generation",{
 )
 
 test_that("UH distribution",{
-  obs = 100
+  obs = 1000
   mu = 5
   alpha = 3
-  sigma = .6
+  sigma = 2
 
   test_u = auctionmodel:::auction__generate_u(obs = obs,
                                      sigma = sigma,
@@ -135,10 +136,10 @@ test_that("UH distribution",{
 
 
   # Gamma
-  obs = 500
+  obs = 1000
   mu = 5
   alpha = 3
-  sigma = .6
+  sigma = .8
 
   test_u = auctionmodel:::auction__generate_u(obs = obs,
                                               sigma = sigma,
@@ -147,22 +148,12 @@ test_that("UH distribution",{
   plot(density(test_u))
   curve(dgamma(x, shape = 1/sigma^2, rate = 1/sigma^2), add = TRUE)
 
-  # Specific parameter values
-  sigma = 1
-  set.seed(2547)
-  test_u = auctionmodel:::auction__generate_u(obs = obs,
-                                              sigma = sigma,
-                                              u_dist = "dlnorm")
-  gamma_test = rexp(obs, rate = 1)
-  gamma_dist_test <- ks.test(test_u, gamma_test)
-  expect_lte(gamma_dist_test$p.value,
-             0.05)
 
   #Weibull
-  obs = 500
+  obs = 1000
   mu = 5
-  alpha = 3
-  sigma = .6
+  alpha = 1
+  sigma = .1
   set.seed(4892)
   test_u = auctionmodel:::auction__generate_u(obs = obs,
                                               sigma = sigma,
@@ -202,7 +193,8 @@ test_that("Winning bid",{
   alpha = 3
   sigma = .6
   test_u = auctionmodel:::auction__generate_u(obs = obs,
-                                              sigma = sigma)
+                                              sigma = sigma
+                                              )
   n_bids = sample(2:10, obs, replace=TRUE)
   test_cost = auctionmodel:::auction__generate_cost(obs = obs,
                                                     mu = mu,
@@ -221,7 +213,10 @@ test_that("Winning bid",{
                                                          v.u = test_u)
 
   expect_equal(winning_bid, test_w_bid*test_u)
-})
 
+  for (i in 1:obs){
+  expect_gte(winning_bid[i], 0)
+  }
+})
 
 

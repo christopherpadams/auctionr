@@ -423,7 +423,9 @@ auction_generate_data <- function(obs = NULL,
                                     alpha = alpha,
                                     gamma_1p1oa = gamma_1p1oa)
 
-  v.u = auction__generate_u(obs = obs, sigma = sigma)
+  v.u = auction__generate_u(obs = obs,
+                            u_dist = u_dist,
+                            sigma = sigma)
 
   all_x_vars = auction__generate_x(obs = obs,
                                    x_vars = x_vars,
@@ -436,6 +438,7 @@ auction_generate_data <- function(obs = NULL,
                                             v.w_bid = v.w_bid,
                                             v.u = v.u)
   dat = data.frame(winning_bid = v.winning_bid, n_bids = v.n, all_x_vars)
+
   return(dat)
 
 }
@@ -478,6 +481,9 @@ auction__generate_w_bid <- function(obs,
 auction__generate_u <- function(obs,
                                 sigma,
                                 u_dist = "dlnorm") {
+  if (is.null(u_dist)){
+    u_dist = "dlnorm"
+  }
   for (funcName in u_dist) {
     sFuncName = as.character(funcName)
   }
@@ -489,7 +495,7 @@ auction__generate_u <- function(obs,
     #dgamma
     v.u = stats::rgamma(n = obs, shape = listParam$shape, rate = listParam$rate)
   }
-  if (id_distrib == 2 || is.null(u_dist)) {
+  if (id_distrib == 2) {
     v.u = stats::rlnorm(n = obs, meanlog = listParam$meanlog, sdlog = listParam$sdlog)
   }
   if (id_distrib == 3) {
@@ -1127,7 +1133,7 @@ vf__w_integrand_z_fast = function(z, w_bid, n_bids, mu, alpha, gamma_1p1oa, list
   return(vals)
 }
 
-# proportional bid function given cost, pv dist parameters, no bids
+# proportional bid function given cost, pv dist parameters, no. bids
 f__bid_function_fast = function(cost, n_bids, mu, alpha, gamma_1p1oa){
 
   if (exp(-(n_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha) == 0) {
