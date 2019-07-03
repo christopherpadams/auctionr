@@ -496,9 +496,11 @@ auction__generate_u <- function(obs,
     v.u = stats::rgamma(n = obs, shape = listParam$shape, rate = listParam$rate)
   }
   if (id_distrib == 2) {
+    #dlnorm
     v.u = stats::rlnorm(n = obs, meanlog = listParam$meanlog, sdlog = listParam$sdlog)
   }
   if (id_distrib == 3) {
+    #dweibull
     v.u = stats::rweibull(n = obs, shape = listParam$shape, scale = listParam$scale)
   }
   return(v.u)
@@ -1103,7 +1105,7 @@ f__ll_parallel = function(x0, dat__winning_bid, dat__n_bids, dat_X, listFuncCall
   return(log_likelihood)
 }
 
-# bid density (integrate over vf__w_integrand_z_fast)
+# bid density (integrate vf__w_integrand_z_fast)
 f__funk = function(data_vec, listFuncCall) {
   val = stats::integrate(vf__w_integrand_z_fast, w_bid=data_vec[1],
                          n_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
@@ -1124,7 +1126,7 @@ vf__w_integrand_z_fast = function(z, w_bid, n_bids, mu, alpha, gamma_1p1oa, list
     exp(-n_bids*(gamma_1p1oa/mu*z)^alpha)*
     1/b_z*
     do.call(
-      match.fun(listFuncCall$funcName),
+      match.fun(listFuncCall$funcName), # UH term
       listFuncCall$argList
     )
 
