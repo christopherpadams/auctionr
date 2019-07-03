@@ -173,15 +173,20 @@ test_that("Observed bid density integrand", {
       distrib_std_dev = sigma,
       id_distrib = listFuncCall$funcID)
 
-    data_vec = data.frame(cbind(w_bid,
-                                n_bids,
-                                mu,
-                                alpha,
-                                gamma_1p1oa))
+    data_vec = cbind(w_bid,
+                     n_bids,
+                     mu,
+                     alpha,
+                     gamma_1p1oa)
 
-    # test
-    v.f_w = auctionmodel:::f__funk(data_vec = data_vec,
-                                   listFuncCall = listFuncCall)
+    # test generic result
+    test_integrate = stats::integrate(auctionmodel:::vf__w_integrand_z_fast, w_bid=data_vec[1],
+                                      n_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
+                                      gamma_1p1oa=data_vec[5], listFuncCall=listFuncCall, lower=0, upper=Inf,
+                                      abs.tol = 1e-10)
+    f_w = auctionmodel:::f__funk(data_vec = data_vec,
+                          listFuncCall = listFuncCall)
+    expect_equal(test_integrate, f_w)
   })
 
 
