@@ -72,8 +72,8 @@ auction_model <- function(dat = NULL,
                           n_bids = NULL,
                           init_mu = NULL,
                           init_alpha = NULL,
-                          init_sigma = NULL,  #init_control
-                          init_beta = NULL,   #init_common_sd
+                          init_sigma = NULL,  #init_common_sd
+                          init_beta = NULL,   #init_control
                           init_params = NULL,
                           u_dist = NULL, #common_distributions
                           num_cores = 1,
@@ -89,12 +89,12 @@ auction_model <- function(dat = NULL,
 
   # Validate input data
   dat = auction__check_input_data(dat = dat,
-                                  colName__winning_bid = winning_bid,
-                                  colName__n_bids = n_bids)
+                                  colName__winning_bid = "winning_bid",
+                                  colName__n_bids = "n_bids")
 
   # Log the X terms within the input data
-  dat[ ! names(dat) %in% c(winning_bid, n_bids) ] = log(
-    dat[ ! names(dat) %in% c(winning_bid, n_bids) ] )
+  dat[ ! names(dat) %in% c("winning_bid", "n_bids") ] = log(
+    dat[ ! names(dat) %in% c("winning_bid", "n_bids") ] )
 
   # Prepare initial guesses
   vecInitGuess = auction__check_init_guess(dat = dat,
@@ -115,7 +115,7 @@ auction_model <- function(dat = NULL,
                           varlist=c("vf__bid_function_fast",
                                     "vf__w_integrand_z_fast",
                                     "f__funk"),
-                          envir = environment(auctionmodel) )
+                          envir = environment(auction_model) )
 
   # Run
   run_result = list()
@@ -134,9 +134,9 @@ auction_model <- function(dat = NULL,
     run_result[[sFuncName]] = stats::optim(par=vecInitGuess,
                                            fn=f__ll_parallel,
                                            control=conv_ctrl,
-                                           dat__winning_bid=dat[[winning_bid]],
-                                           dat__n_bids=dat[[n_bids]],
-                                           dat_X=t( dat[ ! names(dat) %in% c(winning_bid, n_bids) ] ),
+                                           dat__winning_bid=dat$winning_bid,
+                                           dat__n_bids=dat$n_bids,
+                                           dat_X=t( dat[ ! names(dat) %in% c("winning_bid", "n_bids") ] ),
                                            listFuncCall=listFuncCall,
                                            hTracker=hTracker,
                                            cl=cl)
@@ -146,8 +146,8 @@ auction_model <- function(dat = NULL,
   parallel::stopCluster(cl)
   # Prepare output
   res = auction__output_org(run_result=run_result,
-                            dat_X__fields=names(dat)[ ! names(dat) %in% c(winning_bid, n_bids) ],
-                            dat__winning_bid=dat[[winning_bid]])
+                            dat_X__fields=names(dat)[ ! names(dat) %in% c("winning_bid", "n_bids") ],
+                            dat__winning_bid=dat$winning_bid)
   return(res)
 }
 
@@ -217,7 +217,7 @@ auction_model_likelihood <- function(dat = NULL,
                           varlist=c("vf__bid_function_fast",
                                     "vf__w_integrand_z_fast",
                                     "f__funk"),
-                          envir = environment(auctionmodel) )
+                          envir = environment(auction_nmodel) )
 
   # Run
   run_result = list()
@@ -334,12 +334,12 @@ auction__output_org <- function(run_result, dat_X__fields, dat__winning_bid) {
   return(df)
 }
 
-#' Generate example data for running \code{\link{auctionmodel}}
+#' Generate example data for running \code{\link{auction_model}}
 #'
 #'
 #' @param obs Number of observations to draw
 #'
-#' @details This function generates example data for feeding into auctionmodel(). Specifically, the
+#' @details This function generates example data for feeding into auction_model(). Specifically, the
 #' winning bid, number of bids, and variables for the specified number of observations using random deviates of
 #' the log normal distruction.
 #'
@@ -357,7 +357,7 @@ auction__output_org <- function(run_result, dat_X__fields, dat__winning_bid) {
 #' data$num
 #' data$x_terms
 #'
-#' @seealso \code{\link{auctionmodel}}
+#' @seealso \code{\link{auction_model}}
 #'
 #'
 #' @export
@@ -768,7 +768,7 @@ auction__check_input_data <- function(dat, colName__winning_bid, colName__n_bids
       return(dat)
     }
   }
-  return(NULL)
+  return(NULL) #?
 }
 
 auction__check_init_guess <- function(dat = dat,
@@ -862,7 +862,7 @@ auction__check_init_guess <- function(dat = dat,
     # }
 
     if (is.null(init_sigma)) {
-      x0[idxList$unobs_dist_param] = def_pv_mu
+      x0[idxList$unobs_dist_param] = def_unobs_stddev
     } else if (is.numeric(init_sigma)) {
       x0[idxList$unobs_dist_param] = init_sigma
     } else {
