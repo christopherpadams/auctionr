@@ -2,7 +2,6 @@ rm(list = ls())
 library(auctionmodel)
 library(devtools)
 library(testthat)
-library(stubthat)
 
 context("Generate data")
 

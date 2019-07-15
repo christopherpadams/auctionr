@@ -15,6 +15,7 @@ test_that("Bid function",{
   cost = (mu/gamma(1+1/alpha))*(-log(1-stats::runif(n_bids)))^(1/alpha)
   bid = rep(NA, n_bids)
 
+  # test generic results
   for (i in 1:n_bids){
   bid[i] = auctionmodel:::f__bid_function_fast(cost = cost[i],
                                              n_bids = n_bids,
@@ -145,8 +146,9 @@ test_that("Observed bid density integrand", {
   #                                                  listFuncCall = listFuncCall)
   #
   # expect_equal(vf.w_int, rep(0, n_bids))
+})
 
-  test_that("Observed bid denasity",{
+  test_that("Observed bid density",{
     #setup
     n_bids = sample(2:10, 1, replace = TRUE)
     mu = 2
@@ -186,10 +188,28 @@ test_that("Observed bid density integrand", {
                                       abs.tol = 1e-10)
     f_w = auctionmodel:::f__funk(data_vec = data_vec,
                           listFuncCall = listFuncCall)
-    expect_equal(test_integrate, f_w)
+    expect_equal(test_integrate$value, f_w)
   })
 
+  test_that("Log likelihood",{
+    # setup
+    hTracker = new.env()
+    hTracker$report = 0
+    x0 =  c(8, 2, .5, .4, 0)
+    cl = 2
+    dat_X =
+    dat__winning_bid =
+    dat__n_bids =
+      u_dist = "dgamma"
+    for (funcName in u_dist){
+      sFuncName = as.character(funcName)
+    }
+
+    listFuncCall = list(funcName = sFuncName,
+                        funcID = auctionmodel:::auction__get_id_distrib(sFuncName = sFuncName))
+
+    # test generic result
 
 
-})
+  })
 
