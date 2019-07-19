@@ -11,6 +11,8 @@
 #' @param init_params Vector of init_mu, init_alpha, init_sigma, and init_beta, if not supplied separately
 #' @param u_dist Which distributions to represent the unobserved heterogeneity.
 #' @param num_cores The number of cores for running the model in parallel.
+#' @param maxit Number of maximum iterations for optimization.
+#' @param parscale Vector of scaling values for optimization.
 #' @param report Show optimization progress every X iterations, where X is defined by \code{report}
 #'
 #'
