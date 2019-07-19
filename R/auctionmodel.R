@@ -344,7 +344,16 @@ auction__output_org <- function(run_result, dat_X__fields, dat__winning_bid) {
 #'
 #'
 #' @param obs Number of observations to draw
-#'
+#' @param n_bids In list \code{dat}, the key whose value is a vector that holds the number of bids.
+#' @param mu Value for mu of private value distribution to be generated.
+#' @param alpha Value for alpha of private value distribution to be generated.
+#' @param sigma Value for standard deviation of unobserved heterogeneity distribution.
+#' @param beta Values associated with observed controls x.
+#' @param params Vector of mu, alpha, sigma, beta parameters for distributions of private values, unobserved heterogeneity, and observed controls.
+#' @param u_dist Which distributions to represent the unobserved heterogeneity.
+#' @param x_vars Vector of observable controls.
+#' @param new_x_meanlog Mean value for vector of observable controls to be generated from a log normal distriution.
+#' @param new_x_sdlog Standard deviation for vector of observable controls to be generated from a log normal distriution.
 #' @details This function generates example data for feeding into auction_model(). Specifically, the
 #' winning bid, number of bids, and variables for the specified number of observations using random deviates of
 #' the log normal distruction.
@@ -924,7 +933,7 @@ auction__get_conv_ctrl <- function(vecInitGuess,
   parscale[idxList$pv_weibull_a] = def_pv_a
   parscale[idxList$unobs_dist_param] = def_unobs_stddev
   parscale[idxList$x_terms__start:length(vecInitGuess)] = def_x
-  } else if (is.numeric(parscale) & length(parscale) = length(vecInitGuess)){
+  } else if (is.numeric(parscale) & length(parscale) == length(vecInitGuess)){
   parscale = parscale
 } else {
   res = list()
