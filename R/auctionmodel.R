@@ -77,6 +77,8 @@ auction_model <- function(dat = NULL,
                           init_params = NULL,
                           u_dist = NULL, #common_distributions
                           num_cores = 1,
+                          maxit = NULL,
+                          parscale = NULL,
                           report=0
 ) {
 
@@ -106,7 +108,9 @@ auction_model <- function(dat = NULL,
   )
 
   # Prepare control parameters for numerical solver
-  conv_ctrl = auction__get_conv_ctrl(vecInitGuess = vecInitGuess)
+  conv_ctrl = auction__get_conv_ctrl(vecInitGuess = vecInitGuess,
+                                     maxit = maxit,
+                                     parscale = parscale)
 
   # Set up parallelization of numerical solver
   cl = parallel::makeCluster(num_cores)
@@ -887,10 +891,21 @@ auction__check_init_guess <- function(dat = dat,
   return(x0)
 }
 
-auction__get_conv_ctrl <- function(vecInitGuess) {
+auction__get_conv_ctrl <- function(vecInitGuess,
+                                   maxit,
+                                   parscale) {
+  if (is.null(maxit)){
   # Max number of iterations = maxit
   maxit = 2000
-
+  } else if (is.numeric(maxit)){
+  maxit = maxit
+  } else {
+    res = list()
+    res['err_code'] = 2
+    res['err_msg'] = "Invalid input for 'maxit'"
+    auction__gen_err_msg(res)
+  }
+  if (is.null(parscale)){
   # Step sizes
   #   Initialize
   parscale = numeric(length(vecInitGuess))
@@ -907,7 +922,14 @@ auction__get_conv_ctrl <- function(vecInitGuess) {
   parscale[idxList$pv_weibull_a] = def_pv_a
   parscale[idxList$unobs_dist_param] = def_unobs_stddev
   parscale[idxList$x_terms__start:length(vecInitGuess)] = def_x
-
+  } else if (is.numeric(parscale) & length(parscale) = length(vecInitGuess)){
+  parscale = parscale
+} else {
+  res = list()
+  res['err_code'] = 2
+  res['err_msg'] = "Invalid input for 'parscale'"
+  auction__gen_err_msg(res)
+}
   return( list(maxit = maxit, parscale = parscale ) )
 }
 
