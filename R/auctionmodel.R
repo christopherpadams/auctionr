@@ -11,6 +11,8 @@
 #' @param init_params Vector of init_mu, init_alpha, init_sigma, and init_beta, if not supplied separately
 #' @param u_dist Which distributions to represent the unobserved heterogeneity.
 #' @param num_cores The number of cores for running the model in parallel.
+#' @param maxit Number of maximum iterations for optimization.
+#' @param parscale Vector of scaling values for optimization.
 #' @param report Show optimization progress every X iterations, where X is defined by \code{report}
 #'
 #'
@@ -77,6 +79,8 @@ auction_model <- function(dat = NULL,
                           init_params = NULL,
                           u_dist = NULL, #common_distributions
                           num_cores = 1,
+                          maxit = NULL,
+                          parscale = NULL,
                           report=0
 ) {
 
@@ -106,7 +110,9 @@ auction_model <- function(dat = NULL,
   )
 
   # Prepare control parameters for numerical solver
-  conv_ctrl = auction__get_conv_ctrl(vecInitGuess = vecInitGuess)
+  conv_ctrl = auction__get_conv_ctrl(vecInitGuess = vecInitGuess,
+                                     maxit = maxit,
+                                     parscale = parscale)
 
   # Set up parallelization of numerical solver
   cl = parallel::makeCluster(num_cores)
@@ -338,7 +344,16 @@ auction__output_org <- function(run_result, dat_X__fields, dat__winning_bid) {
 #'
 #'
 #' @param obs Number of observations to draw
-#'
+#' @param n_bids In list \code{dat}, the key whose value is a vector that holds the number of bids.
+#' @param mu Value for mu of private value distribution to be generated.
+#' @param alpha Value for alpha of private value distribution to be generated.
+#' @param sigma Value for standard deviation of unobserved heterogeneity distribution.
+#' @param beta Values associated with observed controls x.
+#' @param params Vector of mu, alpha, sigma, beta parameters for distributions of private values, unobserved heterogeneity, and observed controls.
+#' @param u_dist Which distributions to represent the unobserved heterogeneity.
+#' @param x_vars Vector of observable controls.
+#' @param new_x_meanlog Mean value for vector of observable controls to be generated from a log normal distriution.
+#' @param new_x_sdlog Standard deviation for vector of observable controls to be generated from a log normal distriution.
 #' @details This function generates example data for feeding into auction_model(). Specifically, the
 #' winning bid, number of bids, and variables for the specified number of observations using random deviates of
 #' the log normal distruction.
@@ -887,10 +902,21 @@ auction__check_init_guess <- function(dat = dat,
   return(x0)
 }
 
-auction__get_conv_ctrl <- function(vecInitGuess) {
+auction__get_conv_ctrl <- function(vecInitGuess,
+                                   maxit,
+                                   parscale) {
+  if (is.null(maxit)){
   # Max number of iterations = maxit
   maxit = 2000
-
+  } else if (is.numeric(maxit)){
+  maxit = maxit
+  } else {
+    res = list()
+    res['err_code'] = 2
+    res['err_msg'] = "Invalid input for 'maxit'"
+    auction__gen_err_msg(res)
+  }
+  if (is.null(parscale)){
   # Step sizes
   #   Initialize
   parscale = numeric(length(vecInitGuess))
@@ -907,7 +933,14 @@ auction__get_conv_ctrl <- function(vecInitGuess) {
   parscale[idxList$pv_weibull_a] = def_pv_a
   parscale[idxList$unobs_dist_param] = def_unobs_stddev
   parscale[idxList$x_terms__start:length(vecInitGuess)] = def_x
-
+  } else if (is.numeric(parscale) & length(parscale) == length(vecInitGuess)){
+  parscale = parscale
+} else {
+  res = list()
+  res['err_code'] = 2
+  res['err_msg'] = "Invalid input for 'parscale'"
+  auction__gen_err_msg(res)
+}
   return( list(maxit = maxit, parscale = parscale ) )
 }
 
