@@ -65,7 +65,7 @@ auction__f_unobs_lognorm <- function(distrib_std_dev, w_bid, b_z){
 
 auction__f_unobs_weibull <- function(distrib_std_dev, w_bid, b_z){
 
-  listParam = auction__get_unobs_params(distrib_std_dev, 3)
+  listParam = auctionmodel:::auction__get_unobs_params(distrib_std_dev, 3)
   shape = listParam$shape
 
   dshape = (gamma(1+1/shape))^2*(
@@ -98,33 +98,48 @@ auction__f_unobs_weibull <- function(distrib_std_dev, w_bid, b_z){
 ############
 
 #alpha
+auction__deriv_bid_alpha_integrand <- function(n_bids, gamma_1p1oa, alpha, mu, xi){
+  val = -exp(-(n_bids - 1)*(gamma_1p1oa/mu*xi)^alpha)*(n_bids - 1)*(gamma_1p1oa/mu*xi)^alpha*(
+    log(gamma_1p1oa/mu*xi) - digamma(1+1/alpha)/alpha
+  )
+  return(val)
+}
+
+auction__deriv_bid_alpha_integrate <- function(n_bids, gamma_1p1oa, alpha, mu, z){
+  int = rep(NA, length(z))
+  for (i in 1: length(z)){
+    int[i]  = stats::integrate(auction__deriv_bid_alpha_integrand,
+                               n_bids = n_bids,
+                               gamma_1p1oa = gamma_1p1oa,
+                               alpha = alpha,
+                               mu = mu,
+                               lower = z[i],
+                               upper = Inf,
+                               abs.tol = 1e-10)$value
+  }
+  return(int)
+}
 
 auction__deriv_bid_alpha <- function(alpha, mu, gamma_1p1oa, z, n_bids){
   alpha_bid_1 = 1/alpha
   alpha_bid_2 = mu/gamma_1p1oa
   alpha_bid_3 = (n_bids - 1)^(-1/alpha)
-  alpha_bid_4 = pgamma((n - 1)*(gamma_1p1oa/mu*z)^alpha, 1/alpha, lower = FALSE)*gamma(1/alpha)
+  alpha_bid_4 = pgamma((n_bids- 1)*(gamma_1p1oa/mu*z)^alpha, 1/alpha, lower = FALSE)*gamma(1/alpha)
   alpha_bid_5 = exp((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha)
 
-  hyper_2F2 = 1/(gamma((n - 1)*(gamma_1p1oa/mu*z)^alpha + 1)*gamma((n - 1)*(gamma_1p1oa/mu*z)^alpha))*
-    stats::integrate(t^((n - 1)*(gamma_1p1oa/mu*z)^alpha -1)*
-                       hyperg_1F1((n - 1)*(gamma_1p1oa/mu*z)^alpha,
-                                  (n - 1)*(gamma_1p1oa/mu*z)^alpha + 1, -1/alpha*t),
-                     lower = 0, upper = 1, abs.tol = 1e-10)
 
   deriv_alpha_bid_1 = -1/alpha^2
   deriv_alpha_bid_2 = mu/(alpha^2) *digamma(1+1/alpha)/(gamma_1p1oa)
   deriv_alpha_bid_3 = (n_bids - 1)^(-1/alpha)*log(n_bids - 1)/(alpha^2)
-  deriv_alpha_bid_4 = (1/alpha)^(1 + (n_bids - 1)*(gamma_1p1oa/mu)^alpha)*exp(-1/alpha)
-    + (n_bids - 1)*(gamma_1p1oa.mu*z)^alpha(
-      (gamma((n - 1)*(gamma_1p1oa/mu*z)^alpha))^2*(1/alpha)^((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha)*
-        hyper_2F2 -
-        (gamma((n - 1)*(gamma_1p1oa/mu*z)^alpha) - pgamma((n - 1)*(gamma_1p1oa/mu*z)^alpha, 1/alpha, lower = FALSE)*gamma(1/alpha))*log(1/alpha) +
-        gamma((n - 1)*(gamma_1p1oa/mu*z)^alpha)*digamma((n - 1)*(gamma_1p1oa/mu*z)^alpha)
-    )*(log(gamma_1p1oa/mu*z) - digamma(1+1/alpha)/alpha)
-  deriv_alpha_bid_5 = -exp(-(n - 1)*(gamma_1p1oa/mu*z)^alpha)*(n - 1)*(gamma_1p1oa/mu*z)^alpha*(
-    log(gamma_1p1oa/mu*z) - digamma(1+1/alpha)/alpha
-  )
+  deriv_alpha_bid_4 = auction__deriv_bid_alpha_integrate(n_bids = n_bids,
+                                                         gamma_1p1oa = gamma_1p1oa,
+                                                         alpha = alpha,
+                                                         mu = mu,
+                                                         z = z)
+  deriv_alpha_bid_5 = exp((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha)*
+    (n_bids - 1)*(gamma_1p1oa/mu*z)^alpha*(
+      log(gamma_1p1oa/mu*z) - digamma(1+1/alpha)/alpha
+    )
 
   deriv_bid_alpha = deriv_alpha_bid_1*alpha_bid_2*alpha_bid_3*alpha_bid_4*alpha_bid_5 +
     alpha_bid_1*deriv_alpha_bid_2*alpha_bid_3*alpha_bid_4*alpha_bid_5 +
@@ -135,6 +150,10 @@ auction__deriv_bid_alpha <- function(alpha, mu, gamma_1p1oa, z, n_bids){
   return(deriv_bid_alpha)
 }
 
+auction__vec_deriv_bid_alpha = Vectorize(auction__deriv_bid_alpha, vectorize.args = "z")
+
+
+####
 auction__deriv_pv_alpha <- function(alpha, mu, gamma_1p1oa, z, n_bids){
   alpha_pv_1 = n_bids*alpha
   alpha_pv_2 = (gamma_1p1oa/mu)^alpha
@@ -155,8 +174,9 @@ auction__deriv_pv_alpha <- function(alpha, mu, gamma_1p1oa, z, n_bids){
 
   return(deriv_pv_alpha)
 }
+
 auction__deriv_alpha_integrand <- function(alpha, w_bid, mu, gamma_1p1oa, z, n_bids, distrib_std_dev, id_distrib){
-  b_z = vf__bid_function_fast(cost=z, n_bids=n_bids, mu=mu, alpha=alpha, gamma_1p1oa)
+  b_z = auctionmodel:::vf__bid_function_fast(cost=z, n_bids=n_bids, mu=mu, alpha=alpha, gamma_1p1oa = gamma_1p1oa)
 
   deriv_pv_alpha = auction__deriv_pv_alpha(alpha = alpha, mu = mu, gamma_1p1oa = gamma_1p1oa, z =z, n_bids = n_bids)
   deriv_bid_alpha = auction__deriv_bid_alpha(alpha = alpha, mu = mu, gamma_1p1oa = gamma_1p1oa, z =z, n_bids = n_bids)
@@ -165,8 +185,8 @@ auction__deriv_alpha_integrand <- function(alpha, w_bid, mu, gamma_1p1oa, z, n_b
                                      id_distrib = id_distrib,
                                      w_bid = w_bid,
                                      b_z = b_z)
-  deriv_unobs_u = deriv_unobs$deriv_unobs_u
-  f_unobs = deriv_unobs$f_unobs
+  deriv_unobs_u = deriv_unobs[[2]]
+  f_unobs = deriv_unobs[[1]]
 
   pv = n_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha - 1)*exp(-n_bids*(gamma_1p1oa/mu*z)^alpha)
 
@@ -180,7 +200,9 @@ auction__deriv_alpha_integrand <- function(alpha, w_bid, mu, gamma_1p1oa, z, n_b
 auction__deriv_alpha_integrate <- function(data_vec){
   val = stats::integrate(auction__deriv_alpha_integrand,
                          w_bid=data_vec[1],
-                         n_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
+                         n_bids=data_vec[2],
+                         mu=data_vec[3],
+                         alpha=data_vec[4],
                          gamma_1p1oa=data_vec[5],
                          distrib_std_dev=data_vec[6],
                          id_distrib=data_vec[7],
@@ -192,7 +214,7 @@ auction__deriv_alpha_integrate <- function(data_vec){
 }
 
 auction__deriv_ll_alpha <- function(x0, dat_X, dat__winning_bid, dat__n_bids, cl, listFuncCall){
-  listIdx = auction__x0_indices()
+  listIdx = auctionmodel:::auction__x0_indices()
 
   if(x0[listIdx$unobs_dist_param] <= 0.1) return(-Inf)
   if(sum(x0[listIdx$pv_weibull_mu] <= 0) > 0) return(-Inf)
@@ -201,7 +223,7 @@ auction__deriv_ll_alpha <- function(x0, dat_X, dat__winning_bid, dat__n_bids, cl
   param.h = x0[listIdx$x_terms__start:(listIdx$x_terms__start+dim(dat_X)[1]-1)]
   v.h = exp( colSums(param.h * dat_X) )
 
-  listFuncCall$argList = auction__get_unobs_params(
+  listFuncCall$argList = auctionmodel:::auction__get_unobs_params(
     distrib_std_dev = x0[listIdx$unobs_dist_param],
     id_distrib = listFuncCall$funcID)
 
@@ -212,7 +234,7 @@ auction__deriv_ll_alpha <- function(x0, dat_X, dat__winning_bid, dat__n_bids, cl
                                        x0[listIdx$pv_weibull_a],
                                        gamma(1 + 1/x0[listIdx$pv_weibull_a]) ),
                              MARGIN = 1,
-                             FUN = f__funk,
+                             FUN = auctionmodel:::f__funk,
                              listFuncCall=listFuncCall)
 
   v.deriv_f_w_alpha = parallel::parApply(cl = cl,
@@ -454,28 +476,3 @@ se_params = sqrt(var_params)
 
 return(se_params)
 }
-
-
-
-###test
-
-x0 = numeric(2 + 1 + 2)
-def_pv_mu = 8
-def_pv_a = 2
-def_unobs_stddev = 0.5
-def_x = rep(0.5, 2)
-idxList = auction__x0_indices()
-x0[listIdx$pv_weibull_mu] = def_pv_mu
-x0[idxList$pv_weibull_a] = def_pv_a
-x0[idxList$unobs_dist_param] = def_unobs_stddev
-x0[idxList$x_terms__start:length(x0)] = def_x
-listFuncCall = list(funcName = "dgamma",
-                    funcID = auction__get_id_distrib(sFuncName = "dgamma"))
-cl = parallel::makeCluster(2)
-
-auction__se(x0 = x0,
-            dat__winning_bid=data$winning_bid,
-            dat__n_bids=data$n_bids,
-            dat_X=t( data[ ! names(data) %in% c("winning_bid", "n_bids") ] ),
-            cl = cl
-)

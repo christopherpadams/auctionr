@@ -1151,7 +1151,7 @@ f__funk = function(data_vec, listFuncCall) {
 # integrand for density of observed bid, given proportional bid function, cost dist., UH dist.
 vf__w_integrand_z_fast = function(z, w_bid, n_bids, mu, alpha, gamma_1p1oa, listFuncCall){
 
-  b_z = vf__bid_function_fast(cost=z, n_bids=n_bids, mu=mu, alpha=alpha, gamma_1p1oa)
+  b_z = vf__bid_function_fast(cost=z, n_bids=n_bids, mu=mu, alpha=alpha, gamma_1p1oa = gamma_1p1oa)
 
   listFuncCall$argList$x = w_bid/b_z
 
