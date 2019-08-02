@@ -32,7 +32,7 @@ auction__deriv_unobs <- function(distrib_std_dev,
 
 auction__f_unobs_gamma <- function(distrib_std_dev, w_bid, b_z){
 
-  deriv_unobs_sig = -(1/distrib_std_dev^2)^(2+(1/distrib_std_dev^2))*(w_bid/b_z)^(1/distrib_std_dev^2-1)*
+  deriv_unobs_sig = -(1/distrib_std_dev^2)^(2+(1/distrib_std_dev^2))*1/(gamma(1/distrib_std_dev^2))*(w_bid/b_z)^(1/distrib_std_dev^2-1)*
     exp(-(1/distrib_std_dev^2)*w_bid/b_z)*w_bid/b_z*(
       log(1/distrib_std_dev^2) + 1 - digamma(1/distrib_std_dev^2) + log(w_bid/b_z) - w_bid/b_z
     )
@@ -55,7 +55,7 @@ auction__f_unobs_lognorm <- function(distrib_std_dev, w_bid, b_z){
     2*(log(1+distrib_std_dev^2)-1)*(log(w_bid/b_z)-1/2*log(1+distrib_std_dev^2))/(4*(log(1+distrib_std_dev^2))^2*(1+distrib_std_dev^2))
   )
 
-  deriv_unobs_u = exp(-(log(w_bid/b_z)+1/2*log(1+distrib_std_dev^2))^2/(2*log(1+distrib_std_dev^2)))*
+  deriv_unobs_u = -exp(-(log(w_bid/b_z)+1/2*log(1+distrib_std_dev^2))^2/(2*log(1+distrib_std_dev^2)))*
     (2*log(w_bid/b_z)+3*log(1+distrib_std_dev^2))/(2*(w_bid/b_z)^2*(log(1+distrib_std_dev^2))^(3/2)*sqrt(2*pi))
 
   f_unobs = 1/(w_bid/b_z*sqrt(2*pi*log(1+distrib_std_dev^2)))*
@@ -68,8 +68,8 @@ auction__f_unobs_weibull <- function(distrib_std_dev, w_bid, b_z){
   listParam = auction__get_unobs_params(distrib_std_dev, 3)
   shape = listParam$shape
 
-  dshape = (gamma(1+1/shape))^2*(
-    4/(shape^4)*gamma(1+2/shape)*digamma(1+2/shape)*gamma(1+1/shape) - 1/(shape^4)*gamma(1+2/shape)*gamma(1+1/shape)*digamma(1+1/shape)
+  dshape = shape^2*gamma(1+1/shape)/(
+    digamma(1+1/shape)*gamma(1+2/shape)-2*digamma(1+2/shape)*gamma(1+2/shape)
   )
 
   df = gamma(1+1/shape)*((w_bid/b_z)*gamma(1+1/shape))^(shape - 1)*
@@ -79,7 +79,7 @@ auction__f_unobs_weibull <- function(distrib_std_dev, w_bid, b_z){
   + shape*gamma(1+1/shape)*((w_bid/b_z)*gamma(1+1/shape))^(shape - 1)*(
     log(w_bid/b_z*gamma(1+1/shape)) - (shape - 1)*digamma(1+1/shape)/(shape^2)
   )*exp(-(w_bid/b_z*gamma(1+1/shape))^shape)
-  - 1/shape*gamma(1+1/shape)*((w_bid/b_z)*gamma(1+1/shape))^(2*shape - 1)*
+  - shape*gamma(1+1/shape)*((w_bid/b_z)*gamma(1+1/shape))^(2*shape - 1)*
     exp(-(w_bid/b_z*gamma(1+1/shape))^shape)*(
       log(w_bid/b_z*gamma(1+1/shape)) - digamma(1+1/shape)/shape
     )
@@ -123,31 +123,24 @@ auction__deriv_bid_alpha_integrate <- function(n_bids, gamma_1p1oa, alpha, mu, z
 }
 
 auction__deriv_bid_alpha <- function(alpha, mu, gamma_1p1oa, z, n_bids){
-  alpha_bid_1 = 1/alpha
-  alpha_bid_2 = mu/gamma_1p1oa
-  alpha_bid_3 = (n_bids - 1)^(-1/alpha)
-  alpha_bid_4 = pgamma((n_bids- 1)*(gamma_1p1oa/mu*z)^alpha, 1/alpha, lower = FALSE)*gamma(1/alpha)
-  alpha_bid_5 = exp((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha)
+
+  alpha_bid_1 = 1/alpha*mu/gamma_1p1oa*(n_bids - 1)^(-1/alpha)*pgamma((n_bids- 1)*(gamma_1p1oa/mu*z)^alpha, 1/alpha, lower = FALSE)*gamma(1/alpha)
+  alpha_bid_2 = exp((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha)
 
 
-  deriv_alpha_bid_1 = -1/alpha^2
-  deriv_alpha_bid_2 = mu/(alpha^2) *digamma(1+1/alpha)/(gamma_1p1oa)
-  deriv_alpha_bid_3 = (n_bids - 1)^(-1/alpha)*log(n_bids - 1)/(alpha^2)
-  deriv_alpha_bid_4 = auction__deriv_bid_alpha_integrate(n_bids = n_bids,
+  deriv_alpha_bid_1 = auction__deriv_bid_alpha_integrate(n_bids = n_bids,
                                                          gamma_1p1oa = gamma_1p1oa,
                                                          alpha = alpha,
                                                          mu = mu,
                                                          z = z)
-  deriv_alpha_bid_5 = exp((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha)*
+  deriv_alpha_bid_2 = exp((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha)*
     (n_bids - 1)*(gamma_1p1oa/mu*z)^alpha*(
       log(gamma_1p1oa/mu*z) - digamma(1+1/alpha)/alpha
     )
 
-  deriv_bid_alpha = deriv_alpha_bid_1*alpha_bid_2*alpha_bid_3*alpha_bid_4*alpha_bid_5 +
-    alpha_bid_1*deriv_alpha_bid_2*alpha_bid_3*alpha_bid_4*alpha_bid_5 +
-    alpha_bid_1*alpha_bid_2*deriv_alpha_bid_3*alpha_bid_4*alpha_bid_5 +
-    alpha_bid_1*alpha_bid_2*alpha_bid_3*deriv_alpha_bid_4*alpha_bid_5 +
-    alpha_bid_1*alpha_bid_2*alpha_bid_3*alpha_bid_4*deriv_alpha_bid_5
+  deriv_bid_alpha = deriv_alpha_bid_1*alpha_bid_2 +
+    alpha_bid_1*deriv_alpha_bid_2
+
 
   return(deriv_bid_alpha)
 }
@@ -347,23 +340,20 @@ auction__deriv_bid_mu_integrate <- function(n_bids, gamma_1p1oa, alpha, mu, z){
 }
 
 auction__deriv_bid_mu <- function(z, alpha, mu, gamma_1p1oa, n_bids){
-  mu_bid_1 = 1/alpha*mu/gamma_1p1oa*(n_bids - 1)^(-1/alpha)
-  mu_bid_2 = pgamma((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha, 1/alpha, lower = FALSE)*gamma(1/alpha)
-  mu_bid_3 = exp((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha)
+  mu_bid_1 = 1/alpha*mu/gamma_1p1oa*(n_bids - 1)^(-1/alpha)*pgamma((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha, 1/alpha, lower = FALSE)*gamma(1/alpha)
+  mu_bid_2 = exp((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha)
 
-  deriv_mu_bid_1 = 1/(alpha*gamma_1p1oa)*(n_bids-1)^(-1/alpha)
-  deriv_mu_bid_2 = auction__deriv_bid_mu_integrate(n_bids = n_bids,
+  deriv_mu_bid_1 = auction__deriv_bid_mu_integrate(n_bids = n_bids,
                                                    gamma_1p1oa = gamma_1p1oa,
                                                    alpha = alpha,
                                                    mu = mu,
                                                    z = z)
 
 
-  deriv_mu_bid_3 = -exp((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha)*(n_bids-1)*(gamma_1p1oa*z)^alpha*alpha*mu^(-alpha-1)
+  deriv_mu_bid_2 = -exp((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha)*(n_bids-1)*(gamma_1p1oa*z)^alpha*alpha*mu^(-alpha-1)
 
-  deriv_bid_mu = deriv_mu_bid_1*mu_bid_2*mu_bid_3+
-    mu_bid_1*deriv_mu_bid_2*mu_bid_3+
-    mu_bid_1*mu_bid_2*deriv_mu_bid_3
+  deriv_bid_mu = deriv_mu_bid_1*mu_bid_2+
+    mu_bid_1*deriv_mu_bid_2
 
   return(deriv_bid_mu)
 }
@@ -375,7 +365,7 @@ auction__deriv_pv_mu <- function(alpha, mu, gamma_1p1oa, z, n_bids){
   mu_pv_2 = exp(-n_bids*(gamma_1p1oa/mu*z)^alpha)
 
   deriv_mu_pv_1 = -n_bids*alpha^2*(gamma_1p1oa)^alpha*mu^(-alpha - 1)*z^(alpha - 1)
-  deriv_mu_pv_2 = exp(-n_bids*(gamma_1p1oa/mu*z)^alpha)*alpha*n_bids*(gamma_1p1oa*z)^alpha*mu*(-alpha-1)
+  deriv_mu_pv_2 = exp(-n_bids*(gamma_1p1oa/mu*z)^alpha)*alpha*n_bids*(gamma_1p1oa*z/mu)^alpha/mu
 
   deriv_pv_mu = deriv_mu_pv_1*mu_pv_2 + mu_pv_1*deriv_mu_pv_2
   return(deriv_pv_mu)
