@@ -404,7 +404,7 @@ auction__deriv_pv_alpha(alpha = alpha,
 
 
 
-### Overall likelihood - checks out
+### Overall likelihood integrand - checks out
 f__w_integrand_z_fast <- function(z, w_bid, n_bids, mu, alpha, id_distrib, distrib_std_dev){
 
   b_z = f__bid_function_fast(cost=z, n_bids=n_bids, mu=mu, alpha=alpha)
@@ -573,7 +573,7 @@ auction__deriv_pv_mu(alpha = alpha,
                      n_bids = n_bids)
 
 
-### Overall likelihood - checks out
+### Overall likelihood integrand - checks out
 
 auction__deriv_mu_integrand <- function(alpha, w_bid, mu, gamma_1p1oa, z, n_bids, distrib_std_dev, id_distrib){
   b_z = f__bid_function_fast(cost=z, n_bids=n_bids, mu=mu, alpha=alpha)
@@ -617,8 +617,8 @@ f__w_integrand_z_fast <- function(z, w_bid, n_bids, mu, alpha, id_distrib, distr
     1/b_z*
     f_unobs
 
-  vals[(gamma_1p1oa/mu)^alpha == Inf] = 0
-  vals[exp(-n_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
+  vals[(gamma(1+1/alpha)/mu)^alpha == Inf] = 0
+  vals[exp(-n_bids*(gamma(1+1/alpha)/mu*z)^alpha) == 0] = 0
   return(vals)
 }
 
@@ -639,6 +639,89 @@ auction__deriv_mu_integrand(alpha = alpha,
                                n_bids = n_bids,
                                distrib_std_dev = 0.6,
                                id_distrib = 2)
+
+####BETAS
+###Likelihood Integrand - checks out
+
+auction__deriv_beta_integrand <- function(w_bid, mu, alpha, gamma_1p1oa, distrib_std_dev, id_distrib, n_bids, x_k, z){
+
+  b_z = vf__bid_function_fast(cost=z, n_bids=n_bids, mu=mu, alpha=alpha, gamma_1p1oa = gamma_1p1oa)
+  deriv_unobs = auction__deriv_unobs(distrib_std_dev = distrib_std_dev,
+                                     id_distrib = id_distrib,
+                                     w_bid = w_bid,
+                                     b_z = b_z)
+  deriv_unobs_u = deriv_unobs[[2]]
+  f_unobs = deriv_unobs[[1]]
+
+  pv = n_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha - 1)*exp(-n_bids*(gamma_1p1oa/mu*z)^alpha)
+
+  deriv_h = -pv*1/((b_z)^2)*deriv_unobs_u*w_bid*x_k
+
+  deriv_h[(gamma_1p1oa/mu)^alpha == Inf] = 0
+  deriv_h[exp(-n_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
+
+  vals = deriv_h
+  return(vals)
+}
+
+f__w_integrand_z_fast <- function(z, x1, param.h, winning_bid, n_bids, mu, alpha, id_distrib, distrib_std_dev){
+  listIdx = auction__x0_indices()
+
+  if(x0[listIdx$unobs_dist_param] <= 0.1) return(-Inf)
+  if(sum(x0[listIdx$pv_weibull_mu] <= 0) > 0) return(-Inf)
+  if(sum(x0[listIdx$pv_weibull_a] <= 0.01) > 0) return(-Inf)
+
+  v.h = exp( param.h * x1 )
+
+  w_bid = winning_bid/v.h
+
+  b_z = f__bid_function_fast(cost=z, n_bids=n_bids, mu=mu, alpha=alpha)
+
+  deriv_unobs = auction__deriv_unobs(distrib_std_dev = distrib_std_dev,
+                                     id_distrib = id_distrib,
+                                     w_bid = w_bid,
+                                     b_z = b_z)
+  f_unobs = deriv_unobs[[1]]
+
+  listFuncCall$argList$x = w_bid/b_z
+
+  vals = n_bids*alpha*(gamma(1+1/alpha)/mu)^alpha*z^(alpha-1)*
+    exp(-n_bids*(gamma(1+1/alpha)/mu*z)^alpha)*
+    1/b_z*
+    f_unobs
+
+  vals[(gamma(1+1/alpha)/mu)^alpha == Inf] = 0
+  vals[exp(-n_bids*(gamma(1+1/alpha)/mu*z)^alpha) == 0] = 0
+  return(vals)
+}
+
+listIdx = auction__x0_indices()
+param.h = x0[listIdx$x_terms__start:(listIdx$x_terms__start+dim(dat_X)[1]-1)]
+v.h = exp( param.h * x1 )
+
+grad(f__w_integrand_z_fast,
+     x = param.h[1],
+     z = 2,
+     n_bids = n_bids,
+     alpha = alpha,
+     winning_bid = w_bid*v.h[1],
+     mu = mu,
+     id_distrib = 2,
+     x1 = 1,
+     distrib_std_dev = 0.6)
+
+auction__deriv_beta_integrand(alpha = alpha,
+                            w_bid = w_bid,
+                            mu = mu,
+                            gamma_1p1oa = gamma_1p1oa,
+                            z = 2,
+                            n_bids = n_bids,
+                            distrib_std_dev = 0.6,
+                            id_distrib = 2,
+                            x_k = 1)
+
+
+
 
 
 
