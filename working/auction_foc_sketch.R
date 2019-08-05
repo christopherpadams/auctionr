@@ -311,7 +311,7 @@ auction__deriv_ll_alpha <- function(x0, dat_X, dat__winning_bid, dat__n_bids, cl
                                                    listFuncCall$funcID),
                                          MARGIN = 1,
                                          FUN = auction__deriv_alpha_integrate)
-  v.f_deriv_y_alpha = 1/(v.f_w*v.h)*v.deriv_f_w_alpha
+  v.f_deriv_y_alpha = 1/v.f_w*v.deriv_f_w_alpha
   deriv_alpha_log_likelihood = -sum(v.f_deriv_y_alpha)
   return(list(deriv_alpha_log_likelihood,v.f_deriv_y_alpha))
 }
@@ -397,19 +397,86 @@ auction__deriv_mu_integrand <- function(alpha, w_bid, mu, gamma_1p1oa, z, n_bids
 }
 
 auction__deriv_mu_integrate <- function(data_vec){
-  val = stats::integrate(auction__deriv_mu_integrand,
-                         w_bid=data_vec[1],
-                         n_bids=data_vec[2],
-                         mu=data_vec[3],
-                         alpha=data_vec[4],
-                         gamma_1p1oa=data_vec[5],
-                         distrib_std_dev=data_vec[6],
-                         id_distrib=data_vec[7],
-                         lower = 0,
-                         upper = Inf,
-                         abs.tol = 1e-10)
-  if(val$message != "OK") stop("Integration failed.")
-  return(val$value)
+  val_1 = stats::integrate(auction__deriv_mu_integrand,
+                           w_bid=data_vec[1],
+                           n_bids=data_vec[2],
+                           mu=data_vec[3],
+                           alpha=data_vec[4],
+                           gamma_1p1oa=data_vec[5],
+                           distrib_std_dev=data_vec[6],
+                           id_distrib=data_vec[7],
+                           lower = 0,
+                           upper = 0.0000000001,
+                           abs.tol = 1e-10)
+
+  val_2 = stats::integrate(auction__deriv_mu_integrand,
+                           w_bid=data_vec[1],
+                           n_bids=data_vec[2],
+                           mu=data_vec[3],
+                           alpha=data_vec[4],
+                           gamma_1p1oa=data_vec[5],
+                           distrib_std_dev=data_vec[6],
+                           id_distrib=data_vec[7],
+                           lower = 0.0000000001,
+                           upper = 0.0001,
+                           abs.tol = 1e-10)
+
+  val_3 = stats::integrate(auction__deriv_mu_integrand,
+                           w_bid=data_vec[1],
+                           n_bids=data_vec[2],
+                           mu=data_vec[3],
+                           alpha=data_vec[4],
+                           gamma_1p1oa=data_vec[5],
+                           distrib_std_dev=data_vec[6],
+                           id_distrib=data_vec[7],
+                           lower = 0.0001,
+                           upper = 0.001,
+                           abs.tol = 1e-10)
+
+  val_4 = stats::integrate(auction__deriv_mu_integrand,
+                           w_bid=data_vec[1],
+                           n_bids=data_vec[2],
+                           mu=data_vec[3],
+                           alpha=data_vec[4],
+                           gamma_1p1oa=data_vec[5],
+                           distrib_std_dev=data_vec[6],
+                           id_distrib=data_vec[7],
+                           lower = 0.001,
+                           upper = 0.1,
+                           abs.tol = 1e-10)
+
+
+  val_5 = stats::integrate(auction__deriv_mu_integrand,
+                           w_bid=data_vec[1],
+                           n_bids=data_vec[2],
+                           mu=data_vec[3],
+                           alpha=data_vec[4],
+                           gamma_1p1oa=data_vec[5],
+                           distrib_std_dev=data_vec[6],
+                           id_distrib=data_vec[7],
+                           lower = 0.1,
+                           upper = 1,
+                           abs.tol = 1e-10)
+
+
+  val_6 = stats::integrate(auction__deriv_mu_integrand,
+                           w_bid=data_vec[1],
+                           n_bids=data_vec[2],
+                           mu=data_vec[3],
+                           alpha=data_vec[4],
+                           gamma_1p1oa=data_vec[5],
+                           distrib_std_dev=data_vec[6],
+                           id_distrib=data_vec[7],
+                           lower = 1,
+                           upper = Inf,
+                           abs.tol = 1e-10)
+
+  val = val_1$value + val_2$value + val_3$value + val_4$value + val_5$value + val_6$value
+  if((val_1$message != "OK")|(val_2$message != "OK")|(val_3$message != "OK")|(val_4$message != "OK") |
+     (val_5$message != "OK") |(val_6$message != "OK")){
+    stop("Integration failed.")
+  }
+  return(val)
 }
 
 auction__deriv_ll_mu <- function(x0, dat__winning_bid, dat__n_bids, dat_X, cl, listFuncCall){
@@ -446,7 +513,7 @@ auction__deriv_ll_mu <- function(x0, dat__winning_bid, dat__n_bids, dat_X, cl, l
                                                 listFuncCall$funcID),
                                       MARGIN = 1,
                                       FUN = auction__deriv_mu_integrate)
-  v.f_deriv_y_mu = 1/(v.f_w*v.h)*v.deriv_f_w_mu
+  v.f_deriv_y_mu = 1/v.f_w*v.deriv_f_w_mu
   deriv_mu_log_likelihood = -sum(v.f_deriv_y_mu)
   return(list(deriv_mu_log_likelihood,v.f_deriv_y_mu))
 }
@@ -591,7 +658,7 @@ auction__deriv_ll_sig <- function(x0, dat__winning_bid, dat__n_bids, dat_X, cl, 
                                                  listFuncCall$funcID),
                                        MARGIN = 1,
                                        FUN = auction__deriv_sig_integrate)
-  v.f_deriv_y_sig = 1/(v.f_w*v.h)*v.deriv_f_w_sig
+  v.f_deriv_y_sig = 1/v.f_w*v.deriv_f_w_sig
   deriv_sig_log_likelihood = -sum(v.f_deriv_y_sig)
   return(list(deriv_sig_log_likelihood, v.f_deriv_y_sig))
 }
@@ -744,7 +811,7 @@ auction__deriv_ll_beta <- function(x0, dat__winning_bid, dat__n_bids, dat_X, cl,
                                         FUN = auction__deriv_beta_integrate
   )
 
-  v.f_deriv_y_beta = 1/(v.f_w*v.h)*v.deriv_f_w_beta
+  v.f_deriv_y_beta = 1/v.f_w*v.deriv_f_w_beta-x_k
   deriv_beta_log_likelihood = -sum(v.f_deriv_y_beta)
   auction__deriv_ll_beta = list(deriv_beta_log_likelihood, v.f_deriv_y_beta)
   return(auction__deriv_ll_beta)
