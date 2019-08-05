@@ -32,8 +32,8 @@ auction__deriv_unobs <- function(distrib_std_dev,
 
 auction__f_unobs_gamma <- function(distrib_std_dev, w_bid, b_z){
 
-  deriv_unobs_sig = -(1/distrib_std_dev^2)^(2+(1/distrib_std_dev^2))*1/(gamma(1/distrib_std_dev^2))*(w_bid/b_z)^(1/distrib_std_dev^2-1)*
-    exp(-(1/distrib_std_dev^2)*w_bid/b_z)*w_bid/b_z*(
+  deriv_unobs_sig = -2*distrib_std_dev*(1/distrib_std_dev^2)^(2+(1/distrib_std_dev^2))*1/(gamma(1/distrib_std_dev^2))*(w_bid/b_z)^(1/distrib_std_dev^2-1)*
+    exp(-(1/distrib_std_dev^2)*w_bid/b_z)*(
       log(1/distrib_std_dev^2) + 1 - digamma(1/distrib_std_dev^2) + log(w_bid/b_z) - w_bid/b_z
     )
 
@@ -48,12 +48,12 @@ auction__f_unobs_gamma <- function(distrib_std_dev, w_bid, b_z){
 
 auction__f_unobs_lognorm <- function(distrib_std_dev, w_bid, b_z){
 
-  deriv_unobs_sig = -1/(w_bid/b_z*sqrt(2*pi))*1/(2*(log(1+distrib_std_dev^2))^(3/2))*1/(1+distrib_std_dev^2) *
-    exp(-(log(w_bid/b_z)+1/2*log(1+distrib_std_dev^2))^2/(2*log(1+distrib_std_dev^2)))
-  -1/(w_bid/b_z*sqrt(2*pi*log(1+distrib_std_dev^2)))*exp(-(log(w_bid/b_z)+1/2*log(1+distrib_std_dev^2))^2/(2*log(1+distrib_std_dev^2)))*
-  (
-    2*(log(1+distrib_std_dev^2)-1)*(log(w_bid/b_z)-1/2*log(1+distrib_std_dev^2))/(4*(log(1+distrib_std_dev^2))^2*(1+distrib_std_dev^2))
-  )
+  deriv_unobs_sig = -2*distrib_std_dev/(2*sqrt(2*pi)*(1+distrib_std_dev^2)*w_bid/b_z*log(1+distrib_std_dev^2)^(3/2))*
+    exp(-(1/2*log(1+distrib_std_dev^2)+log(w_bid/b_z))^2/(2*log(1+distrib_std_dev^2)))+
+    exp(-(1/2*log(1+distrib_std_dev^2)+log(w_bid/b_z))^2/(2*log(1+distrib_std_dev^2)))/(sqrt(2*pi)*w_bid/b_z*sqrt(log(1+distrib_std_dev^2)))*(
+      -(1/2*log(1+distrib_std_dev^2)+log(w_bid/b_z))/(2*(1+distrib_std_dev^2)*log(1+distrib_std_dev^2))
+      +(1/2*log(1+distrib_std_dev^2)+log(w_bid/b_z))^2/(2*(1+distrib_std_dev^2)*(log(1+distrib_std_dev^2))^2)
+    )
 
   deriv_unobs_u = -exp(-(log(w_bid/b_z)+1/2*log(1+distrib_std_dev^2))^2/(2*log(1+distrib_std_dev^2)))*
     (2*log(w_bid/b_z)+3*log(1+distrib_std_dev^2))/(2*(w_bid/b_z)^2*(log(1+distrib_std_dev^2))^(3/2)*sqrt(2*pi))
@@ -68,23 +68,19 @@ auction__f_unobs_weibull <- function(distrib_std_dev, w_bid, b_z){
   listParam = auction__get_unobs_params(distrib_std_dev, 3)
   shape = listParam$shape
 
-  dshape = shape^2*gamma(1+1/shape)/(
-    digamma(1+1/shape)*gamma(1+2/shape)-2*digamma(1+2/shape)*gamma(1+2/shape)
+  dshape = shape^2*(gamma(1+1/shape))^2/(
+    2*digamma(1+1/shape)*gamma(1+2/shape)-2*digamma(1+2/shape)*gamma(1+2/shape)
   )
 
-  df = gamma(1+1/shape)*((w_bid/b_z)*gamma(1+1/shape))^(shape - 1)*
-    exp(-(w_bid/b_z*gamma(1+1/shape))^shape)
-  - 1/shape*gamma(1+1/shape)*digamma(1+1/shape)*((w_bid/b_z)*gamma(1+1/shape))^(shape - 1)*
-    exp(-(w_bid/b_z*gamma(1+1/shape))^shape)
-  + shape*gamma(1+1/shape)*((w_bid/b_z)*gamma(1+1/shape))^(shape - 1)*(
-    log(w_bid/b_z*gamma(1+1/shape)) - (shape - 1)*digamma(1+1/shape)/(shape^2)
-  )*exp(-(w_bid/b_z*gamma(1+1/shape))^shape)
-  - shape*gamma(1+1/shape)*((w_bid/b_z)*gamma(1+1/shape))^(2*shape - 1)*
-    exp(-(w_bid/b_z*gamma(1+1/shape))^shape)*(
+  df = exp(-(w_bid/b_z*gamma(1+1/shape))^shape)*gamma(1+1/shape)*(w_bid/b_z*gamma(1+1/shape))^(shape-1)-
+    1/shape*exp(-(w_bid/b_z*gamma(1+1/shape))^shape)*gamma(1+1/shape)*(w_bid/b_z*gamma(1+1/shape))^(shape-1)*digamma(1+1/shape)+
+    shape*exp(-(w_bid/b_z*gamma(1+1/shape))^shape)*gamma(1+1/shape)*(w_bid/b_z*gamma(1+1/shape))^(shape-1)*(
+      log(w_bid/b_z*gamma(1+1/shape))-(shape-1)*digamma(1+1/shape)/(shape^2)
+    )- exp(-(w_bid/b_z*gamma(1+1/shape))^shape)*gamma(1+1/shape)*(w_bid/b_z*gamma(1+1/shape))^(2*shape-1)*shape*(
       log(w_bid/b_z*gamma(1+1/shape)) - digamma(1+1/shape)/shape
     )
 
-  deriv_unobs_sig = df*dshape
+  deriv_unobs_sig = 2*distrib_std_dev*df*dshape
 
   deriv_unobs_u = shape*(gamma(1+1/shape))^shape*exp(-(w_bid/b_z*gamma(1+1/shape))^shape)*(
     (shape - 1)*(w_bid/b_z)^(shape -2) - (w_bid/b_z)^shape*shape*(gamma(1+1/shape))^shape
@@ -532,8 +528,7 @@ auction__deriv_sig_integrand <- function(distrib_std_dev, w_bid, id_distrib, z, 
 
   pv = n_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha - 1)*exp(-n_bids*(gamma_1p1oa/mu*z)^alpha)
 
-  vals = 2*distrib_std_dev*pv*1/b_z*deriv_unobs_sig #for numeric confirmation
-                                                    #(w.r.t. sigma instead of sigma^2 -> scaled by 2*sigma by the chain rule)
+  vals = pv*1/b_z*deriv_unobs_sig
 
   vals[(gamma_1p1oa/mu)^alpha == Inf] = 0
   vals[exp(-n_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
