@@ -1271,7 +1271,7 @@ auction__deriv_bid_alpha_integrate <- function(n_bids, gamma_1p1oa, alpha, mu, z
 
 auction__deriv_bid_alpha <- function(alpha, mu, gamma_1p1oa, z, n_bids){
 
-  alpha_bid_1 = 1/alpha*mu/gamma_1p1oa*(n_bids - 1)^(-1/alpha)*pgamma((n_bids- 1)*(gamma_1p1oa/mu*z)^alpha, 1/alpha, lower = FALSE)*gamma(1/alpha)
+  alpha_bid_1 = 1/alpha*mu/gamma_1p1oa*(n_bids - 1)^(-1/alpha)*stats::pgamma((n_bids- 1)*(gamma_1p1oa/mu*z)^alpha, 1/alpha, lower = FALSE)*gamma(1/alpha)
   alpha_bid_2 = exp((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha)
 
 
@@ -1489,7 +1489,7 @@ auction__deriv_bid_mu_integrate <- function(n_bids, gamma_1p1oa, alpha, mu, z){
 }
 
 auction__deriv_bid_mu <- function(z, alpha, mu, gamma_1p1oa, n_bids){
-  mu_bid_1 = 1/alpha*mu/gamma_1p1oa*(n_bids - 1)^(-1/alpha)*pgamma((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha, 1/alpha, lower = FALSE)*gamma(1/alpha)
+  mu_bid_1 = 1/alpha*mu/gamma_1p1oa*(n_bids - 1)^(-1/alpha)*stats::pgamma((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha, 1/alpha, lower = FALSE)*gamma(1/alpha)
   mu_bid_2 = exp((n_bids - 1)*(gamma_1p1oa/mu*z)^alpha)
 
   deriv_mu_bid_1 = auction__deriv_bid_mu_integrate(n_bids = n_bids,
