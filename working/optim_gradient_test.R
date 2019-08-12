@@ -1,15 +1,3 @@
-obs = 300
-mu = 4
-alpha = 3
-sigma = 0.6
-
-data = auctionmodel:::auction_generate_data(obs = obs,
-                              mu = mu,
-                              alpha = alpha,
-                              sigma = sigma,
-                              u_dist = "dgamma")
-
-
 
 hEnv_tmp = new.env()
 x0 =  c(7.93369419885821, 0.66080453704268, 0.748151129180016, 0.399372886551224, -0.00062711344877579)

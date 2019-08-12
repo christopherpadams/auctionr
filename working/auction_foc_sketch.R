@@ -1,5 +1,4 @@
-# Sketch implementation of analytical first derivatives for standard errors
-##########
+###Analytical first derivatives
 #UH
 
 auction__deriv_unobs <- function(distrib_std_dev,
@@ -191,7 +190,8 @@ auction__deriv_alpha_integrand <- function(alpha, w_bid, mu, gamma_1p1oa, z, n_b
 
 
 auction__deriv_alpha_integrate <- function(data_vec){
-  val_1 = stats::integrate(auction__deriv_alpha_integrand,
+  out = tryCatch({
+    val = stats::integrate(auction__deriv_alpha_integrand,
                            w_bid=data_vec[1],
                            n_bids=data_vec[2],
                            mu=data_vec[3],
@@ -200,78 +200,80 @@ auction__deriv_alpha_integrate <- function(data_vec){
                            distrib_std_dev=data_vec[6],
                            id_distrib=data_vec[7],
                            lower = 0,
-                           upper = 0.0000000001,
-                           abs.tol = 1e-10)
-
-  val_2 = stats::integrate(auction__deriv_alpha_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 0.0000000001,
-                           upper = 0.0001,
-                           abs.tol = 1e-10)
-
-  val_3 = stats::integrate(auction__deriv_alpha_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 0.0001,
-                           upper = 0.001,
-                           abs.tol = 1e-10)
-
-  val_4 = stats::integrate(auction__deriv_alpha_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 0.001,
-                           upper = 0.1,
-                           abs.tol = 1e-10)
-
-
-  val_5 = stats::integrate(auction__deriv_alpha_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 0.1,
-                           upper = 1,
-                           abs.tol = 1e-10)
-
-
-  val_6 = stats::integrate(auction__deriv_alpha_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 1,
                            upper = Inf,
                            abs.tol = 1e-10)
-
-  val = val_1$value + val_2$value + val_3$value + val_4$value + val_5$value + val_6$value
-  if((val_1$message != "OK")|(val_2$message != "OK")|(val_3$message != "OK")|(val_4$message != "OK") |
-     (val_5$message != "OK") |(val_6$message != "OK")){
-    stop("Integration failed.")
-  }
-  return(val)
+    return(val$value)
+  }, error = function(cond){
+    val_e = tryCatch({
+      val_1 = stats::integrate(auction__deriv_alpha_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 0,
+                               upper = 1,
+                               abs.tol = 1e-10)
+      val_2 = stats::integrate(auction__deriv_alpha_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 1,
+                               upper = Inf,
+                               abs.tol = 1e-10)
+      val_e = val_1$value + val_2$value
+      return(val_e)
+    }, error = function(cond){
+      val_1 = stats::integrate(auction__deriv_alpha_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 0,
+                               upper = 1e-5,
+                               abs.tol = 1e-10)
+      val_2 = stats::integrate(auction__deriv_alpha_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 1e-5,
+                               upper = 1,
+                               abs.tol = 1e-10)
+      val_3 = stats::integrate(auction__deriv_alpha_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 1,
+                               upper = Inf,
+                               abs.tol = 1e-10)
+      val_e2 = val_1$value + val_2$value + val_3$value
+      if((val_1$message != "OK")|(val_2$message != "OK")|(val_3$message != "OK")){
+        stop("Integration failed.")
+      }
+      return(val_e2)
+    })
+    return(val_e)
+  })
+  return(out)
 }
+
 
 auction__deriv_ll_alpha <- function(x0, dat_X, dat__winning_bid, dat__n_bids, cl, listFuncCall){
   listIdx = auction__x0_indices()
@@ -393,7 +395,8 @@ auction__deriv_mu_integrand <- function(alpha, w_bid, mu, gamma_1p1oa, z, n_bids
 }
 
 auction__deriv_mu_integrate <- function(data_vec){
-  val_1 = stats::integrate(auction__deriv_mu_integrand,
+  out = tryCatch({
+    val = stats::integrate(auction__deriv_mu_integrand,
                            w_bid=data_vec[1],
                            n_bids=data_vec[2],
                            mu=data_vec[3],
@@ -402,77 +405,78 @@ auction__deriv_mu_integrate <- function(data_vec){
                            distrib_std_dev=data_vec[6],
                            id_distrib=data_vec[7],
                            lower = 0,
-                           upper = 0.0000000001,
-                           abs.tol = 1e-10)
-
-  val_2 = stats::integrate(auction__deriv_mu_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 0.0000000001,
-                           upper = 0.0001,
-                           abs.tol = 1e-10)
-
-  val_3 = stats::integrate(auction__deriv_mu_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 0.0001,
-                           upper = 0.001,
-                           abs.tol = 1e-10)
-
-  val_4 = stats::integrate(auction__deriv_mu_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 0.001,
-                           upper = 0.1,
-                           abs.tol = 1e-10)
-
-
-  val_5 = stats::integrate(auction__deriv_mu_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 0.1,
-                           upper = 1,
-                           abs.tol = 1e-10)
-
-
-  val_6 = stats::integrate(auction__deriv_mu_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 1,
                            upper = Inf,
                            abs.tol = 1e-10)
-
-  val = val_1$value + val_2$value + val_3$value + val_4$value + val_5$value + val_6$value
-  if((val_1$message != "OK")|(val_2$message != "OK")|(val_3$message != "OK")|(val_4$message != "OK") |
-     (val_5$message != "OK") |(val_6$message != "OK")){
-    stop("Integration failed.")
-  }
-  return(val)
+    return(val$value)
+  }, error = function(cond){
+    val_e = tryCatch({
+      val_1 = stats::integrate(auction__deriv_mu_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 0,
+                               upper = 1,
+                               abs.tol = 1e-10)
+      val_2 = stats::integrate(auction__deriv_mu_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 1,
+                               upper = Inf,
+                               abs.tol = 1e-10)
+      val_e = val_1$value + val_2$value
+      return(val_e)
+    }, error = function(cond){
+      val_1 = stats::integrate(auction__deriv_mu_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 0,
+                               upper = 1e-5,
+                               abs.tol = 1e-10)
+      val_2 = stats::integrate(auction__deriv_mu_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 1e-5,
+                               upper = 1,
+                               abs.tol = 1e-10)
+      val_3 = stats::integrate(auction__deriv_mu_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 1,
+                               upper = Inf,
+                               abs.tol = 1e-10)
+      val_e2 = val_1$value + val_2$value + val_3$value
+      if((val_1$message != "OK")|(val_2$message != "OK")|(val_3$message != "OK")){
+        stop("Integration failed.")
+      }
+      return(val_e2)
+    })
+    return(val_e)
+  })
+  return(out)
 }
 
 auction__deriv_ll_mu <- function(x0, dat__winning_bid, dat__n_bids, dat_X, cl, listFuncCall){
@@ -538,7 +542,8 @@ auction__deriv_sig_integrand <- function(distrib_std_dev, w_bid, id_distrib, z, 
 }
 
 auction__deriv_sig_integrate <- function(data_vec){
-  val_1 = stats::integrate(auction__deriv_sig_integrand,
+  out = tryCatch({
+    val = stats::integrate(auction__deriv_sig_integrand,
                            w_bid=data_vec[1],
                            n_bids=data_vec[2],
                            mu=data_vec[3],
@@ -547,77 +552,78 @@ auction__deriv_sig_integrate <- function(data_vec){
                            distrib_std_dev=data_vec[6],
                            id_distrib=data_vec[7],
                            lower = 0,
-                           upper = 0.0000000001,
-                           abs.tol = 1e-10)
-
-  val_2 = stats::integrate(auction__deriv_sig_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 0.0000000001,
-                           upper = 0.0001,
-                           abs.tol = 1e-10)
-
-  val_3 = stats::integrate(auction__deriv_sig_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 0.0001,
-                           upper = 0.001,
-                           abs.tol = 1e-10)
-
-  val_4 = stats::integrate(auction__deriv_sig_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 0.001,
-                           upper = 0.1,
-                           abs.tol = 1e-10)
-
-
-  val_5 = stats::integrate(auction__deriv_sig_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 0.1,
-                           upper = 1,
-                           abs.tol = 1e-10)
-
-
-  val_6 = stats::integrate(auction__deriv_sig_integrand,
-                           w_bid=data_vec[1],
-                           n_bids=data_vec[2],
-                           mu=data_vec[3],
-                           alpha=data_vec[4],
-                           gamma_1p1oa=data_vec[5],
-                           distrib_std_dev=data_vec[6],
-                           id_distrib=data_vec[7],
-                           lower = 1,
                            upper = Inf,
                            abs.tol = 1e-10)
-
-  val = val_1$value + val_2$value + val_3$value + val_4$value + val_5$value + val_6$value
-  if((val_1$message != "OK")|(val_2$message != "OK")|(val_3$message != "OK")|(val_4$message != "OK") |
-     (val_5$message != "OK") |(val_6$message != "OK")){
-    stop("Integration failed.")
-  }
-  return(val)
+    return(val$value)
+  }, error = function(cond){
+    val_e = tryCatch({
+      val_1 = stats::integrate(auction__deriv_sig_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 0,
+                               upper = 1,
+                               abs.tol = 1e-10)
+      val_2 = stats::integrate(auction__deriv_sig_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 1,
+                               upper = Inf,
+                               abs.tol = 1e-10)
+      val_e = val_1$value + val_2$value
+      return(val_e)
+    }, error = function(cond){
+      val_1 = stats::integrate(auction__deriv_sig_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 0,
+                               upper = 1e-5,
+                               abs.tol = 1e-10)
+      val_2 = stats::integrate(auction__deriv_sig_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 1e-5,
+                               upper = 1,
+                               abs.tol = 1e-10)
+      val_3 = stats::integrate(auction__deriv_sig_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               lower = 1,
+                               upper = Inf,
+                               abs.tol = 1e-10)
+      val_e2 = val_1$value + val_2$value + val_3$value
+      if((val_1$message != "OK")|(val_2$message != "OK")|(val_3$message != "OK")){
+        stop("Integration failed.")
+      }
+      return(val_e2)
+    })
+    return(val_e)
+  })
+  return(out)
 }
 
 auction__deriv_ll_sig <- function(x0, dat__winning_bid, dat__n_bids, dat_X, cl, listFuncCall){
@@ -681,94 +687,95 @@ auction__deriv_beta_integrand <- function(w_bid, mu, alpha, gamma_1p1oa, distrib
 }
 
 auction__deriv_beta_integrate <- function(data_vec){
-    val_1 = stats::integrate(auction__deriv_beta_integrand,
-                             w_bid=data_vec[1],
-                             n_bids=data_vec[2],
-                             mu=data_vec[3],
-                             alpha=data_vec[4],
-                             gamma_1p1oa=data_vec[5],
-                             distrib_std_dev=data_vec[6],
-                             id_distrib=data_vec[7],
-                             x_k = data_vec[8],
-                             lower = 0,
-                             upper = 0.0000000001,
-                             abs.tol = 1e-10)
-
-    val_2 = stats::integrate(auction__deriv_beta_integrand,
-                             w_bid=data_vec[1],
-                             n_bids=data_vec[2],
-                             mu=data_vec[3],
-                             alpha=data_vec[4],
-                             gamma_1p1oa=data_vec[5],
-                             distrib_std_dev=data_vec[6],
-                             id_distrib=data_vec[7],
-                             x_k = data_vec[8],
-                             lower = 0.0000000001,
-                             upper = 0.0001,
-                             abs.tol = 1e-10)
-
-    val_3 = stats::integrate(auction__deriv_beta_integrand,
-                             w_bid=data_vec[1],
-                             n_bids=data_vec[2],
-                             mu=data_vec[3],
-                             alpha=data_vec[4],
-                             gamma_1p1oa=data_vec[5],
-                             distrib_std_dev=data_vec[6],
-                             id_distrib=data_vec[7],
-                             x_k = data_vec[8],
-                             lower = 0.0001,
-                             upper = 0.001,
-                             abs.tol = 1e-10)
-
-    val_4 = stats::integrate(auction__deriv_beta_integrand,
-                             w_bid=data_vec[1],
-                             n_bids=data_vec[2],
-                             mu=data_vec[3],
-                             alpha=data_vec[4],
-                             gamma_1p1oa=data_vec[5],
-                             distrib_std_dev=data_vec[6],
-                             id_distrib=data_vec[7],
-                             x_k = data_vec[8],
-                             lower = 0.001,
-                             upper = 0.1,
-                             abs.tol = 1e-10)
-
-
-    val_5 = stats::integrate(auction__deriv_beta_integrand,
-                             w_bid=data_vec[1],
-                             n_bids=data_vec[2],
-                             mu=data_vec[3],
-                             alpha=data_vec[4],
-                             gamma_1p1oa=data_vec[5],
-                             distrib_std_dev=data_vec[6],
-                             id_distrib=data_vec[7],
-                             x_k = data_vec[8],
-                             lower = 0.1,
-                             upper = 1,
-                             abs.tol = 1e-10)
-
-
-    val_6 = stats::integrate(auction__deriv_beta_integrand,
-                             w_bid=data_vec[1],
-                             n_bids=data_vec[2],
-                             mu=data_vec[3],
-                             alpha=data_vec[4],
-                             gamma_1p1oa=data_vec[5],
-                             distrib_std_dev=data_vec[6],
-                             id_distrib=data_vec[7],
-                             x_k = data_vec[8],
-                             lower = 1,
-                             upper = Inf,
-                             abs.tol = 1e-10)
-
-    val = val_1$value + val_2$value + val_3$value + val_4$value + val_5$value + val_6$value
-    if((val_1$message != "OK")|(val_2$message != "OK")|(val_3$message != "OK")|(val_4$message != "OK") |
-       (val_5$message != "OK") |(val_6$message != "OK")){
-      stop("Integration failed.")
-    }
-    return(val)
-  }
-
+  out = tryCatch({
+    val = stats::integrate(auction__deriv_beta_integrand,
+                           w_bid=data_vec[1],
+                           n_bids=data_vec[2],
+                           mu=data_vec[3],
+                           alpha=data_vec[4],
+                           gamma_1p1oa=data_vec[5],
+                           distrib_std_dev=data_vec[6],
+                           id_distrib=data_vec[7],
+                           x_k = data_vec[8],
+                           lower = 0,
+                           upper = Inf,
+                           abs.tol = 1e-10)
+    return(val$value)
+  }, error = function(cond){
+    val_e = tryCatch({
+      val_1 = stats::integrate(auction__deriv_beta_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               x_k = data_vec[8],
+                               lower = 0,
+                               upper = 1,
+                               abs.tol = 1e-10)
+      val_2 = stats::integrate(auction__deriv_beta_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               x_k = data_vec[8],
+                               lower = 1,
+                               upper = Inf,
+                               abs.tol = 1e-10)
+      val_e = val_1$value + val_2$value
+      return(val_e)
+    }, error = function(cond){
+      val_1 = stats::integrate(auction__deriv_beta_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               x_k = data_vec[8],
+                               lower = 0,
+                               upper = 1e-5,
+                               abs.tol = 1e-10)
+      val_2 = stats::integrate(auction__deriv_beta_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               x_k = data_vec[8],
+                               lower = 1e-5,
+                               upper = 1,
+                               abs.tol = 1e-10)
+      val_3 = stats::integrate(auction__deriv_beta_integrand,
+                               w_bid=data_vec[1],
+                               n_bids=data_vec[2],
+                               mu=data_vec[3],
+                               alpha=data_vec[4],
+                               gamma_1p1oa=data_vec[5],
+                               distrib_std_dev=data_vec[6],
+                               id_distrib=data_vec[7],
+                               x_k = data_vec[8],
+                               lower = 1,
+                               upper = Inf,
+                               abs.tol = 1e-10)
+      val_e2 = val_1$value + val_2$value + val_3$value
+      if((val_1$message != "OK")|(val_2$message != "OK")|(val_3$message != "OK")){
+        stop("Integration failed.")
+      }
+      return(val_e2)
+    })
+    return(val_e)
+  })
+  return(out)
+}
 auction__deriv_ll_beta <- function(x0, dat__winning_bid, dat__n_bids, dat_X, cl, listFuncCall, x_k){
   listIdx = auction__x0_indices()
 
@@ -857,41 +864,57 @@ auction__se <- function(x0, dat__winning_bid, dat__n_bids, dat_X, cl, listFuncCa
                                                 listFuncCall = listFuncCall)
   v.f_deriv_y_sig = auction__deriv_ll_sig[[2]]
 
-  auction__deriv_ll_beta = auction__deriv_ll_beta_wrap(x0 = x0,
-                                                       dat__winning_bid = dat__winning_bid,
-                                                       dat__n_bids = dat__n_bids,
-                                                       dat_X = dat_X,
-                                                       cl = cl,
-                                                       listFuncCall = listFuncCall)
+  deriv_ll_beta = auction__deriv_ll_beta_wrap(x0 = x0,
+                                              dat__winning_bid = dat__winning_bid,
+                                              dat__n_bids = dat__n_bids,
+                                              dat_X = dat_X,
+                                              cl = cl,
+                                              listFuncCall = listFuncCall)
 
-
+  listIdx = auction__x0_indices()
   beta_length = length(x0)-listIdx$x_terms__start + 1
-  for (k in 1:beta_length){
-    nam = paste("v.f_deriv_y_beta_",k,sep="")
-    assign(nam,auction__deriv_ll_beta[[k]][[2]])
-  }
-
   all_prod = list()
+  all_col_prod = list()
   for (i in 1:obs){
     score_i = c(v.f_deriv_y_alpha[i], v.f_deriv_y_mu[i], v.f_deriv_y_sig[i])
     for (k in 1:beta_length){
-      score_i[3+k] = v.f_deriv_y_beta_k[i]
+      score_i[3+k] = deriv_ll_beta[[k]][[2]][i]
     }
     prod_i = score_i %*% t(score_i)
     all_prod[[i]] = prod_i
   }
 
   sum_prodmat = Reduce('+',all_prod)
+  singular <- ! (class(try(solve(sum_prodmat),silent=T))=="matrix")
+  if (isFALSE(singular)){
+    info_mat = 1/obs*sum_prodmat
 
-  info_mat = 1/obs*sum_prodmat
+    varcov_params = solve(info_mat)
 
-  varcov_params = solve(info_mat)
+    var_params = diag(varcov_params)
 
-  var_params = diag(varcov_params)
+    se_params = sqrt(var_params)
 
-  se_params = sqrt(var_params)
+    return(se_params)
 
-  return(se_params)
+  } else if (isTRUE(singular)){
+    for (i in 1:obs){
+      score_col_i = c(v.f_deriv_y_alpha[i], v.f_deriv_y_mu[i], v.f_deriv_y_sig[i])
+      prod_col_i = score_col_i %*% t(score_col_i)
+      all_col_prod[[i]] = prod_col_i
+    }
+    sum_prodmat_col = Reduce('+',all_col_prod)
+
+    info_mat_col = 1/obs*sum_prodmat_col
+
+    varcov_params_col = solve(info_mat_col)
+
+    var_params_col = diag(varcov_params_col)
+
+    se_params_col = sqrt(var_params_col)
+
+    return(se_params_col)
+  }
 }
 
 #####
