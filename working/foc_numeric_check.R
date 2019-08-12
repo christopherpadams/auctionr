@@ -62,7 +62,7 @@ parallel::stopCluster(cl)
 ######## INDIVIDUAL COMPONENTS TESTS
 ##### UH
 ####Gamma
-###sigma
+###sigma - checks out
 
 distrib_std_dev = 0.6
 w_bid = 8
@@ -79,23 +79,16 @@ b_z = vf__bid_function_fast(cost=cost, n_bids=n_bids, mu=mu, alpha=alpha, gamma_
 auction__f_unobs_gamma_sig <- function(distrib_std_dev, w_bid, b_z){
 
   deriv_unobs_sig = -(1/distrib_std_dev^2)^(2+(1/distrib_std_dev^2))*1/(gamma(1/distrib_std_dev^2))*(w_bid/b_z)^(1/distrib_std_dev^2-1)*
-    exp(-(1/distrib_std_dev^2)*w_bid/b_z)*w_bid/b_z*(
+    exp(-(1/distrib_std_dev^2)*w_bid/b_z)*(
       log(1/distrib_std_dev^2) + 1 - digamma(1/distrib_std_dev^2) + log(w_bid/b_z) - w_bid/b_z
     )
-
-  deriv_unobs_u = -1/gamma(1/distrib_std_dev^2)*(1/distrib_std_dev^2)^(1+1/distrib_std_dev^2)*
-    (w_bid/b_z)^(1/distrib_std_dev^2 -2)*(distrib_std_dev^2-1+w_bid/b_z)*
-    exp(-1/distrib_std_dev^2 * w_bid/b_z)
-
-  f_unobs = (1/(distrib_std_dev^2))^(1/(distrib_std_dev^2))/gamma(1/(distrib_std_dev^2))*
-    (w_bid/b_z)^(1/(distrib_std_dev^2)-1)*exp(-1/(distrib_std_dev^2)*w_bid/b_z)
   return(deriv_unobs_sig)
 }
 
 auction__f_unobs_gamma_u <- function(distrib_std_dev, w_bid, b_z){
 
   deriv_unobs_sig = -(1/distrib_std_dev^2)^(2+(1/distrib_std_dev^2))*1/(gamma(1/distrib_std_dev^2))*(w_bid/b_z)^(1/distrib_std_dev^2-1)*
-    exp(-(1/distrib_std_dev^2)*w_bid/b_z)*w_bid/b_z*(
+    exp(-(1/distrib_std_dev^2)*w_bid/b_z)*(
       log(1/distrib_std_dev^2) + 1 - digamma(1/distrib_std_dev^2) + log(w_bid/b_z) - w_bid/b_z
     )
 
@@ -109,10 +102,10 @@ auction__f_unobs_gamma_u <- function(distrib_std_dev, w_bid, b_z){
   return(deriv_unobs_u)
 }
 
-auction__f_unobs_gamma_f <- function(distrib_std_dev, x){
+auction__f_unobs_gamma_f <- function(distrib_std_dev, x_){
 
   f_unobs = (1/(distrib_std_dev^2))^(1/(distrib_std_dev^2))/gamma(1/(distrib_std_dev^2))*
-    (x)^(1/(distrib_std_dev^2)-1)*exp(-1/(distrib_std_dev^2)*x)
+    (x_)^(1/(distrib_std_dev^2)-1)*exp(-1/(distrib_std_dev^2)*x_)
 
   return(f_unobs)
 }
@@ -120,11 +113,10 @@ auction__f_unobs_gamma_f <- function(distrib_std_dev, x){
 grad(func = auction__f_unobs_gamma_f,
      x = distrib_std_dev,
      method = "simple",
-     w_bid = w_bid,
-     b_z = b_z)
+     x_ = w_bid/b_z)
 
 
-auction__f_unobs_gamma_sig(distrib_std = distrib_std_dev,
+2*distrib_std_dev*auction__f_unobs_gamma_sig(distrib_std = distrib_std_dev,
                            w_bid = w_bid,
                            b_z = b_z)
 
@@ -142,16 +134,16 @@ auction__f_unobs_gamma_u(distrib_std = distrib_std_dev,
 
 
 ####Log normal
-###sigma^2
+###sigma^2 - checks out
 
 auction__f_unobs_lognorm_sig <- function(distrib_std_dev, w_bid, b_z){
 
-  deriv_unobs_sig = -distrib_std_dev^2*1/(w_bid/b_z*sqrt(2*pi))*1/(2*(log(1+distrib_std_dev^2))^(3/2))*1/(1+distrib_std_dev^2) *
-    exp(-(log(w_bid/b_z)+1/2*log(1+distrib_std_dev^2))^2/(2*log(1+distrib_std_dev^2)))
-  -1/(w_bid/b_z*sqrt(2*pi*log(1+distrib_std_dev^2)))*exp(-(log(w_bid/b_z)+1/2*log(1+distrib_std_dev^2))^2/(2*log(1+distrib_std_dev^2)))*
-    (
-      2*(log(1+distrib_std_dev^2)-1)*(log(w_bid/b_z)-1/2*log(1+distrib_std_dev^2))/(4*(log(1+distrib_std_dev^2))^2*(1+distrib_std_dev^2))
-    )
+  deriv_unobs_sig = -1/(2*sqrt(2*pi)*(1+distrib_std_dev^2)*w_bid/b_z*log(1+distrib_std_dev^2)^(3/2))*
+    exp(-(1/2*log(1+distrib_std_dev^2)+log(w_bid/b_z))^2/(2*log(1+distrib_std_dev^2)))+
+  exp(-(1/2*log(1+distrib_std_dev^2)+log(w_bid/b_z))^2/(2*log(1+distrib_std_dev^2)))/(sqrt(2*pi)*w_bid/b_z*sqrt(log(1+distrib_std_dev^2)))*(
+    -(1/2*log(1+distrib_std_dev^2)+log(w_bid/b_z))/(2*(1+distrib_std_dev^2)*log(1+distrib_std_dev^2))
+    +(1/2*log(1+distrib_std_dev^2)+log(w_bid/b_z))^2/(2*(1+distrib_std_dev^2)*(log(1+distrib_std_dev^2))^2)
+  )
 
   return(deriv_unobs_sig)
 }
@@ -170,7 +162,7 @@ grad(func = auction__f_unobs_lognorm_f,
      b_z = b_z)
 
 
-auction__f_unobs_lognorm_sig(distrib_std = distrib_std_dev,
+2*distrib_std_dev*auction__f_unobs_lognorm_sig(distrib_std = distrib_std_dev,
                            w_bid = w_bid,
                            b_z = b_z)
 
@@ -209,19 +201,15 @@ auction__f_unobs_weibull_sig <- function(distrib_std_dev, w_bid, b_z){
   listParam = auction__get_unobs_params(distrib_std_dev, 3)
   shape = listParam$shape
 
-  dshape = shape^2*gamma(1+1/shape)/(
-    digamma(1+1/shape)*gamma(1+2/shape)-2*digamma(1+2/shape)*gamma(1+2/shape)
+  dshape = shape^2*(gamma(1+1/shape))^2/(
+    2*digamma(1+1/shape)*gamma(1+2/shape)-2*digamma(1+2/shape)*gamma(1+2/shape)
   )
 
-  df = gamma(1+1/shape)*((w_bid/b_z)*gamma(1+1/shape))^(shape - 1)*
-    exp(-(w_bid/b_z*gamma(1+1/shape))^shape)
-  - 1/shape*gamma(1+1/shape)*digamma(1+1/shape)*((w_bid/b_z)*gamma(1+1/shape))^(shape - 1)*
-    exp(-(w_bid/b_z*gamma(1+1/shape))^shape)
-  + shape*gamma(1+1/shape)*((w_bid/b_z)*gamma(1+1/shape))^(shape - 1)*(
-    log(w_bid/b_z*gamma(1+1/shape)) - (shape - 1)*digamma(1+1/shape)/(shape^2)
-  )*exp(-(w_bid/b_z*gamma(1+1/shape))^shape)
-  - shape*gamma(1+1/shape)*((w_bid/b_z)*gamma(1+1/shape))^(2*shape - 1)*
-    exp(-(w_bid/b_z*gamma(1+1/shape))^shape)*(
+  df = exp(-(w_bid/b_z*gamma(1+1/shape))^shape)*gamma(1+1/shape)*(w_bid/b_z*gamma(1+1/shape))^(shape-1)-
+    1/shape*exp(-(w_bid/b_z*gamma(1+1/shape))^shape)*gamma(1+1/shape)*(w_bid/b_z*gamma(1+1/shape))^(shape-1)*digamma(1+1/shape)+
+    shape*exp(-(w_bid/b_z*gamma(1+1/shape))^shape)*gamma(1+1/shape)*(w_bid/b_z*gamma(1+1/shape))^(shape-1)*(
+      log(w_bid/b_z*gamma(1+1/shape))-(shape-1)*digamma(1+1/shape)/(shape^2)
+    )- exp(-(w_bid/b_z*gamma(1+1/shape))^shape)*gamma(1+1/shape)*(w_bid/b_z*gamma(1+1/shape))^(2*shape-1)*shape*(
       log(w_bid/b_z*gamma(1+1/shape)) - digamma(1+1/shape)/shape
     )
 
@@ -235,7 +223,6 @@ auction__f_unobs_weibull_f <- function(distrib_std_dev, w_bid, b_z){
   listParam = auction__get_unobs_params(distrib_std_dev, 3)
   shape = listParam$shape
 
-
   f_unobs = shape*gamma(1+1/shape)*(w_bid/b_z*gamma(1+1/shape))^(shape - 1)*
     exp(-(w_bid/b_z*gamma(1+1/shape))^shape)
   return(f_unobs)
@@ -248,7 +235,7 @@ grad(func = auction__f_unobs_weibull_f,
      w_bid = w_bid,
      b_z = b_z)
 
-auction__f_unobs_weibull_sig(distrib_std_dev = distrib_std_dev,
+2*distrib_std_dev*auction__f_unobs_weibull_sig(distrib_std_dev = distrib_std_dev,
                              w_bid = w_bid,
                              b_z = b_z)
 
