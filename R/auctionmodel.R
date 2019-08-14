@@ -98,11 +98,13 @@ auction_model <- function(dat = NULL,
 
   # Normalise x vars to have mean 1
   dat_x_norm = dat[ ! names(dat) %in% c("winning_bid", "n_bids") ]
+  if (ncol(dat_x_norm) != 0){
   x_length = ncol(dat_x_norm)
   mean = rep(NA, nrow(dat))
   for (i in 1:x_length){
     mean[i] = mean(dat_x_norm[,i])
     dat_x_norm[,i] = dat_x_norm[,i]/mean[i]
+  }
   }
 
   # Log the X terms within the input data
@@ -194,7 +196,8 @@ auction_model <- function(dat = NULL,
                             dat__n_bids=dat$n_bids,
                             dat_X=t( dat[ ! names(dat) %in% c("winning_bid", "n_bids") ] ),
                             listFuncCall=listFuncCall,
-                            obs = obs)
+                            obs = obs,
+                            cl = cl)
   }
 
   # Release resources
