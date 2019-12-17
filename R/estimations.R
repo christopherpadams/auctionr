@@ -25,23 +25,20 @@
 #'
 #' @export
 
-f__bid_function_fast = function(cost, num_bids, mu, alpha, gamma_1p1oa) {
-  # ?solving for the cost
-  if (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha) == 0) {
-    return(cost + mu/alpha*(num_bids-1)^(-1/alpha)*1/gamma_1p1oa*
-             ((num_bids-1)*(gamma_1p1oa/mu*cost)^alpha)^(1/alpha-1))
-  }
+vf__bid_function_fast = function(cost, num_bids, mu, alpha, gamma_1p1oa) {
+    # ?solving for the cost
+    ifelse (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha) == 0,
+            
+            cost + mu/alpha*(num_bids-1)^(-1/alpha)*1/gamma_1p1oa*
+            ((num_bids-1)*(gamma_1p1oa/mu*cost)^alpha)^(1/alpha-1),
 
-  cost + 1/alpha*(mu/gamma_1p1oa)*(num_bids-1)^(-1/alpha)*
-    pgamma((num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha, 1/alpha, lower=FALSE)*
-    gamma(1/alpha)*
-    1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha)
-  # Check gamma(1/alpha) part
+            cost + 1/alpha*(mu/gamma_1p1oa)*(num_bids-1)^(-1/alpha)*
+            pgamma((num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha, 1/alpha, lower=FALSE)*
+            gamma(1/alpha)* # Check gamma(1/alpha) part
+            1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha)
+            )
 }
 
-#' @export
-
-vf__bid_function_fast = Vectorize(FUN = f__bid_function_fast, vectorize.args = "cost")
 
 #' @export
 
