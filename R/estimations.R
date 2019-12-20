@@ -33,12 +33,13 @@
 #'#'
 #' @examples
 #'
-#' dat <- auction_generate_data(obs = 1000, mu = 10, new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8), alpha = 2, sigma = 0.2, beta = c(-1,1))
+#' set.seed(100)
+#' dat <- auction_generate_data(obs = 1000, mu = 10, alpha = 2, sigma = 0.2, beta = c(-1,1), new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8))
 #' auction_model(dat,
 #'               init_param =  c(8, 2, .5, .4, .6),
 #'               num_cores = 10,
 #'               method = "BFGS",
-#'               control = list(trace=3, parscale = c(1,0.1,0.1,1,1)))
+#'               control = list(trace=1, parscale = c(1,0.1,0.1,1,1)))
 #'
 #' @seealso \code{\link{auction_generate_data}}
 #'
@@ -92,7 +93,7 @@ auction_model <- function(dat = NULL,
 
 #' @param mu Value for mu, or mean, of private value distribution (Weibull) to be generated.
 #' @param alpha Value for alpha, or shape parameter, of private value distribution (Weibull) to be generated.
-#' @param sigma Value for standard deviation of unobserved heterogeneity distribution. Note that it is assumed to have mean 1.
+#' @param sigma Value for standard deviation of unobserved heterogeneity distribution. Note that the distibution is assumed to have mean 1.
 #' @param beta Coefficients for the generated observable controls. Must be of the same length as \code{new_x_meanlog} and \code{new_x_sdlog}.
 #'
 #' @details This function generates example data for feeding into auction_model(). Specifically, the
@@ -188,7 +189,7 @@ auction__generate_x <- function(obs,
 
 
 vf__bid_function_fast = function(cost, num_bids, mu, alpha, gamma_1p1oa) {
-  # ?solving for the cost
+
   ifelse (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha) == 0,
 
           cost + mu/alpha*(num_bids-1)^(-1/alpha)*1/gamma_1p1oa*
@@ -202,15 +203,17 @@ vf__bid_function_fast = function(cost, num_bids, mu, alpha, gamma_1p1oa) {
 }
 
 
-vf__w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, param_u) {
-  #
+vf__w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa,sigma_u) {
+
   b_z = vf__bid_function_fast(cost=z, num_bids=num_bids, mu=mu, alpha=alpha, gamma_1p1oa)
   u_z = w_bid/b_z
+
+  sigma_lnorm = sqrt(log(1+sigma_u^2))
 
   vals = num_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha-1)*
     exp(-num_bids*(gamma_1p1oa/mu*z)^alpha)*
     1/b_z*
-    dlnorm(u_z, meanlog=(-param_u^2*1/2), sdlog = param_u) # Note: can swap for different distributions
+    dlnorm(u_z, meanlog=(-sigma_lnorm^2*1/2), sdlog = sigma_lnorm) # Note: can swap for different distributions
 
   # ensuring that really large and small values do not throw errors
   vals[(gamma_1p1oa/mu)^alpha == Inf] = 0
@@ -220,11 +223,11 @@ vf__w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, pa
 }
 
 
-f__funk = function(data_vec, param_u) {
+f__funk = function(data_vec, sigma_u) {
   #
   val = integrate(vf__w_integrand_z_fast, w_bid=data_vec[1],
                   num_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
-                  gamma_1p1oa=data_vec[5], param_u=param_u, lower=0, upper=Inf)
+                  gamma_1p1oa=data_vec[5], sigma_u=sigma_u, lower=0, upper=Inf)
 
   if(val$message != "OK") stop("Integration failed.")
 
@@ -255,7 +258,7 @@ f__ll_parallel = function(x0, y, n, h_x, cl) {
   v__w = v__y / v__h
   dat = cbind(v__w, v__n, v__mu, v__alpha, v__gamma_1p1opa)
 
-  v__f_w = parApply(cl = cl, X = dat, MARGIN = 1, FUN = f__funk, param_u = u)
+  v__f_w = parApply(cl = cl, X = dat, MARGIN = 1, FUN = f__funk, sigma_u = u)
   v__f_y = v__f_w / v__h
 
   return(-sum(log(v__f_y)))
