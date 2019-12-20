@@ -126,11 +126,26 @@ auction_generate_data <- function(obs = NULL,
                                   beta = NULL) {
   # Inspect parameters
   # Must specify (mu, alpha, sigma, beta)
-  # if max_n_bids isn't provided, set to 10
-  # new_x_mean and new_x_sd must be of the same length as beta or scalar
-  # Inspect new_x_mean and new_x_sd
-  # 'new_x_sd' must be numeric vector,
-  #      of same length as 'new_x_mean'
+  all_args <- list(obs = obs, max_n_bids = max_n_bids, new_x_mean = new_x_mean, new_x_sd = new_x_sd,
+                mu = mu, alpha = alpha, sigma = sigma, beta = beta)
+  missing_args <- names(all_args[sapply(all_args, is.null)])
+  nmiss <- length(missing_args)
+  if(nmiss != 0) {
+    stop(paste("Argument(s) '", paste(missing_args[-nmiss], collapse = "', '"),
+               ifelse(nmiss > 1, " and ", ""),
+               missing_args[nmiss], "' required", sep = ""))
+  }
+  # new_x_mean and new_x_sd must be of the same length as beta
+  if (length(new_x_mean) != length(beta)) stop("'new_x_sd' must have the same length as 'beta'")
+  if (length(new_x_sd) != length(beta)) stop("'new_x_sd' must have the same length as 'beta'")
+  # all arguments must be numeric
+  non_num_args <- names(all_args)[!sapply(all_args, is.numeric)]
+  nna <- length(non_num_args)
+  if (nna != 0) {
+      stop(paste("Argument(s) '", paste(non_num_args[-nna], collapse = "', '"),
+                 ifelse(nna > 1, " and ", ""),
+                 non_num_args[nna], "' must be numeric", sep = ""))
+  }
 
   # Generate number of bids for every auction
   n_bids = sample(2:max_n_bids, obs, replace=TRUE)
