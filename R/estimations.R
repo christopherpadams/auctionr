@@ -94,7 +94,7 @@ auction_model <- function(dat = NULL,
 #' @param mu Value for mu, or mean, of private value distribution (Weibull) to be generated.
 #' @param alpha Value for alpha, or shape parameter, of private value distribution (Weibull) to be generated.
 #' @param sigma Value for standard deviation of unobserved heterogeneity distribution. Note that the distibution is assumed to have mean 1.
-#' @param beta Coefficients for the generated observable controls. Must be of the same length as \code{new_x_meanlog} and \code{new_x_sdlog}.
+#' @param beta Coefficients for the generated observable controls. Must be of the same length as \code{new_x_mean} and \code{new_x_sd}.
 #'
 #' @details This function generates example data for feeding into auction_model(). Specifically, the
 #' winning bid, number of bids, and observed heterogeneity are sampled for the specified number of observations.
@@ -115,6 +115,7 @@ auction_model <- function(dat = NULL,
 #'
 #'
 #' @export
+
 auction_generate_data <- function(obs = NULL,
                                   max_n_bids = 10,
                                   new_x_mean = NULL,
@@ -126,10 +127,10 @@ auction_generate_data <- function(obs = NULL,
   # Inspect parameters
   # Must specify (mu, alpha, sigma, beta)
   # if max_n_bids isn't provided, set to 10
-  # new_x_meanlog and new_x_sdlog must be of the same length as beta or scalar
-  # Inspect new_x_meanlog and new_x_sdlog
-  #'new_x_sdlog' must be numeric vector,
-  #      of same length as 'new_x_meanlog'
+  # new_x_mean and new_x_sd must be of the same length as beta or scalar
+  # Inspect new_x_mean and new_x_sd
+  # 'new_x_sd' must be numeric vector,
+  #      of same length as 'new_x_mean'
 
   # Generate number of bids for every auction
   n_bids = sample(2:max_n_bids, obs, replace=TRUE)
