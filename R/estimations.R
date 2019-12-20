@@ -99,18 +99,58 @@ f__ll_parallel = function(x0, y, n, h_x, cl) {
 }
 
 
+#' Estimates a first-price auction model
+#'
+#'
+#' @param dat data.frame containing input columns in the following order: the winning bids, number of bids, and \code{X} variables that represent observed heterogeneity.
+#' @param init_params Vector of initial values for mu, alpha, sigma, and beta vector.
+#' @param method Optimization method to be used in optim() (see ?optim for details).
+#' @param control A list of control parameters to be passed to optim() (see ?optim for details).
+#'
+#' @details This function estimates a first-price auction model with conditional independent private values.
+#' The model allows for unobserved heterogeneity that is common to all bidders in addition to observable
+#' heterogeneity. The winning bid (Y) takes the form
+#'
+#' Y = B * U * h(X)
+#'
+#' where B Is the proportional winning bid, U is the unobserved heterogeneity, and h(X) controls for
+#' observed heterogeneity. The model is log-linear so that
+#' log(Y) = log(B) + log(U) + log(h(X)) and log(h(X)) = beta1 * X1 + beta2 * X2 + … .
+#'
+#' The (conditionally) independent private costs are drawn from a Weibull distribution
+#' with parameters mu and alpha. The CDF of this distribution is given by
+#'
+#' F(c) = 1 – exp(- (c * 1/mu * Gamma(1 + 1/alpha))^(alpha))
+#'
+#' The unobserved heterogeneity U is sampled from log-Normal distribution with mean 1 and a free parameter sigma representing its standard deviation.
+#'
+#' \code{ini_params}, the initial guess for convergence, must be supplied.
+#'#'
+#' This funtion utilizes the \code{Rsnow} framework within the \code{Rparallel} package. If \code{numcores} is not specified, this will be run using only
+#' one CPU/core. One can use \code{parallel::detectCores()} to determine how many are available on your system, but you are not advised
+#' to use all at once, as this may make your system unresponsive. Please see \code{Rparallel} and \code{Rsnow} for more details.
+#'
+#' Note that the supplied data can not have missing values.
+#'#'
+#' @examples
+#'
+#' dat <- auction_generate_data(obs = 1000, mu = 10, new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8), alpha = 2, sigma = 0.2, beta = c(-1,1))
+#' auction_model(dat,
+#'               init_param =  c(8, 2, .5, .4, .6),
+#'               num_cores = 10,
+#'               method = "BFGS",
+#'               control = list(trace=3, parscale = c(1,0.1,0.1,1,1)))
+#'
+#' @seealso \code{\link{auction_generate_data}}
+#'
+#'
 #' @import parallel
 #' @export
 
 auction_model <- function(dat = NULL,
-                          #winning_bid = NULL,
-                          #n_bids = NULL,
-                          init_mu = NULL,
-                          init_alpha = NULL,
-                          init_sigma = NULL,
-                          init_beta = NULL,
+                          init_param = NULL,
                           num_cores = 1,
-                          method = "BFGS",  # method for optim()
+                          method = "BFGS",
                           control = list() # list of control parameters for optim()
                           ) {
 
@@ -118,22 +158,20 @@ auction_model <- function(dat = NULL,
 
   # Check inputs here!
 
-  v__y = dat$winning_bid
-  v__n = dat$n_bids
+  v__y = dat[,1]
+  v__n = dat[,2]
   m__h_x = dat[,-c(1:2)]
-
-  # Get initial guess for convergence
-  x0 = c(init_mu, init_alpha, init_sigma, init_beta)
 
   # Set up parallelization
   cl = makeCluster(num_cores)
   clusterExport(cl, varlist=c("vf__bid_function_fast",
                              "vf__w_integrand_z_fast",
                              "f__funk"))
-  f__ll_parallel(x0, y = v__y, n = v__n, h_x = m__h_x, cl = cl)
+
+  #f__ll_parallel(x0, y = v__y, n = v__n, h_x = m__h_x, cl = cl)
 
   # Run
-  result = optim(par=x0, fn=f__ll_parallel, y=v__y, n=v__n, h_x=m__h_x, cl=cl, method = method, control = control)
+  result = optim(par=init_param, fn=f__ll_parallel, y=v__y, n=v__n, h_x=m__h_x, cl=cl, method = method, control = control)
 
   stopCluster(cl)
 
@@ -169,7 +207,7 @@ auction_model <- function(dat = NULL,
 #'}
 #'
 #' @examples
-#' dat <- auction_generate_data(obs = 100, mu = 5, new_x_meanlog = c(1,3), new_x_sdlog = c(0.5,0.8), alpha = 2, sigma = 0.2, beta = c(-1,1))
+#' dat <- auction_generate_data(obs = 100, mu = 10, new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8), alpha = 2, sigma = 0.2, beta = c(-1,1))
 #' dim(dat)
 #' head(dat)
 #'
