@@ -23,12 +23,11 @@
 #' @seealso \code{\link{rbeta}}, \code{\link{geom_density}}
 #'
 #'
-#' @export
 
 vf__bid_function_fast = function(cost, num_bids, mu, alpha, gamma_1p1oa) {
     # ?solving for the cost
     ifelse (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha) == 0,
-            
+
             cost + mu/alpha*(num_bids-1)^(-1/alpha)*1/gamma_1p1oa*
             ((num_bids-1)*(gamma_1p1oa/mu*cost)^alpha)^(1/alpha-1),
 
@@ -39,8 +38,6 @@ vf__bid_function_fast = function(cost, num_bids, mu, alpha, gamma_1p1oa) {
             )
 }
 
-
-#' @export
 
 vf__w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, param_u) {
   #
@@ -60,23 +57,17 @@ vf__w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, pa
 }
 
 
-#' @export
-
 f__funk = function(data_vec, param_u) {
   #
   val = integrate(vf__w_integrand_z_fast, w_bid=data_vec[1],
                   num_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
-                  gamma_1p1oa=data_vec[5], param_u=param_u, lower=0, upper=Inf,
-                  abs.tol = 1e-10)
-  #                   rel_tol = .Machine$double.eps^0.7)
-  if(val$message != "OK")
-    stop("Integration failed.")
+                  gamma_1p1oa=data_vec[5], param_u=param_u, lower=0, upper=Inf)
+
+  if(val$message != "OK") stop("Integration failed.")
 
   return(val$value)
 }
 
-
-#' @export
 
 f__ll_parallel = function(x0, y, n, h_x, cl) {
   #
@@ -92,15 +83,12 @@ f__ll_parallel = function(x0, y, n, h_x, cl) {
   h = params[4:( 3 + dim(m__h_x)[2] )]
   v__h = exp( colSums( h * t(m__h_x) ) )
 
-  if (u <= 0.1)
-    return(-Inf) # Check that these hold at estimated values
-  else if ( sum (v__mu <= 0 ) > 0 )
-    return(-Inf)
-  else if ( sum( v__alpha <= 0.01 ) > 0)
-    return(-Inf)
-  else
-    # Y Component
-    v__gamma_1p1opa = gamma(1 + 1/v__alpha)
+  if (u <= 0.01) return(-Inf) # Check that these hold at estimated values
+  if (v__mu <= 0) return(-Inf)
+  if (v__alpha <= 0.01) return(-Inf)
+
+  # Y Component
+  v__gamma_1p1opa = gamma(1 + 1/v__alpha)
   v__w = v__y / v__h
   dat = cbind(v__w, v__n, v__mu, v__alpha, v__gamma_1p1opa)
 
@@ -114,119 +102,150 @@ f__ll_parallel = function(x0, y, n, h_x, cl) {
 #' @import parallel
 #' @export
 
-demo_auction <- function() {
-  #
+auction_model <- function(dat = NULL,
+                          #winning_bid = NULL,
+                          #n_bids = NULL,
+                          init_mu = NULL,
+                          init_alpha = NULL,
+                          init_sigma = NULL,
+                          init_beta = NULL,
+                          num_cores = 1,
+                          method = "BFGS",  # method for optim()
+                          control = list() # list of control parameters for optim()
+                          ) {
+
   library(parallel)
 
-  # Check inputs
+  # Check inputs here!
 
-
-  # Prepare data
-  dat = genSampleData1()
-
-  v__y = dat$v__y
-  v__n = dat$v__n
-  m__h_x = dat$m__h_x
+  v__y = dat$winning_bid
+  v__n = dat$n_bids
+  m__h_x = dat[,-c(1:2)]
 
   # Get initial guess for convergence
-  x0 = f_conv_initGuess(v__y, v__n, m__h_x)
+  x0 = c(init_mu, init_alpha, init_sigma, init_beta)
 
   # Set up parallelization
-  cl = makeCluster(4)
+  cl = makeCluster(num_cores)
   clusterExport(cl, varlist=c("vf__bid_function_fast",
                              "vf__w_integrand_z_fast",
                              "f__funk"))
   f__ll_parallel(x0, y = v__y, n = v__n, h_x = m__h_x, cl = cl)
 
-  #   Get convergence conditions
-  optim_control = f_conv_conditions(x0)
-
   # Run
-  result = optim(par=x0, fn=f__ll_parallel, control=optim_control,
-                 y=v__y, n=v__n, h_x=m__h_x, cl=cl)
+  result = optim(par=x0, fn=f__ll_parallel, y=v__y, n=v__n, h_x=m__h_x, cl=cl, method = method, control = control)
+
+  stopCluster(cl)
 
   # Inspect result
+  # Might need to make sure that it is a global solution, try different optim() methods
 
   # Return result
   return(result)
-  #return("test")
 }
 
 
+#' Generate example data for running \code{\link{auction_model}}
+#'
+#'
+#' @param obs Number of observations (or auctions) to draw.
+#' @param max_n_bids Maximum number of bids per auction. The routine generates a vector of length \code{obs} of random numbers between 2 and max_n_bids.
+#' @param new_x_mean Mean values for observable controls to be generated from a Normal distriution.
+#' @param new_x_sd Standard deviations for observable controls to be generated from a Normal distriution.
+
+#' @param mu Value for mu, or mean, of private value distribution (Weibull) to be generated.
+#' @param alpha Value for alpha, or shape parameter, of private value distribution (Weibull) to be generated.
+#' @param sigma Value for standard deviation of unobserved heterogeneity distribution. Note that it is assumed to have mean 1.
+#' @param beta Coefficients for the generated observable controls. Must be of the same length as \code{new_x_meanlog} and \code{new_x_sdlog}.
+#'
+#' @details This function generates example data for feeding into auction_model(). Specifically, the
+#' winning bid, number of bids, and observed heterogeneity are sampled for the specified number of observations.
+#'
+#' @return A data frame with \code{obs} rows and the following columns:
+#' \describe{
+#' \item{winning_bid}{numeric values of the winning bids for each observation}
+#' \item{n_bids}{number of bids  for each observation}
+#' \item{obs_X#}{X terms that represent observed heterogeneity}
+#'}
+#'
+#' @examples
+#' dat <- auction_generate_data(obs = 100, mu = 5, new_x_meanlog = c(1,3), new_x_sdlog = c(0.5,0.8), alpha = 2, sigma = 0.2, beta = c(-1,1))
+#' dim(dat)
+#' head(dat)
+#'
+#' @seealso \code{\link{auction_model}}
+#'
+#'
 #' @export
+auction_generate_data <- function(obs = NULL,
+                                  max_n_bids = 10,
+                                  new_x_mean = NULL,
+                                  new_x_sd = NULL,
+                                  mu = NULL,
+                                  alpha = NULL,
+                                  sigma = NULL,
+                                  beta = NULL) {
+  # Inspect parameters
+  # Must specify (mu, alpha, sigma, beta)
+  # if max_n_bids isn't provided, set to 10
+  # new_x_meanlog and new_x_sdlog must be of the same length as beta or scalar
+  # Inspect new_x_meanlog and new_x_sdlog
+  #'new_x_sdlog' must be numeric vector,
+  #      of same length as 'new_x_meanlog'
 
-genSampleData1 <- function() {
-  # For testing purposes, we will generate sample data
+  # Generate number of bids for every auction
+  n_bids = sample(2:max_n_bids, obs, replace=TRUE)
+  gamma_1p1oa = gamma(1 + 1/alpha)
 
-  set.seed(301)
-  # data = # Generate some data
-  # y, n, x1, x2: positive
-  # n: discrete and > 1
-  # y is some function of n, x1, x2
+  # Winning cost is taken as a minimum of n_bids independent r.v's distributed as Weibull
+  # Then a proportional bid function is applied to the winning cost
+  v.w_bid = rep(NA, obs)
 
-  obs = 200
-  w = rlnorm(obs)
-  x1 = rlnorm(obs) + 0.5*w
-  x2 = 0.1*rlnorm(obs) + 0.3*w
-  e = 2*rlnorm(obs)
-  n = sample(2:10, obs, replace=TRUE)
-  y = 10 - 0.5*n + x1 + x2 + e
-  data = data.frame(cbind(y, n, x1, x2))
-  #plot(n, y)
+  for(i in 1:obs){
+    costs = (mu/gamma(1+1/alpha))*(-log(1-stats::runif(n_bids[i])))^(1/alpha)
 
-  v__y = data$y
-  v__n = data$n
-  m__h_x = as.matrix(cbind(log(data$x1),log(data$x2)))
+    v.w_bid[i] = vf__bid_function_fast(cost=min(costs),
+                                   num_bids=n_bids[i],
+                                   mu=mu,
+                                   alpha=alpha,
+                                   gamma_1p1oa=gamma_1p1oa)
+  }
 
-  return(
-    list(
-      v__y = v__y, v__n = v__n, m__h_x = m__h_x
-    )
-  )
+  # Unobserved heterogeneity
+  sigma_lnorm = sqrt(log(1+sigma^2))
+  v.u = rlnorm(n = obs, meanlog=(-sigma_lnorm^2*1/2), sdlog = sigma_lnorm)
+
+  # Observed heterogeneity
+  all_x_vars = auction__generate_x(obs = obs,
+                                   new_x_mean = new_x_mean,
+                                   new_x_sd = new_x_sd)
+
+  # Calculate winning bid
+  v.h_x = exp(colSums(beta*t(all_x_vars)))
+  v.winning_bid = v.w_bid*v.u*v.h_x
+
+  dat = data.frame(winning_bid = v.winning_bid, n_bids = n_bids, all_x_vars)
+
+  return(dat)
 }
 
 
+# Observed heterogeneity
+auction__generate_x <- function(obs,
+                                new_x_mean,
+                                new_x_sd) {
+  # Generate new_x_vars
+  new_x_vars = matrix(NA, obs, length(new_x_mean))
+  new_x_num = length(new_x_mean)
 
-#' @export
+  for (i.new_x in 1:new_x_num) {
+      new_x_vars[, i.new_x] = rnorm(obs,
+                                   mean = new_x_mean[i.new_x],
+                                   sd = new_x_sd[i.new_x])
+  }
 
-f_conv_initGuess <- function(v__y, v__n, m__h_x) {
-  # Find starting point / intial guess
-  #
-  # Input:
-  #   v__y
-  #
-  #   v__n
-  #
-  #   m__h_x
-  #
-  # Output:
-  #   Returned list is of the form
-  #     (mu, a, u, h[1], h[2], ... )
+  colnames(new_x_vars) = paste0("obs_X",1:new_x_num)
 
-  # Currently, fix initial guess
-  mu_init = 8
-  a_init = 2
-  u_init = 0.5
-  h_init = rep(0.5, dim(m__h_x)[2])
-  h_init[1] = 0.4
-  h_init[2] = 0.5
-
-  return(c(mu_init, a_init, u_init, h_init))
-}
-
-
-#' @export
-
-f_conv_conditions <- function(x_initialGuess) {
-  # Define convergence conditions
-  #
-  # Input:
-  #   x_initialGuess
-  #     must be a numeric array of at least length 5
-  return(
-    list(
-      maxit = 2000,
-      parscale = c(1, 0.1, 1, 0.1, rep(1, length(x_initialGuess) - 4) ))
-  )
+  return(new_x_vars)
 }
 
