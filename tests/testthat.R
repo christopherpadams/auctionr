@@ -1,4 +1,4 @@
 library(testthat)
-library(auctionmodeling)
+library(auctionmodel)
 
-test_check("auctionmodeling")
+test_check("auctionmodel")
