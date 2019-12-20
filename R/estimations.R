@@ -1,104 +1,3 @@
-#' Suite of functions to estimate private-value auction models
-#'
-#'
-#' @param cost XXnumber of observations to draw
-#' @param num_bids XXnon-negative alpha parameter of the beta distribution
-#' @param mu XXnon-negative beta parameter of the beta distribution
-#' @param alpha XXnon-negative beta parameter of the beta distribution
-#' @param gamma_1p1oa XXnon-negative beta parameter of the beta distribution
-#'
-#' @details The Beta distribution with parameters \eqn{a} and \eqn{b} has
-#' density:
-#'
-#' \deqn{
-#'     \Gamma(a+b)/(\Gamma(a)\Gamma(b))x^(a-1)(1-x)^(b-1)
-#' }
-#'
-#' for \eqn{a > 0}, \eqn{b > 0} and \eqn{0 \le x \le 1}.
-#'
-#' @examples
-#' # Draw from beta distribution with parameters a = 1 and b = 3
-#' beta_plot(a = 1, b = 3)
-#'
-#' @seealso \code{\link{rbeta}}, \code{\link{geom_density}}
-#'
-#'
-
-vf__bid_function_fast = function(cost, num_bids, mu, alpha, gamma_1p1oa) {
-    # ?solving for the cost
-    ifelse (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha) == 0,
-
-            cost + mu/alpha*(num_bids-1)^(-1/alpha)*1/gamma_1p1oa*
-            ((num_bids-1)*(gamma_1p1oa/mu*cost)^alpha)^(1/alpha-1),
-
-            cost + 1/alpha*(mu/gamma_1p1oa)*(num_bids-1)^(-1/alpha)*
-            pgamma((num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha, 1/alpha, lower=FALSE)*
-            gamma(1/alpha)* # Check gamma(1/alpha) part
-            1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha)
-            )
-}
-
-
-vf__w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, param_u) {
-  #
-  b_z = vf__bid_function_fast(cost=z, num_bids=num_bids, mu=mu, alpha=alpha, gamma_1p1oa)
-  u_z = w_bid/b_z
-
-  vals = num_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha-1)*
-    exp(-num_bids*(gamma_1p1oa/mu*z)^alpha)*
-    1/b_z*
-    dlnorm(u_z, meanlog=(-param_u^2*1/2), sdlog = param_u) # Note: can swap for different distributions
-
-  # ensuring that really large and small values do not throw errors
-  vals[(gamma_1p1oa/mu)^alpha == Inf] = 0
-  vals[exp(-num_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
-
-  return(vals)
-}
-
-
-f__funk = function(data_vec, param_u) {
-  #
-  val = integrate(vf__w_integrand_z_fast, w_bid=data_vec[1],
-                  num_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
-                  gamma_1p1oa=data_vec[5], param_u=param_u, lower=0, upper=Inf)
-
-  if(val$message != "OK") stop("Integration failed.")
-
-  return(val$value)
-}
-
-
-f__ll_parallel = function(x0, y, n, h_x, cl) {
-  #
-  params = x0
-  v__y = y
-  v__n = n
-  m__h_x = h_x
-
-  v__mu = params[1]
-  v__alpha = params[2]
-  u = params[3]
-
-  h = params[4:( 3 + dim(m__h_x)[2] )]
-  v__h = exp( colSums( h * t(m__h_x) ) )
-
-  if (u <= 0.01) return(-Inf) # Check that these hold at estimated values
-  if (v__mu <= 0) return(-Inf)
-  if (v__alpha <= 0.01) return(-Inf)
-
-  # Y Component
-  v__gamma_1p1opa = gamma(1 + 1/v__alpha)
-  v__w = v__y / v__h
-  dat = cbind(v__w, v__n, v__mu, v__alpha, v__gamma_1p1opa)
-
-  v__f_w = parApply(cl = cl, X = dat, MARGIN = 1, FUN = f__funk, param_u = u)
-  v__f_y = v__f_w / v__h
-
-  return(-sum(log(v__f_y)))
-}
-
-
 #' Estimates a first-price auction model
 #'
 #'
@@ -287,3 +186,77 @@ auction__generate_x <- function(obs,
   return(new_x_vars)
 }
 
+
+vf__bid_function_fast = function(cost, num_bids, mu, alpha, gamma_1p1oa) {
+  # ?solving for the cost
+  ifelse (exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha) == 0,
+
+          cost + mu/alpha*(num_bids-1)^(-1/alpha)*1/gamma_1p1oa*
+            ((num_bids-1)*(gamma_1p1oa/mu*cost)^alpha)^(1/alpha-1),
+
+          cost + 1/alpha*(mu/gamma_1p1oa)*(num_bids-1)^(-1/alpha)*
+            pgamma((num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha, 1/alpha, lower=FALSE)*
+            gamma(1/alpha)* # Check gamma(1/alpha) part
+            1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha)
+  )
+}
+
+
+vf__w_integrand_z_fast = function(z, w_bid, num_bids, mu, alpha, gamma_1p1oa, param_u) {
+  #
+  b_z = vf__bid_function_fast(cost=z, num_bids=num_bids, mu=mu, alpha=alpha, gamma_1p1oa)
+  u_z = w_bid/b_z
+
+  vals = num_bids*alpha*(gamma_1p1oa/mu)^alpha*z^(alpha-1)*
+    exp(-num_bids*(gamma_1p1oa/mu*z)^alpha)*
+    1/b_z*
+    dlnorm(u_z, meanlog=(-param_u^2*1/2), sdlog = param_u) # Note: can swap for different distributions
+
+  # ensuring that really large and small values do not throw errors
+  vals[(gamma_1p1oa/mu)^alpha == Inf] = 0
+  vals[exp(-num_bids*(gamma_1p1oa/mu*z)^alpha) == 0] = 0
+
+  return(vals)
+}
+
+
+f__funk = function(data_vec, param_u) {
+  #
+  val = integrate(vf__w_integrand_z_fast, w_bid=data_vec[1],
+                  num_bids=data_vec[2], mu=data_vec[3], alpha=data_vec[4],
+                  gamma_1p1oa=data_vec[5], param_u=param_u, lower=0, upper=Inf)
+
+  if(val$message != "OK") stop("Integration failed.")
+
+  return(val$value)
+}
+
+
+f__ll_parallel = function(x0, y, n, h_x, cl) {
+  #
+  params = x0
+  v__y = y
+  v__n = n
+  m__h_x = h_x
+
+  v__mu = params[1]
+  v__alpha = params[2]
+  u = params[3]
+
+  h = params[4:( 3 + dim(m__h_x)[2] )]
+  v__h = exp( colSums( h * t(m__h_x) ) )
+
+  if (u <= 0.01) return(-Inf) # Check that these hold at estimated values
+  if (v__mu <= 0) return(-Inf)
+  if (v__alpha <= 0.01) return(-Inf)
+
+  # Y Component
+  v__gamma_1p1opa = gamma(1 + 1/v__alpha)
+  v__w = v__y / v__h
+  dat = cbind(v__w, v__n, v__mu, v__alpha, v__gamma_1p1opa)
+
+  v__f_w = parApply(cl = cl, X = dat, MARGIN = 1, FUN = f__funk, param_u = u)
+  v__f_y = v__f_w / v__h
+
+  return(-sum(log(v__f_y)))
+}
