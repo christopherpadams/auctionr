@@ -126,8 +126,7 @@ auction_generate_data <- function(obs = NULL,
                                   beta = NULL) {
   # Inspect parameters
   # Must specify (mu, alpha, sigma, beta)
-  all_args <- list(obs = obs, max_n_bids = max_n_bids, new_x_mean = new_x_mean, new_x_sd = new_x_sd,
-                mu = mu, alpha = alpha, sigma = sigma, beta = beta)
+  all_args <- as.list(environment())
   missing_args <- names(all_args[sapply(all_args, is.null)])
   nmiss <- length(missing_args)
   if(nmiss != 0) {
