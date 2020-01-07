@@ -56,7 +56,23 @@ auction_model <- function(dat = NULL,
 
   library(parallel)
 
-  # Check inputs here!
+  all_args <- as.list(environment())
+  missing_args <- names(all_args[sapply(all_args, is.null)])
+  nmiss <- length(missing_args)
+  if(nmiss != 0) {
+    stop(paste("Argument(s) '", paste(missing_args[-nmiss], collapse = "', '"),
+               ifelse(nmiss > 1, " and ", ""),
+               missing_args[nmiss], "' required", sep = ""))
+  }
+  # all columns must be numeric
+  non_num_dat <- names(dat)[!sapply(dat, is.numeric)]
+  nnd <- length(non_num_dat)
+  if (nnd != 0) {
+    stop(paste("'dat' columns", paste(non_num_dat[-nnd], collapse = "', '"),
+               ifelse(nnd > 1, " and ", ""),
+               non_num_dat[nnd], "' must be numeric", sep = ""))
+  }
+
 
   v__y = dat[,1]
   v__n = dat[,2]
