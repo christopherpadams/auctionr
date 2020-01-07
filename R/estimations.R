@@ -80,9 +80,6 @@ auction_model <- function(dat = NULL,
 
   # Set up parallelization
   cl = makeCluster(num_cores)
-  clusterExport(cl, varlist=c("vf__bid_function_fast",
-                             "vf__w_integrand_z_fast",
-                             "f__funk"))
 
   #f__ll_parallel(x0, y = v__y, n = v__n, h_x = m__h_x, cl = cl)
 
