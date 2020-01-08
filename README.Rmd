@@ -1,9 +1,10 @@
 ---
 title: "Auction Modeling"
-output: md_document
+output: github_document
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
@@ -17,33 +18,48 @@ knitr::opts_chunk$set(
 )
 ```
 
-## Auction Modeling
 
-Package for R to estimate private-value auction models while allowing for unobservable
-auction-specific heterogeneity. Extensions to the baseline model allow for endogenous 
-entry and observing multiple bids per auction.
+# auctionmodel
 
-## Motivation 
+## Overview 
 
-This is a test.
+An R package for R to estimate private-value auction models while allowing for unobservable
+auction-specific heterogeneity.
 
-## Examples
+## Installation
 
-The `beta_plot` function allows you to simulate data from a 
-beta distribution and plot the results.
+```{r, eval = FALSE}
+# Install the the development version from GitHub:
+
+# install.packages("remotes")
+remotes::install_github("alexjmac/auction_model")
+```
+
+
+## Getting started
+
+There are two functions availabe from the package:
+
+* `auction_generate_data()` which xxxx
+
+* `auction_model()` which does the real work.
 
 ```{r}
-library(auctionmodeling)
-#MYFUNCTIONGOESHERE(withparams = TRUE)
+library(auctionmodel)
+set.seed(100)
+
+dat <- auction_generate_data(obs = 100, mu = 10, alpha = 2, sigma = 0.2,
+                             beta = c(-1,1), new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8))
+
+auction_model(dat,
+              init_param =  c(8, 2, .5, .4, .6),
+              num_cores = 1,
+              method = "BFGS",
+              control = list(trace=1, parscale = c(1,0.1,0.1,1,1)))
 ```
 
+## For further information
 
-## Including Plots
 
-You can also embed plots, for example:
+## License
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

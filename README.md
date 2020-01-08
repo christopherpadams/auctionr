@@ -1,32 +1,70 @@
-<!-- README.md is generated from README.Rmd. Please edit that file -->
 Auction Modeling
-----------------
+================
 
-Package for R to estimate private-value auction models while allowing
-for unobservable auction-specific heterogeneity. Extensions to the
-baseline model allow for endogenous entry and observing multiple bids
-per auction.
+<!-- README.md is generated from README.Rmd. Please edit that file -->
 
-Motivation
-----------
+# auctionmodel
 
-This is a test.
+## Overview
 
-Examples
---------
+An R package for R to estimate private-value auction models while
+allowing for unobservable auction-specific heterogeneity.
 
-The `beta_plot` function allows you to simulate data from a beta
-distribution and plot the results.
+## Installation
 
-    library(auctionmodeling)
-    #MYFUNCTIONGOESHERE(withparams = TRUE)
+``` r
+# Install the the development version from GitHub:
 
-Including Plots
----------------
+# install.packages("remotes")
+remotes::install_github("alexjmac/auction_model")
+```
 
-You can also embed plots, for example:
+## Getting started
 
-![](man/figures/pressure-1.png)
+There are two functions availabe from the package:
 
-Note that the `echo = FALSE` parameter was added to the code chunk to
-prevent printing of the R code that generated the plot.
+  - `auction_generate_data()` which xxxx
+
+  - `auction_model()` which does the real work.
+
+<!-- end list -->
+
+``` r
+library(auctionmodel)
+set.seed(100)
+
+dat <- auction_generate_data(obs = 100, mu = 10, alpha = 2, sigma = 0.2,
+                             beta = c(-1,1), new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8))
+
+auction_model(dat,
+              init_param =  c(8, 2, .5, .4, .6),
+              num_cores = 1,
+              method = "BFGS",
+              control = list(trace=1, parscale = c(1,0.1,0.1,1,1)))
+```
+
+    ## initial  value 1339.327262 
+    ## iter  10 value 434.301377
+    ## iter  20 value 410.711195
+    ## final  value 410.710822 
+    ## converged
+
+    ## $par
+    ## [1] 11.0126727  1.7527689  0.2042297 -0.9206175  1.0680962
+    ## 
+    ## $value
+    ## [1] 410.7108
+    ## 
+    ## $counts
+    ## function gradient 
+    ##       51       22 
+    ## 
+    ## $convergence
+    ## [1] 0
+    ## 
+    ## $message
+    ## NULL
+
+## For further information
+
+## License
