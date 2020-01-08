@@ -14,27 +14,28 @@
 #'
 #' where B Is the proportional winning bid, U is the unobserved heterogeneity, and h(X) controls for
 #' observed heterogeneity. The model is log-linear so that
-#' log(Y) = log(B) + log(U) + log(h(X)) and log(h(X)) = beta1 * X1 + beta2 * X2 + … .
+#' log(Y) = log(B) + log(U) + log(h(X)) and log(h(X)) = beta1 * X1 + beta2 * X2 + ...
 #'
 #' The (conditionally) independent private costs are drawn from a Weibull distribution
 #' with parameters mu and alpha. The CDF of this distribution is given by
 #'
-#' F(c) = 1 – exp(- (c * 1/mu * Gamma(1 + 1/alpha))^(alpha))
+#' F(c) = 1 - exp(- (c * 1/mu * Gamma(1 + 1/alpha))^(alpha))
 #'
 #' The unobserved heterogeneity U is sampled from log-Normal distribution with mean 1 and a free parameter sigma representing its standard deviation.
 #'
 #' \code{ini_params}, the initial guess for convergence, must be supplied.
-#'#'
+#'
 #' This funtion utilizes the \code{Rsnow} framework within the \code{Rparallel} package. If \code{numcores} is not specified, this will be run using only
 #' one CPU/core. One can use \code{parallel::detectCores()} to determine how many are available on your system, but you are not advised
 #' to use all at once, as this may make your system unresponsive. Please see \code{Rparallel} and \code{Rsnow} for more details.
 #'
 #' Note that the supplied data can not have missing values.
-#'#'
+#'
 #' @examples
 #'
 #' set.seed(100)
-#' dat <- auction_generate_data(obs = 100, mu = 10, alpha = 2, sigma = 0.2, beta = c(-1,1), new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8))
+#' dat <- auction_generate_data(obs = 100, mu = 10, alpha = 2, sigma = 0.2,
+#'                              beta = c(-1,1), new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8))
 #' auction_model(dat,
 #'               init_param =  c(8, 2, .5, .4, .6),
 #'               num_cores = 1,
@@ -76,7 +77,7 @@ auction_model <- function(dat = NULL,
 
   v__y = dat[,1]
   v__n = dat[,2]
-  m__h_x = dat[,-c(1:2)]
+  m__h_x = dat[,-c(1:2), drop = FALSE]
 
   # Set up parallelization
   cl = makeCluster(num_cores)
