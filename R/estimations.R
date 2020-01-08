@@ -23,7 +23,7 @@
 #'
 #' The unobserved heterogeneity U is sampled from log-Normal distribution with mean 1 and a free parameter sigma representing its standard deviation.
 #'
-#' \code{ini_params}, the initial guess for convergence, must be supplied.
+#' \code{init_params}, the initial guess for convergence, must be supplied.
 #'
 #' This funtion utilizes the \code{Rsnow} framework within the \code{Rparallel} package. If \code{numcores} is not specified, this will be run using only
 #' one CPU/core. One can use \code{parallel::detectCores()} to determine how many are available on your system, but you are not advised
@@ -57,19 +57,15 @@ auction_model <- function(dat = NULL,
 
   library(parallel)
 
-  all_args <- as.list(environment())
-  missing_args <- names(all_args[sapply(all_args, is.null)])
-  nmiss <- length(missing_args)
-  if(nmiss != 0) {
-    stop(paste("Argument(s) '", paste(missing_args[-nmiss], collapse = "', '"),
-               ifelse(nmiss > 1, " and ", ""),
-               missing_args[nmiss], "' required", sep = ""))
-  }
+  if(is.null(dat)) stop("Argument 'dat' is required")
+  if(is.null(init_param)) stop("Argument 'init_param' is required")
+  if(!is.numeric(init_param)) stop("Argument 'init_param' must be a numeric vector")
+  if(length(init_param) != (3 + ncol(dat) - 2)) stop("Argument 'init_param' must be of length 3 + length(beta)")
   # all columns must be numeric
   non_num_dat <- names(dat)[!sapply(dat, is.numeric)]
   nnd <- length(non_num_dat)
   if (nnd != 0) {
-    stop(paste("'dat' columns", paste(non_num_dat[-nnd], collapse = "', '"),
+    stop(paste("'dat' column", paste(non_num_dat[-nnd], collapse = "', '"),
                ifelse(nnd > 1, " and ", ""),
                non_num_dat[nnd], "' must be numeric", sep = ""))
   }

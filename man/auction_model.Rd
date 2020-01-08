@@ -42,7 +42,7 @@ F(c) = 1 - exp(- (c * 1/mu * Gamma(1 + 1/alpha))^(alpha))
 
 The unobserved heterogeneity U is sampled from log-Normal distribution with mean 1 and a free parameter sigma representing its standard deviation.
 
-\code{ini_params}, the initial guess for convergence, must be supplied.
+\code{init_params}, the initial guess for convergence, must be supplied.
 
 This funtion utilizes the \code{Rsnow} framework within the \code{Rparallel} package. If \code{numcores} is not specified, this will be run using only
 one CPU/core. One can use \code{parallel::detectCores()} to determine how many are available on your system, but you are not advised
