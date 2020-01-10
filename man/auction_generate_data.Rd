@@ -2,7 +2,7 @@
 % Please edit documentation in R/estimations.R
 \name{auction_generate_data}
 \alias{auction_generate_data}
-\title{Generates sample data for running \code{\link{auction_model()}}}
+\title{Generates sample data for running \code{\link{auction_model}}}
 \usage{
 auction_generate_data(
   obs = NULL,
@@ -41,7 +41,7 @@ A data frame with \code{obs} rows and the following columns:
 }
 }
 \description{
-Generates sample data for running \code{\link{auction_model()}}
+Generates sample data for running \code{\link{auction_model}}
 }
 \details{
 This function generates example data for feeding into auction_model(). Specifically, the

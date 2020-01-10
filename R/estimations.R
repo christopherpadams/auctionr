@@ -1,9 +1,12 @@
 #' Estimates a first-price auction model
 #'
 #'
-#' @param dat data.frame containing input columns in the following order: the winning bids, number of bids, and \code{X} variables that represent observed heterogeneity.
-#' @param init_params Vector of initial values for mu, alpha, sigma, and beta vector.
-#' @param num_cores The number of cores for running the model in parallel.
+#' @param dat data.frame containing input columns in the following order: the winning bids, number of bids, and \code{X}
+#' variables that represent observed heterogeneity.
+#' @param init_params Vector of initial values for mu, alpha, sigma, and beta vector, provided in order specified.
+#' Note that Weibull distribution requires mu and alpha to be positive. Naturally, sigma must be positive as well. Beta vector may take any values.
+#' If \code{init_params} is not provided, the default values will be set to mu0=1, alpha0=1, sigma0=0.1, and all beta0 set to 1.
+#' @param num_cores The number of cores for running the model in parallel. The default value is 1.
 #' @param method Optimization method to be used in optim() (see ?optim for details).
 #' @param control A list of control parameters to be passed to optim() (see ?optim for details).
 #'
@@ -59,9 +62,9 @@ auction_model <- function(dat = NULL,
   library(parallel)
 
   if(is.null(dat)) stop("Argument 'dat' is required")
-  if(is.null(init_param)) stop("Argument 'init_param' is required")
+  if(is.null(init_param)) init_param = c(1,1,0.1,rep(1,dim(dat)[2]-2))
   if(!is.numeric(init_param)) stop("Argument 'init_param' must be a numeric vector")
-  if(length(init_param) != (3 + ncol(dat) - 2)) stop("Argument 'init_param' must be of length 3 + length(beta)")
+  if(length(init_param) != (3 + ncol(dat) - 2)) stop("Argument 'init_param' must be of length 3 + number of observed X provided in 'dat'")
   # all columns must be numeric
   non_num_dat <- names(dat)[!sapply(dat, is.numeric)]
   nnd <- length(non_num_dat)
@@ -94,7 +97,7 @@ auction_model <- function(dat = NULL,
 }
 
 
-#' Generates sample data for running \code{\link{auction_model()}}
+#' Generates sample data for running \code{\link{auction_model}}
 #'
 #'
 #' @param obs Number of observations (or auctions) to draw.

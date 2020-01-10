@@ -13,15 +13,18 @@ auction_model(
 )
 }
 \arguments{
-\item{dat}{data.frame containing input columns in the following order: the winning bids, number of bids, and \code{X} variables that represent observed heterogeneity.}
+\item{dat}{data.frame containing input columns in the following order: the winning bids, number of bids, and \code{X}
+variables that represent observed heterogeneity.}
 
-\item{num_cores}{The number of cores for running the model in parallel.}
+\item{num_cores}{The number of cores for running the model in parallel. The default value is 1.}
 
 \item{method}{Optimization method to be used in optim() (see ?optim for details).}
 
 \item{control}{A list of control parameters to be passed to optim() (see ?optim for details).}
 
-\item{init_params}{Vector of initial values for mu, alpha, sigma, and beta vector.}
+\item{init_params}{Vector of initial values for mu, alpha, sigma, and beta vector, provided in order specified.
+Note that Weibull distribution requires mu and alpha to be positive. Naturally, sigma must be positive as well. Beta vector may take any values.
+If \code{init_params} is not provided, the default values will be set to mu0=1, alpha0=1, sigma0=0.1, and all beta0 set to 1.}
 }
 \description{
 Estimates a first-price auction model
