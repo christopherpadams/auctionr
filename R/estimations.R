@@ -3,6 +3,7 @@
 #'
 #' @param dat data.frame containing input columns in the following order: the winning bids, number of bids, and \code{X} variables that represent observed heterogeneity.
 #' @param init_params Vector of initial values for mu, alpha, sigma, and beta vector.
+#' @param num_cores The number of cores for running the model in parallel.
 #' @param method Optimization method to be used in optim() (see ?optim for details).
 #' @param control A list of control parameters to be passed to optim() (see ?optim for details).
 #'
@@ -93,7 +94,7 @@ auction_model <- function(dat = NULL,
 }
 
 
-#' Generate example data for running \code{\link{auction_model}}
+#' Generates sample data for running \code{\link{auction_model()}}
 #'
 #'
 #' @param obs Number of observations (or auctions) to draw.

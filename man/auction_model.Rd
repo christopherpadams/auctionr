@@ -15,6 +15,8 @@ auction_model(
 \arguments{
 \item{dat}{data.frame containing input columns in the following order: the winning bids, number of bids, and \code{X} variables that represent observed heterogeneity.}
 
+\item{num_cores}{The number of cores for running the model in parallel.}
+
 \item{method}{Optimization method to be used in optim() (see ?optim for details).}
 
 \item{control}{A list of control parameters to be passed to optim() (see ?optim for details).}
