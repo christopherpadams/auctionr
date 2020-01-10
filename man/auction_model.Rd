@@ -24,7 +24,7 @@ variables that represent observed heterogeneity.}
 
 \item{init_params}{Vector of initial values for mu, alpha, sigma, and beta vector, provided in order specified.
 Note that Weibull distribution requires mu and alpha to be positive. Naturally, sigma must be positive as well. Beta vector may take any values.
-If \code{init_params} is not provided, the default values will be set to mu0=1, alpha0=1, sigma0=0.1, and all beta0 set to 1.}
+If \code{init_params} is not provided, all values will be set to 1 by default.}
 }
 \description{
 Estimates a first-price auction model
