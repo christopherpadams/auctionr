@@ -80,7 +80,7 @@ auction_model <- function(dat = NULL,
   m__h_x = dat[,-c(1:2), drop = FALSE]
 
   # Set up parallelization
-  cl = makeCluster(num_cores)
+  cl = makeCluster(num_cores, timeout = 60)
   on.exit(stopCluster(cl), add = TRUE)
 
   #f__ll_parallel(x0, y = v__y, n = v__n, h_x = m__h_x, cl = cl)
