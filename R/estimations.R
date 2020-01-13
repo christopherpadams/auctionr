@@ -81,13 +81,14 @@ auction_model <- function(dat = NULL,
   m__h_x = dat[,-c(1:2), drop = FALSE]
 
   # Set up parallelization
-  cl = makeCluster(num_cores, timeout = 60)
-  on.exit(stopCluster(cl), add = TRUE)
+  cl = makeCluster(num_cores)
 
   #f__ll_parallel(x0, y = v__y, n = v__n, h_x = m__h_x, cl = cl)
 
   # Run
-  result = optim(par=init_param, fn=f__ll_parallel, y=v__y, n=v__n, h_x=m__h_x, cl=cl, method = method, control = control)
+  result = tryCatch(optim(par=init_param, fn=f__ll_parallel, y=v__y, n=v__n, h_x=m__h_x, cl=cl, method = method, control = control),
+                    finally = stopCluster(cl)
+  )
 
   # Inspect result
   # Might need to make sure that it is a global solution, try different optim() methods
