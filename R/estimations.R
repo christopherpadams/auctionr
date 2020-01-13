@@ -73,6 +73,7 @@ auction_model <- function(dat = NULL,
                ifelse(nnd > 1, " and ", ""),
                non_num_dat[nnd], "' must be numeric", sep = ""))
   }
+  if(any(init_param[1:3] <= 0)) stop("init_param values for mu, alpha, and sigma must be positive.")
 
 
   v__y = dat[,1]
@@ -147,6 +148,7 @@ auction_generate_data <- function(obs = NULL,
                ifelse(nmiss > 1, " and ", ""),
                missing_args[nmiss], "' required", sep = ""))
   }
+  if(any(c(mu, alpha, sigma) <= 0)) stop("Values for mu, alpha, and sigma must be positive.")
   # new_x_mean and new_x_sd must be of the same length as beta
   if (length(new_x_mean) != length(beta)) stop("'new_x_sd' must have the same length as 'beta'")
   if (length(new_x_sd) != length(beta)) stop("'new_x_sd' must have the same length as 'beta'")

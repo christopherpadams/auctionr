@@ -24,6 +24,15 @@ test_that("Requires appropriate parameters, obs, nbids", {
                                      new_x_mean = 1,
                                      new_x_sd = 1),
                "Argument.+must be numeric")
+  # Requires positive mu, alpha, sigma
+  expect_error(auction_generate_data(obs = "a",
+                                     mu = -1,
+                                     beta = 0.5,
+                                     alpha = alpha,
+                                     sigma = sigma,
+                                     new_x_mean = 1,
+                                     new_x_sd = 1),
+               ".+must be positive")
   ## new_x_mean and new_x_sd must have same length as beta
   expect_error(auction_generate_data(obs = obs,
                                      mu = mu,
