@@ -3,7 +3,7 @@
 #'
 #' @param dat data.frame containing input columns in the following order: the winning bids, number of bids, and \code{X}
 #' variables that represent observed heterogeneity.
-#' @param init_params Vector of initial values for mu, alpha, sigma, and beta vector, provided in order specified.
+#' @param init_params Vector of initial values for mu, alpha, sigma, and beta vector, provided in the order specified.
 #' Note that Weibull distribution requires mu and alpha to be positive. Naturally, sigma must be positive as well. Beta vector may take any values.
 #' If \code{init_params} is not provided, all values will be set to 1 by default.
 #' @param num_cores The number of cores for running the model in parallel. The default value is 1.
@@ -86,11 +86,39 @@ auction_model <- function(dat = NULL,
   #f__ll_parallel(x0, y = v__y, n = v__n, h_x = m__h_x, cl = cl)
 
   # Run
-  result = tryCatch(optim(par=init_param, fn=f__ll_parallel, y=v__y, n=v__n, h_x=m__h_x, cl=cl, method = method, control = control),
+  result = tryCatch(optim(par=init_param, fn=f__ll_parallel,
+                          y=v__y, n=v__n, h_x=m__h_x, cl=cl,
+                          method = method, control = control,
+                          hessian = TRUE),
                     finally = stopCluster(cl)
   )
 
-  # Inspect result
+
+  if (result$convergence==0){
+
+    fisher_info_diag <- diag(solve(result$hessian))
+    if (any(fisher_info_diag<0)) fisher_info_diag[fisher_info_diag<0] = NA
+    est_param_sigma <- sqrt(fisher_info_diag)
+
+    est_param <-
+      paste0("\nEstimated parameters (SE):\n\tmu\t", signif(result$par[1],6), " (", signif(est_param_sigma[1],6), ")\n",
+             "\talpha\t", signif(result$par[2],6), " (", signif(est_param_sigma[2],6), ")\n",
+             "\tsigma\t",signif(result$par[3],6), " (", signif(est_param_sigma[3],6), ")\n")
+
+    if (length(result$par) > 3)
+      for (i in 4:length(result$par)) est_param = paste0(est_param, "\tbeta[", i-3, "]\t", signif(result$par[i],6), " (", signif(est_param_sigma[i],6), ")\n")
+
+    est_param <- paste0(est_param, "\n", "Maximum likelihood = ", -signif(result$value,6))
+
+    output = est_param
+
+  } else
+    output = ifelse(result$convergence==1,
+                    "The iteration limit has been reached, use control$maxit to increase it.",
+                    ifelse(result$convergence==10, "Degeneracy of the Nelder–Mead simplex.",
+                           result$messsage))
+
+  cat(output, "\n")
   # Might need to make sure that it is a global solution, try different optim() methods
 
   # Return result
