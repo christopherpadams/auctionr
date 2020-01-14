@@ -1,9 +1,13 @@
 #' Estimates a first-price auction model
 #'
 #'
-#' @param dat data.frame containing input columns in the following order: the winning bids, number of bids, and \code{X}
+#' @param dat A data.frame containing input columns in the following order: the winning bids, number of bids, and \code{X}
 #' variables that represent observed heterogeneity.
+<<<<<<< HEAD
 #' @param init_params Vector of initial values for mu, alpha, sigma, and beta vector, provided in the order specified.
+=======
+#' @param init_param Vector of initial values for mu, alpha, sigma, and beta vector, provided in order specified.
+>>>>>>> b1fb7b429adee368ea98d57ecc248c80084f8081
 #' Note that Weibull distribution requires mu and alpha to be positive. Naturally, sigma must be positive as well. Beta vector may take any values.
 #' If \code{init_params} is not provided, all values will be set to 1 by default.
 #' @param num_cores The number of cores for running the model in parallel. The default value is 1.
