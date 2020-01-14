@@ -25,13 +25,6 @@ If \code{init_params} is not provided, all values will be set to 1 by default.}
 \item{method}{Optimization method to be used in optim() (see ?optim for details).}
 
 \item{control}{A list of control parameters to be passed to optim() (see ?optim for details).}
-<<<<<<< HEAD
-
-\item{init_params}{Vector of initial values for mu, alpha, sigma, and beta vector, provided in the order specified.
-Note that Weibull distribution requires mu and alpha to be positive. Naturally, sigma must be positive as well. Beta vector may take any values.
-If \code{init_params} is not provided, all values will be set to 1 by default.}
-=======
->>>>>>> b1fb7b429adee368ea98d57ecc248c80084f8081
 }
 \description{
 Estimates a first-price auction model
