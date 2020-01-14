@@ -7,13 +7,13 @@ Auction Modeling
 
 ## Overview
 
-An R package for R to estimate private-value auction models while
-allowing for unobservable auction-specific heterogeneity.
+A package for R to estimate private-value auction models while allowing
+for unobservable auction-specific heterogeneity.
 
 ## Installation
 
 ``` r
-# Install the the development version from GitHub:
+# Install the development version from GitHub:
 
 # install.packages("remotes")
 remotes::install_github("alexjmac/auction_model")
@@ -21,11 +21,13 @@ remotes::install_github("alexjmac/auction_model")
 
 ## Getting started
 
-There are two functions availabe from the package:
+There are two functions available in the package:
 
-  - `auction_generate_data()` which xxxx
+  - `auction_generate_data()` allows the user to generate sample data
+    from the principal model used in the package.
 
-  - `auction_model()` which does the real work.
+  - `auction_model()` calculates maximum likelihood estimates of
+    parameters of the principal model for the data provided by the user.
 
 <!-- end list -->
 
