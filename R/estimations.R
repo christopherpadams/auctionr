@@ -317,7 +317,14 @@ f__ll_parallel = function(x0, y, n, h_x, cl) {
   v__w = v__y / v__h
   dat = cbind(v__w, v__n, v__mu, v__alpha, v__gamma_1p1opa)
 
-  v__f_w = parApply(cl = cl, X = dat, MARGIN = 1, FUN = f__funk, sigma_u = u)
+  v__f_w =
+    tryCatch(
+      parApply(cl = cl, X = dat, MARGIN = 1, FUN = f__funk, sigma_u = u),
+      error = function(err_msg){
+        if (grepl("the integral is probably divergent", err_msg) | grepl("non-finite function value", err_msg)) return(-Inf)
+          else print(err_msg)
+      }
+  )
   v__f_y = v__f_w / v__h
 
   return(-sum(log(v__f_y)))
