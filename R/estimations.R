@@ -40,11 +40,12 @@
 #' set.seed(100)
 #' dat <- auction_generate_data(obs = 100, mu = 10, alpha = 2, sigma = 0.2,
 #'                              beta = c(-1,1), new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8))
-#' auction_model(dat,
-#'               init_param =  c(8, 2, .5, .4, .6),
-#'               num_cores = 1,
-#'               method = "BFGS",
-#'               control = list(trace=1, parscale = c(1,0.1,0.1,1,1)))
+#' res <-
+#'   auction_model(dat,
+#'                 init_param =  c(8, 2, .5, .4, .6),
+#'                 num_cores = 1,
+#'                 method = "BFGS",
+#'                 control = list(trace=1, parscale = c(1,0.1,0.1,1,1)))
 #'
 #' @seealso \code{\link{auction_generate_data}}
 #'
