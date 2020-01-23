@@ -1,7 +1,3 @@
-library(auctionmodel)
-library(devtools)
-library(testthat)
-
 context("Bid function, log likelihood")
 
 test_that("Bid function",{
@@ -18,13 +14,13 @@ test_that("Bid function",{
                                                  mu = mu,
                                                  alpha = alpha,
                                                  gamma_1p1oa = gamma_1p1oa)
-    
+
     expect_equal(bids,
                  cost + 1/alpha*(mu/gamma_1p1oa)*(n_bids-1)^(-1/alpha)*
                  stats::pgamma((n_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha, 1/alpha, lower=FALSE)*
                  gamma(1/alpha)*
                  1/exp(-(n_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha))
-    
+
     expect_gte(min(bids),0)
     expect_equal(is.numeric(bids),
                  TRUE)

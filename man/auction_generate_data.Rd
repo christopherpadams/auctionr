@@ -48,7 +48,13 @@ This function generates example data for feeding into auction_model(). Specifica
 winning bid, number of bids, and observed heterogeneity are sampled for the specified number of observations.
 }
 \examples{
-dat <- auction_generate_data(obs = 100, mu = 10, new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8), alpha = 2, sigma = 0.2, beta = c(-1,1))
+dat <- auction_generate_data(obs = 100,
+                             mu = 10,
+                             new_x_mean= c(-1,1),
+                             new_x_sd = c(0.5,0.8),
+                             alpha = 2,
+                             sigma = 0.2,
+                             beta = c(-1,1))
 dim(dat)
 head(dat)
 

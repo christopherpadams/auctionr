@@ -1,7 +1,5 @@
 context("Generate data")
 
-library(auctionmodel)
-
 test_that("Requires appropriate parameters, obs, nbids", {
   obs = 100
   mu = 5

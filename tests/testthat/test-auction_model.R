@@ -1,7 +1,5 @@
 context("Auction model")
 
-library(auctionmodel)
-
 test_that("Requires appropriate parameters", {
   obs = 100
   mu = 5
@@ -25,7 +23,7 @@ test_that("Requires appropriate parameters", {
                ".*must be positive")
 
   # This one should work
-  expect_error(m1 <- auction_model(exd[, 1:5], init_param = c(mu, alpha, sigma, 0, 0, 0)),
+  expect_error(m1 <- auction_model(exd[, 1:5], init_param = c(mu, alpha, sigma, 0, 0, 0), num_cores = 1),
                NA)
   expect_equal(length(m1$par), 6)
 }

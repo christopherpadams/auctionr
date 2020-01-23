@@ -1,7 +1,7 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-
-# Add template README.RMD and
-# README.Rmd to .Rbuildignore
-
-devtools::use_readme_rmd()
+^README\.R?md$
+^working$
+^examples$
+^TODO\.txt$
+^NEWS\.md$

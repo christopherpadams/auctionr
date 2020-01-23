@@ -50,6 +50,7 @@
 #' @seealso \code{\link{auction_generate_data}}
 #'
 #'
+#' @import stats
 #' @import parallel
 #' @export
 
@@ -59,8 +60,6 @@ auction_model <- function(dat = NULL,
                           method = "BFGS",
                           control = list() # list of control parameters for optim()
                           ) {
-
-  library(parallel)
 
   if(is.null(dat)) stop("Argument 'dat' is required")
   if(is.null(init_param)) init_param = c(1,1,1,rep(1,dim(dat)[2]-2))
@@ -116,7 +115,7 @@ auction_model <- function(dat = NULL,
   } else
     output = ifelse(result$convergence==1,
                     "The iteration limit has been reached, use control$maxit to increase it.",
-                    ifelse(result$convergence==10, "Degeneracy of the Nelder–Mead simplex.",
+                    ifelse(result$convergence==10, "Degeneracy of the Nelder-Mead simplex.",
                            result$messsage))
 
   cat(output, "\n")
@@ -151,7 +150,13 @@ auction_model <- function(dat = NULL,
 #'}
 #'
 #' @examples
-#' dat <- auction_generate_data(obs = 100, mu = 10, new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8), alpha = 2, sigma = 0.2, beta = c(-1,1))
+#' dat <- auction_generate_data(obs = 100,
+#'                              mu = 10,
+#'                              new_x_mean= c(-1,1),
+#'                              new_x_sd = c(0.5,0.8),
+#'                              alpha = 2,
+#'                              sigma = 0.2,
+#'                              beta = c(-1,1))
 #' dim(dat)
 #' head(dat)
 #'
@@ -256,7 +261,7 @@ vf__bid_function_fast = function(cost, num_bids, mu, alpha, gamma_1p1oa) {
             ((num_bids-1)*(gamma_1p1oa/mu*cost)^alpha)^(1/alpha-1),
 
           cost + 1/alpha*(mu/gamma_1p1oa)*(num_bids-1)^(-1/alpha)*
-            pgamma((num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha, 1/alpha, lower=FALSE)*
+            pgamma((num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha, 1/alpha, lower.tail=FALSE)*
             gamma(1/alpha)* # Check gamma(1/alpha) part
             1/exp(-(num_bids-1)*(1/(mu/gamma_1p1oa)*cost)^alpha)
   )
