@@ -52,6 +52,7 @@
 #'
 #' @import stats
 #' @import parallel
+#' @importFrom utils capture.output
 #' @export
 
 auction_model <- function(dat = NULL,
@@ -59,7 +60,7 @@ auction_model <- function(dat = NULL,
                           num_cores = 1,
                           method = "BFGS",
                           control = list() # list of control parameters for optim()
-                          ) {
+) {
 
   if(is.null(dat)) stop("Argument 'dat' is required")
   if(is.null(init_param)) init_param = c(1,1,1,rep(1,dim(dat)[2]-2))
@@ -100,15 +101,21 @@ auction_model <- function(dat = NULL,
     if (any(fisher_info_diag<0)) fisher_info_diag[fisher_info_diag<0] = NA
     est_param_sigma <- sqrt(fisher_info_diag)
 
-    est_param <-
-      paste0("\nEstimated parameters (SE):\n\tmu\t", signif(result$par[1],6), " (", signif(est_param_sigma[1],6), ")\n",
-             "\talpha\t", signif(result$par[2],6), " (", signif(est_param_sigma[2],6), ")\n",
-             "\tsigma\t",signif(result$par[3],6), " (", signif(est_param_sigma[3],6), ")\n")
-
-    if (length(result$par) > 3)
-      for (i in 4:length(result$par)) est_param = paste0(est_param, "\tbeta[", i-3, "]\t", signif(result$par[i],6), " (", signif(est_param_sigma[i],6), ")\n")
-
-    est_param <- paste0(est_param, "\n", "Maximum likelihood = ", -signif(result$value,6))
+    param_values <- signif(result$par, 6)
+    param_value_widths <- nchar(gsub("\\..*", "", param_values))
+    param_values <- paste0(sapply(max(param_value_widths) - param_value_widths,
+                                  function(y) paste(rep(" ", each = y), collapse = "")),
+                           param_values)
+    est_param <- cbind(c("mu", "alpha", "sigma",
+                         as.character(sapply(seq_along(result$par[-(1:3)]), function(x) (paste0("beta[", x, "]"))))),
+                       param_values,
+                       paste0("(", signif(est_param_sigma, 6), ")"))
+    colnames(est_param) <- rep("", ncol(est_param))
+    rownames(est_param) <- rep("", nrow(est_param))
+    est_param <- paste(capture.output(print(noquote(est_param))), collapse = "\n\t")
+    est_param <- paste0("\nEstimated parameters (SE):",
+                        est_param, "\n\n",
+                        "Maximum likelihood = ", -signif(result$value,6))
 
     output = est_param
 
