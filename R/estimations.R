@@ -9,6 +9,7 @@
 #' @param num_cores The number of cores for running the model in parallel. The default value is 1.
 #' @param method Optimization method to be used in optim() (see ?optim for details).
 #' @param control A list of control parameters to be passed to optim() (see ?optim for details).
+#' @param std.err If TRUE, the standard errors of the parameters will also be calculated Note that it may significantly increase the computation time.
 #'
 #' @details This function estimates a first-price auction model with conditional independent private values.
 #' The model allows for unobserved heterogeneity that is common to all bidders in addition to observable
@@ -29,7 +30,7 @@
 #'
 #' \code{init_params}, the initial guess for convergence, must be supplied.
 #'
-#' This funtion utilizes the \code{Rsnow} framework within the \code{Rparallel} package. If \code{numcores} is not specified, this will be run using only
+#' This function utilizes the \code{Rsnow} framework within the \code{Rparallel} package. If \code{numcores} is not specified, this will be run using only
 #' one CPU/core. One can use \code{parallel::detectCores()} to determine how many are available on your system, but you are not advised
 #' to use all at once, as this may make your system unresponsive. Please see \code{Rparallel} and \code{Rsnow} for more details.
 #'
@@ -45,12 +46,14 @@
 #'                 init_param =  c(8, 2, .5, .4, .6),
 #'                 num_cores = 1,
 #'                 method = "BFGS",
-#'                 control = list(trace=1, parscale = c(1,0.1,0.1,1,1)))
+#'                 control = list(trace=1, parscale = c(1,0.1,0.1,1,1)),
+#'                 std.err = T)
 #'
 #' @seealso \code{\link{auction_generate_data}}
 #'
 #'
 #' @import stats
+#' @importFrom numDeriv hessian
 #' @import parallel
 #' @importFrom utils capture.output
 #' @export
@@ -59,7 +62,8 @@ auction_model <- function(dat = NULL,
                           init_param = NULL,
                           num_cores = 1,
                           method = "BFGS",
-                          control = list() # list of control parameters for optim()
+                          control = list(),
+                          std.err = FALSE
 ) {
 
   if(is.null(dat)) stop("Argument 'dat' is required")
@@ -86,38 +90,56 @@ auction_model <- function(dat = NULL,
 
   #f__ll_parallel(x0, y = v__y, n = v__n, h_x = m__h_x, cl = cl)
 
+  cat("Running the optimizer using the", method, "method with starting values (", paste(init_param, collapse = ", "), ")...\n")
+
   # Run
   result = tryCatch(optim(par=init_param, fn=f__ll_parallel,
                           y=v__y, n=v__n, h_x=m__h_x, cl=cl,
-                          method = method, control = control,
-                          hessian = TRUE),
+                          method = method, control = control),
                     finally = stopCluster(cl)
   )
 
 
   if (result$convergence==0){
+    output <- ""
 
-    fisher_info_diag <- diag(solve(result$hessian))
-    if (any(fisher_info_diag<0)) fisher_info_diag[fisher_info_diag<0] = NA
-    est_param_sigma <- sqrt(fisher_info_diag)
+    if (std.err){
+      cl = makeCluster(num_cores)
+      hess <- tryCatch(numDeriv::hessian(x = result$par,
+                                         func=f__ll_parallel,
+                                         y=v__y, n=v__n, h_x=m__h_x, cl=cl),
+                       finally = stopCluster(cl)
+      )
+
+      fisher_info_diag <- diag(solve(hess))
+
+      if (any(fisher_info_diag<0)) {
+        std.err_print <- rep("--",length(result$par))
+        output = "Hessian matrix is not a positive definite, so standard errors will not be estimated. \nWe suggest rerunning the routine with different starting values or using a different optimization method (see ?optim for a full list)."
+      } else {
+        std.err_est <- sqrt(fisher_info_diag)
+        std.err_print <- as.character(signif(std.err_est, 6))
+      }
+
+    } else
+      std.err_print <- rep("--",length(result$par))
 
     param_values <- signif(result$par, 6)
     param_value_widths <- nchar(gsub("\\..*", "", param_values))
     param_values <- paste0(sapply(max(param_value_widths) - param_value_widths,
                                   function(y) paste(rep(" ", each = y), collapse = "")),
                            param_values)
+
     est_param <- cbind(c("mu", "alpha", "sigma",
                          as.character(sapply(seq_along(result$par[-(1:3)]), function(x) (paste0("beta[", x, "]"))))),
                        param_values,
-                       paste0("(", signif(est_param_sigma, 6), ")"))
+                       paste0("(", std.err_print, ")"))
     colnames(est_param) <- rep("", ncol(est_param))
     rownames(est_param) <- rep("", nrow(est_param))
     est_param <- paste(capture.output(print(noquote(est_param))), collapse = "\n\t")
-    est_param <- paste0("\nEstimated parameters (SE):",
+    output <- paste0(output, "\nEstimated parameters (SE):",
                         est_param, "\n\n",
-                        "Maximum likelihood = ", -signif(result$value,6))
-
-    output = est_param
+                        "Maximum log-likelihood = ", -signif(result$value,6))
 
   } else
     output = ifelse(result$convergence==1,
@@ -126,7 +148,6 @@ auction_model <- function(dat = NULL,
                            result$messsage))
 
   cat(output, "\n")
-  # Might need to make sure that it is a global solution, try different optim() methods
 
   # Return result
   return(result)
@@ -335,10 +356,13 @@ f__ll_parallel = function(x0, y, n, h_x, cl) {
       parApply(cl = cl, X = dat, MARGIN = 1, FUN = f__funk, sigma_u = u),
       error = function(err_msg){
         if (grepl("the integral is probably divergent", err_msg) | grepl("non-finite function value", err_msg)) return(-Inf)
-          else print(err_msg)
+          else {
+            print(err_msg)
+            return(-Inf)}
       }
   )
   v__f_y = v__f_w / v__h
 
-  return(-sum(log(v__f_y)))
+  log_v__f_y = suppressWarnings(log(v__f_y))
+  return(-sum(log_v__f_y))
 }
