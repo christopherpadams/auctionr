@@ -47,7 +47,7 @@
 #'                 num_cores = 1,
 #'                 method = "BFGS",
 #'                 control = list(trace=1, parscale = c(1,0.1,0.1,1,1)),
-#'                 std.err = T)
+#'                 std.err = TRUE)
 #'
 #' @seealso \code{\link{auction_generate_data}}
 #'

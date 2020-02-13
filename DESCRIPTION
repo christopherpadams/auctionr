@@ -15,7 +15,8 @@ URL: https://github.com/ajmack/auction_model
 Depends: R (>= 3.5.0)
 Imports:
   stats,
-  parallel
+  parallel,
+  numDeriv
 Encoding: UTF-8
 LazyData: TRUE
 Roxygen: list(markdown = TRUE)

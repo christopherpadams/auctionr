@@ -9,7 +9,8 @@ auction_model(
   init_param = NULL,
   num_cores = 1,
   method = "BFGS",
-  control = list()
+  control = list(),
+  std.err = FALSE
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ If \code{init_params} is not provided, all values will be set to 1 by default.}
 \item{method}{Optimization method to be used in optim() (see ?optim for details).}
 
 \item{control}{A list of control parameters to be passed to optim() (see ?optim for details).}
+
+\item{std.err}{If TRUE, the standard errors of the parameters will also be calculated Note that it may significantly increase the computation time.}
 }
 \description{
 Estimates a first-price auction model
@@ -49,7 +52,7 @@ The unobserved heterogeneity U is sampled from log-Normal distribution with mean
 
 \code{init_params}, the initial guess for convergence, must be supplied.
 
-This funtion utilizes the \code{Rsnow} framework within the \code{Rparallel} package. If \code{numcores} is not specified, this will be run using only
+This function utilizes the \code{Rsnow} framework within the \code{Rparallel} package. If \code{numcores} is not specified, this will be run using only
 one CPU/core. One can use \code{parallel::detectCores()} to determine how many are available on your system, but you are not advised
 to use all at once, as this may make your system unresponsive. Please see \code{Rparallel} and \code{Rsnow} for more details.
 
@@ -65,7 +68,8 @@ res <-
                 init_param =  c(8, 2, .5, .4, .6),
                 num_cores = 1,
                 method = "BFGS",
-                control = list(trace=1, parscale = c(1,0.1,0.1,1,1)))
+                control = list(trace=1, parscale = c(1,0.1,0.1,1,1)),
+                std.err = TRUE)
 
 }
 \seealso{
