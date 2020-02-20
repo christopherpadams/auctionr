@@ -23,8 +23,19 @@ test_that("Requires appropriate parameters", {
                ".*must be positive")
 
   # This one should work
+  skip_on_cran()
   expect_error(m1 <- auction_model(exd[, 1:5], init_param = c(mu, alpha, sigma, 0, 0, 0), num_cores = 1),
                NA)
   expect_equal(length(m1$par), 6)
+  expect_match(paste(capture.output(auction_model(exd[, 1:5],
+                                                  init_param = c(mu, alpha, sigma, 0, 0, 0),
+                                                  num_cores = 1, std.err = TRUE)),
+                     collapse = "\n"),
+               "\\(.*\\d+\\)")
+  expect_match(paste(capture.output(auction_model(exd[, 1:5],
+                                                  init_param = c(mu, alpha, sigma, 0, 0, 0),
+                                                  num_cores = 1, std.err = FALSE)),
+                     collapse = "\n"),
+               "\\(--\\)")
 }
 )
