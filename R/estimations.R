@@ -9,7 +9,7 @@
 #' @param num_cores The number of cores for running the model in parallel. The default value is 1.
 #' @param method Optimization method to be used in optim() (see ?optim for details).
 #' @param control A list of control parameters to be passed to optim() (see ?optim for details).
-#' @param std.err If TRUE, the standard errors of the parameters will also be calculated Note that it may significantly increase the computation time.
+#' @param std_err If TRUE, the standard errors of the parameters will also be calculated Note that it may significantly increase the computation time.
 #'
 #' @details This function estimates a first-price auction model with conditional independent private values.
 #' The model allows for unobserved heterogeneity that is common to all bidders in addition to observable
@@ -36,6 +36,11 @@
 #'
 #' Note that the supplied data can not have missing values.
 #'
+#' @return A list returned by optim(). See ?optim for more details. If \{std_err} was set to TRUE and the routine succeeded in inverting the estimated Hessian, the list will have an additional component:
+#' \describe{
+#' \item{std_err}{A vector of standard errors for parameter estimates.}
+#'}
+#'
 #' @examples
 #'
 #' set.seed(100)
@@ -47,7 +52,7 @@
 #'                     num_cores = 1,
 #'                     method = "BFGS",
 #'                     control = list(trace=1, parscale = c(1,0.1,0.1,1,1)),
-#'                     std.err = TRUE)
+#'                     std_err = TRUE)
 #' }
 #'
 #' @seealso \code{\link{auction_generate_data}}
@@ -64,7 +69,7 @@ auction_model <- function(dat = NULL,
                           num_cores = 1,
                           method = "BFGS",
                           control = list(),
-                          std.err = FALSE
+                          std_err = FALSE
 ) {
 
   if(is.null(dat)) stop("Argument 'dat' is required")
@@ -91,7 +96,7 @@ auction_model <- function(dat = NULL,
 
   #f__ll_parallel(x0, y = v__y, n = v__n, h_x = m__h_x, cl = cl)
 
-  cat("Running the optimizer using the", method, "method with starting values (", paste(init_param, collapse = ", "), ")...\n")
+  cat("Running the optimizer using the", method, "method with starting values (", paste(init_param, collapse = ", "), ")...\n\n")
 
   # Run
   result = tryCatch(optim(par=init_param, fn=f__ll_parallel,
@@ -104,7 +109,7 @@ auction_model <- function(dat = NULL,
   if (result$convergence==0){
     output <- ""
 
-    if (std.err){
+    if (std_err){
       cl = makeCluster(num_cores)
       hess <- tryCatch(numDeriv::hessian(x = result$par,
                                          func=f__ll_parallel,
@@ -115,15 +120,15 @@ auction_model <- function(dat = NULL,
       fisher_info_diag <- diag(solve(hess))
 
       if (any(fisher_info_diag<0)) {
-        std.err_print <- rep("--",length(result$par))
-        output = "Hessian matrix is not a positive definite, so standard errors will not be estimated. \nWe suggest rerunning the routine with different starting values or using a different optimization method (see ?optim for a full list)."
+        std_err_print <- rep("--",length(result$par))
+        output = "The estimated Hessian matrix is not a positive definite, so standard errors will not be produced. \nWe suggest rerunning the routine with different starting values or using a different optimization method (see ?optim for a full list)."
       } else {
-        std.err_est <- sqrt(fisher_info_diag)
-        std.err_print <- as.character(signif(std.err_est, 6))
+        result$std_err <- sqrt(fisher_info_diag)
+        std_err_print <- as.character(signif(result$std_err, 6))
       }
 
     } else
-      std.err_print <- rep("--",length(result$par))
+      std_err_print <- rep("--",length(result$par))
 
     param_values <- signif(result$par, 6)
     param_value_widths <- nchar(gsub("\\..*", "", param_values))
@@ -134,7 +139,7 @@ auction_model <- function(dat = NULL,
     est_param <- cbind(c("mu", "alpha", "sigma",
                          as.character(sapply(seq_along(result$par[-(1:3)]), function(x) (paste0("beta[", x, "]"))))),
                        param_values,
-                       paste0("(", std.err_print, ")"))
+                       paste0("(", std_err_print, ")"))
     colnames(est_param) <- rep("", ncol(est_param))
     rownames(est_param) <- rep("", nrow(est_param))
     est_param <- paste(capture.output(print(noquote(est_param))), collapse = "\n\t")

@@ -10,7 +10,7 @@ auction_model(
   num_cores = 1,
   method = "BFGS",
   control = list(),
-  std.err = FALSE
+  std_err = FALSE
 )
 }
 \arguments{
@@ -27,7 +27,13 @@ If \code{init_params} is not provided, all values will be set to 1 by default.}
 
 \item{control}{A list of control parameters to be passed to optim() (see ?optim for details).}
 
-\item{std.err}{If TRUE, the standard errors of the parameters will also be calculated Note that it may significantly increase the computation time.}
+\item{std_err}{If TRUE, the standard errors of the parameters will also be calculated Note that it may significantly increase the computation time.}
+}
+\value{
+A list returned by optim(). See ?optim for more details. If \{std_err} was set to TRUE and the routine succedded in inverting the estiamated Hessian, the list will have an additional component:
+\describe{
+\item{std_err}{A vector of standard errors for parameter estimates.}
+}
 }
 \description{
 Estimates a first-price auction model
@@ -69,7 +75,7 @@ res <- auction_model(dat,
                     num_cores = 1,
                     method = "BFGS",
                     control = list(trace=1, parscale = c(1,0.1,0.1,1,1)),
-                    std.err = TRUE)
+                    std_err = TRUE)
 }
 
 }

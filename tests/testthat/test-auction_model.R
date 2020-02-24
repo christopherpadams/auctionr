@@ -29,12 +29,12 @@ test_that("Requires appropriate parameters", {
   expect_equal(length(m1$par), 6)
   expect_match(paste(capture.output(auction_model(exd[, 1:5],
                                                   init_param = c(mu, alpha, sigma, 0, 0, 0),
-                                                  num_cores = 1, std.err = TRUE)),
+                                                  num_cores = 1, std_err = TRUE)),
                      collapse = "\n"),
                "\\(.*\\d+\\)")
   expect_match(paste(capture.output(auction_model(exd[, 1:5],
                                                   init_param = c(mu, alpha, sigma, 0, 0, 0),
-                                                  num_cores = 1, std.err = FALSE)),
+                                                  num_cores = 1, std_err = FALSE)),
                      collapse = "\n"),
                "\\(--\\)")
 }
