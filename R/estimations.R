@@ -36,10 +36,10 @@
 #'
 #' Note that the supplied data can not have missing values.
 #'
-#' @return A list returned by optim(). See ?optim for more details. If \{std_err} was set to TRUE and the routine succeeded in inverting the estimated Hessian, the list will have an additional component:
-#' \describe{
+#' @return A list returned by \code{optim()}. See \code{?optim} for more details. If \code{std_err} was set to TRUE and the routine succeeded in inverting
+#' the estimated Hessian, the list will have an additional component:
+#'
 #' \item{std_err}{A vector of standard errors for parameter estimates.}
-#'}
 #'
 #' @examples
 #'
@@ -177,11 +177,10 @@ auction_model <- function(dat = NULL,
 #' winning bid, number of bids, and observed heterogeneity are sampled for the specified number of observations.
 #'
 #' @return A data frame with \code{obs} rows and the following columns:
-#' \describe{
+#'
 #' \item{winning_bid}{numeric values of the winning bids for each observation}
 #' \item{n_bids}{number of bids  for each observation}
 #' \item{obs_X#}{X terms that represent observed heterogeneity}
-#'}
 #'
 #' @examples
 #' dat <- auction_generate_data(obs = 100,

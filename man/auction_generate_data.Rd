@@ -34,11 +34,10 @@ auction_generate_data(
 }
 \value{
 A data frame with \code{obs} rows and the following columns:
-\describe{
+
 \item{winning_bid}{numeric values of the winning bids for each observation}
 \item{n_bids}{number of bids  for each observation}
 \item{obs_X#}{X terms that represent observed heterogeneity}
-}
 }
 \description{
 Generates sample data for running \code{\link{auction_model}}

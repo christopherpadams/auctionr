@@ -30,10 +30,10 @@ If \code{init_params} is not provided, all values will be set to 1 by default.}
 \item{std_err}{If TRUE, the standard errors of the parameters will also be calculated Note that it may significantly increase the computation time.}
 }
 \value{
-A list returned by optim(). See ?optim for more details. If \{std_err} was set to TRUE and the routine succedded in inverting the estiamated Hessian, the list will have an additional component:
-\describe{
+A list returned by \code{optim()}. See \code{?optim} for more details. If \code{std_err} was set to TRUE and the routine succeeded in inverting
+the estimated Hessian, the list will have an additional component:
+
 \item{std_err}{A vector of standard errors for parameter estimates.}
-}
 }
 \description{
 Estimates a first-price auction model
