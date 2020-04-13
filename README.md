@@ -13,10 +13,12 @@ for unobservable auction-specific heterogeneity.
 ## Installation
 
 ``` r
-# Install the development version from GitHub:
+# Install a necessary dependency
+install.packages("numDeriv")
 
-# install.packages("remotes")
-remotes::install_github("alexjmac/auction_model")
+# Download a ZIP archive of the repo from https://code.harvard.edu/HBS/rcs_amackay__auction_modeling
+# Install the package
+install.packages("[local path to the archive]", repos = NULL, type = "source")
 ```
 
 ## Getting started
@@ -33,39 +35,41 @@ There are two functions available in the package:
 
 ``` r
 library(auctionmodel)
-set.seed(100)
+```
 
+    ## Loading required package: parallel
+
+    ## Loading required package: numDeriv
+
+``` r
+set.seed(100)
 dat <- auction_generate_data(obs = 100, mu = 10, alpha = 2, sigma = 0.2,
                              beta = c(-1,1), new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8))
 
-auction_model(dat,
-              init_param =  c(8, 2, .5, .4, .6),
-              num_cores = 1,
-              method = "BFGS",
-              control = list(trace=1, parscale = c(1,0.1,0.1,1,1)))
+res <- auction_model(dat,
+                    init_param =  c(8, 2, .5, .4, .6),
+                    num_cores = 1,
+                    method = "BFGS",
+                    control = list(trace=1, parscale = c(1,0.1,0.1,1,1)),
+                    std_err = TRUE)
 ```
 
+    ## Running the optimizer using the BFGS method with starting values ( 8, 2, 0.5, 0.4, 0.6 )...
+    ## 
     ## initial  value 1339.327262 
     ## iter  10 value 434.301377
     ## iter  20 value 410.711195
     ## final  value 410.710822 
     ## converged
-
-    ## $par
-    ## [1] 11.0126727  1.7527689  0.2042297 -0.9206175  1.0680962
     ## 
-    ## $value
-    ## [1] 410.7108
+    ## Estimated parameters (SE):                              
+    ##   mu      11.0127   (1.15264)  
+    ##   alpha    1.75277  (0.185499) 
+    ##   sigma    0.20423  (0.0352861)
+    ##   beta[1] -0.920617 (0.0570396)
+    ##   beta[2]  1.0681   (0.0400262)
     ## 
-    ## $counts
-    ## function gradient 
-    ##       51       22 
-    ## 
-    ## $convergence
-    ## [1] 0
-    ## 
-    ## $message
-    ## NULL
+    ## Maximum log-likelihood = -410.711
 
 ## For further information
 
