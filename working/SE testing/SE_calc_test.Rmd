@@ -12,7 +12,6 @@ knitr::opts_chunk$set(echo = TRUE)
 We create a wrapper function that will aid in assessing SE-estimation functionality of the `auctionmodel` package. It generates a random data set and runs optimization routine for each subsample of size 100, with an option to repeat the MLE estimation `K` times. It then saves the results into a file.  
 
 ```{r baseline}
-install.packages("numDeriv",repos = "http://cran.us.r-project.org")
 install.packages("../../../auctionmodel_0.0.0.9000.tar.gz", repos = NULL, type = "source")
 
 library(auctionmodel)
@@ -106,9 +105,9 @@ auctionmodel_diagnose <- function(file_name, K, se_args, num_sims = 200, num_cor
 
 ```
 
-## SE calculation with default parameters
+## SE calculation with default argument values
 
-We first diagnose SE calculation with a default set of `hessian()` parameters, `list(eps=1e-4, d=0.0001, r=4)`, and just one MLE estimation per data set. 
+We first diagnose SE calculation with a default set of `hessian()` arguments, `list(eps=1e-4, d=0.0001, r=4)`, and just one MLE estimation per data set. 
 
 
 ```{r baseline_calc, results="hide"}
@@ -121,7 +120,7 @@ baseline_results <- auctionmodel_diagnose("baseline_test_res.csv",
 summary(baseline_results)
 ```
 
-Standard errors were produced in `r round(mean(is.na(baseline_results[,"se_mu"]))*100)`% of cases. Medians of the vector of estimates are close to the true values. Clearly, a few large outliers among estimates for some of the parameters are skewing the means. Removing results that probably did not achieve the maximum likelihood helps to bring the mean estimates closer to the true values: 
+Standard errors were produced in `r round(mean(!is.na(baseline_results[,"se_mu"]))*100)`% of cases. Medians of the vector of estimates are close to the true values. Clearly, a few large outliers among estimates for some of the parameters are skewing the means. Removing results that probably did not achieve the maximum likelihood helps to bring the mean estimates closer to the true values: 
 
 ```{r corrected_res}
 q10 <- quantile(baseline_results[,"Max_llik"], probs = 0.1, na.rm = TRUE)
@@ -129,7 +128,9 @@ all_results_subs <- baseline_results[baseline_results[,"Max_llik"] >= q10, ]
 summary(all_results_subs)
 ```
 
-## SE calculation with custom parameters
+## SE calculation with custom argument values
+
+In the next set of simulations we set `hessian()` arguments to `list(eps=1e-10, d=1e-6, r=6)` and keep everything else the same.
 
 ```{r newpar_calc, results="hide"}
 newpar_results = auctionmodel_diagnose("newpar_test_res.csv",
@@ -141,7 +142,7 @@ newpar_results = auctionmodel_diagnose("newpar_test_res.csv",
 summary(newpar_results)
 ```
 
-This time standard errors were produced in `r round(mean(is.na(newpar_results[,"se_mu"]))*100)`% of cases. There does not seem to be much gain from using parameters different from the default values That said, it might be useful to continue investigating other parameter estimates.
+Similarly, the standard errors were produced in `r round(mean(!is.na(newpar_results[,"se_mu"]))*100)`% of cases. There does not seem to be much gain from using arguments different from the default values. That said, it might be useful to continue investigating performance of other argument values.
 
 ## SE calculation after repeated maximization
 
@@ -158,9 +159,11 @@ repeated_results <- auctionmodel_diagnose("repeated_test_res.csv",
 summary(repeated_results)
 ```
 
+Having just `K=3` repeated optimization steps resulted in `r round(mean(!is.na(repeated_results[,"se_mu"]))*100)`% of cases having estimated SEs. The mean and median point estimates are now considerably closer together as well as close to the true parameter values. 
+
 ## 95% CI coverage
 
-Let's assess coverage properties of 95% confidence intervals, calculated using the estimated standard errors:
+Let's assess coverage properties of the 95% confidence intervals, calculated using the estimated standard errors:
 
 ```{r CIcoverage}
 
@@ -169,8 +172,15 @@ name_param <- c("mu", "alpha", "sigma", "b1", "b2")
 
 coverage <- c()
 for (j in 1:5){
-  coverage[[paste0("cov_",j)]] <- repeated_results[,paste0("est_")]
+  est = repeated_results[,paste0("est_",name_param[j])]
+  se = repeated_results[,paste0("se_",name_param[j])]
+  CI_low  <- est - 1.96*se
+  CI_high <- est + 1.96*se
+  coverage[[paste0("cov_",name_param[j])]] <- (true_param[j] < CI_high) & (true_param[j] > CI_low)
+}
+
+print(round(sapply(coverage, mean, na.rm = T)*100,1))
      
 ```
 
-
+Parameters `mu` and `b_i` are just slightly undercovered, while `alpha` and, especially, `sigma` are a bit harder to pin down.
