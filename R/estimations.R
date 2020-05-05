@@ -9,7 +9,8 @@
 #' @param num_cores The number of cores for running the model in parallel. The default value is 1.
 #' @param method Optimization method to be used in optim() (see ?optim for details).
 #' @param control A list of control parameters to be passed to optim() (see ?optim for details).
-#' @param std_err If TRUE, the standard errors of the parameters will also be calculated Note that it may significantly increase the computation time.
+#' @param std_err If TRUE, the standard errors of the parameters will also be calculated. Note that it may significantly increase the computation time.
+#' @param se_args A list of arguments passed to the hessian() function if standard errors are calculated (see ?hessian for details).
 #'
 #' @details This function estimates a first-price auction model with conditional independent private values.
 #' The model allows for unobserved heterogeneity that is common to all bidders in addition to observable
@@ -69,7 +70,8 @@ auction_model <- function(dat = NULL,
                           num_cores = 1,
                           method = "BFGS",
                           control = list(),
-                          std_err = FALSE
+                          std_err = FALSE,
+                          se_args = list(eps = 1e-10,d=1e-6,r=6)
 ) {
 
   if(is.null(dat)) stop("Argument 'dat' is required")
@@ -113,7 +115,9 @@ auction_model <- function(dat = NULL,
       cl = makeCluster(num_cores)
       hess <- tryCatch(numDeriv::hessian(x = result$par,
                                          func=f__ll_parallel,
-                                         y=v__y, n=v__n, h_x=m__h_x, cl=cl),
+                                         y=v__y, n=v__n, h_x=m__h_x,
+                                         cl=cl,
+                                         method.args = se_args),
                        finally = stopCluster(cl)
       )
 
@@ -122,6 +126,7 @@ auction_model <- function(dat = NULL,
       if (any(fisher_info_diag<0)) {
         std_err_print <- rep("--",length(result$par))
         output = "The estimated Hessian matrix is not a positive definite, so standard errors will not be produced. \nWe suggest rerunning the routine with different starting values or using a different optimization method (see ?optim for a full list)."
+        result$std_err = rep(NA, length(fisher_info_diag))
       } else {
         result$std_err <- sqrt(fisher_info_diag)
         std_err_print <- as.character(signif(result$std_err, 6))
@@ -167,7 +172,6 @@ auction_model <- function(dat = NULL,
 #' @param max_n_bids Maximum number of bids per auction. The routine generates a vector of length \code{obs} of random numbers between 2 and max_n_bids.
 #' @param new_x_mean Mean values for observable controls to be generated from a Normal distriution.
 #' @param new_x_sd Standard deviations for observable controls to be generated from a Normal distriution.
-
 #' @param mu Value for mu, or mean, of private value distribution (Weibull) to be generated.
 #' @param alpha Value for alpha, or shape parameter, of private value distribution (Weibull) to be generated.
 #' @param sigma Value for standard deviation of unobserved heterogeneity distribution. Note that the distibution is assumed to have mean 1.
@@ -369,5 +373,6 @@ f__ll_parallel = function(x0, y, n, h_x, cl) {
   v__f_y = v__f_w / v__h
 
   log_v__f_y = suppressWarnings(log(v__f_y))
+  #cat(x0, "...", -sum(log_v__f_y), "\n")
   return(-sum(log_v__f_y))
 }

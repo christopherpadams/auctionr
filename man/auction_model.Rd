@@ -10,7 +10,8 @@ auction_model(
   num_cores = 1,
   method = "BFGS",
   control = list(),
-  std_err = FALSE
+  std_err = FALSE,
+  se_args = list(eps = 1e-10, d = 1e-06, r = 6)
 )
 }
 \arguments{
@@ -27,7 +28,9 @@ If \code{init_params} is not provided, all values will be set to 1 by default.}
 
 \item{control}{A list of control parameters to be passed to optim() (see ?optim for details).}
 
-\item{std_err}{If TRUE, the standard errors of the parameters will also be calculated Note that it may significantly increase the computation time.}
+\item{std_err}{If TRUE, the standard errors of the parameters will also be calculated. Note that it may significantly increase the computation time.}
+
+\item{se_args}{A list of arguments passed to the hessian() function if standard errors are calculated (see ?hessian for details).}
 }
 \value{
 A list returned by \code{optim()}. See \code{?optim} for more details. If \code{std_err} was set to TRUE and the routine succeeded in inverting

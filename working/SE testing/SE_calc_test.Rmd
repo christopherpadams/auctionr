@@ -1,0 +1,176 @@
+---
+title: "Testing SE calculation in the auctionmodel package"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Wrapper function
+
+We create a wrapper function that will aid in assessing SE-estimation functionality of the `auctionmodel` package. It generates a random data set and runs optimization routine for each subsample of size 100, with an option to repeat the MLE estimation `K` times. It then saves the results into a file.  
+
+```{r baseline}
+install.packages("numDeriv",repos = "http://cran.us.r-project.org")
+install.packages("../../../auctionmodel_0.0.0.9000.tar.gz", repos = NULL, type = "source")
+
+library(auctionmodel)
+
+auctionmodel_diagnose <- function(file_name, K, se_args, num_sims = 200, num_cores = 15) {
+   ## Diagnostic function to assess SE estimation capability
+   ## Arguments:
+  # file_name  The name of the file that stores results
+  # K          Number of repetitions within each MLE estimation
+  # se_args    Parameters passed on to the hessian() function
+  # num_sims   Number of simulated data sets
+  # num_cores  Number of cores used
+  
+  if (file.exists(file_name)) {
+    all_results <- read.csv(file_name, TRUE, stringsAsFactors=FALSE)
+    } else {
+      set.seed(100)
+
+      # Generate 100*num_sims lines of data
+      dat <- auction_generate_data(obs = 100*num_sims, mu = 10, alpha = 2, sigma = 0.2,
+                                   beta = c(-1,1), new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8))
+      
+      init_param0 <- c(10, 2, .2, -1, 1)
+      
+      all_results = NULL
+      for(i in 1:num_sims){
+
+      d2 = dat[((i-1)*100 + 1):(i*100),]
+      result_iter <- NULL
+      
+      # Repeating maximum likelihood estimation K times (K=1,2,...)
+      for (k in 1:K) {
+        init_param1 = c(abs(init_param0[1:3]*rnorm(3) + 5*rnorm(3)), init_param0[4:5] + .5*rnorm(2))
+        
+        # Running auction_model() with some basic error handling
+        result = tryCatch({auction_model(d2,
+                               init_param = init_param1,
+                               num_cores = num_cores,
+                               method = "BFGS",
+                               std_err = TRUE,
+                               se_args = se_args)},
+                  error = function(err) {
+                    print(paste("MY_ERROR:  ",err))
+                    err_result <- c()
+                    err_result$value = NA
+                    err_result$par = rep(NA, length(init_param1))
+                    err_result$std_err = rep(NA, length(init_param1))
+                    return(err_result)
+                    })
+        vec = c(-result$value, init_param1, result$par, result$std_err)
+        result_iter = rbind(result_iter, vec)
+      }
+      
+      # Selecting MLE that corresponds to the maximum likelihood value of all K iterations that produced valid SEs (ignored if K==1)
+      if (K==1) {
+        result_max =  result_iter
+      } else {
+          # Checking if the last column (SE for b_2) is not NA
+          L = dim(result_iter)[2]
+          SE_calc <- !is.na(result_iter[,L]) 
+          
+          # If found SE for at least one out of K iterations - select the one with the maximum likelihood
+          # Otherwise, just select estimates with the overall maximum likelihood
+          if (sum(SE_calc)>0) {
+            result_iter_wSE <- result_iter[SE_calc,]
+            
+            if (sum(SE_calc) == 1) {
+              result_max =  result_iter_wSE
+              } else {
+                result_max =  result_iter_wSE[which.max(result_iter_wSE[,1]), ]
+              }
+            
+          } else {
+            result_max =  result_iter[which.max(result_iter[,1]), ]
+          }
+      }
+      
+      vec = c(i, result_max)
+      all_results = rbind(all_results, vec)
+      }
+
+      colnames(all_results) <- c("nIter", "Max_llik",
+                              "init_mu", "init_alpha", "init_sigma", "init_b1", "init_b2",
+                              "est_mu", "est_alpha", "est_sigma", "est_b1", "est_b2", 
+                              "se_mu", "se_alpha", "se_sigma", "se_b1", "se_b2")
+      
+      write.csv(x = all_results, file = file_name)
+    }
+  return(all_results)
+}
+
+```
+
+## SE calculation with default parameters
+
+We first diagnose SE calculation with a default set of `hessian()` parameters, `list(eps=1e-4, d=0.0001, r=4)`, and just one MLE estimation per data set. 
+
+
+```{r baseline_calc, results="hide"}
+baseline_results <- auctionmodel_diagnose("baseline_test_res.csv",
+                                     K=1,
+                                     se_args = list(eps=1e-4, d=0.0001, r=4))
+```
+
+```{r baseline_res}
+summary(baseline_results)
+```
+
+Standard errors were produced in `r round(mean(is.na(baseline_results[,"se_mu"]))*100)`% of cases. Medians of the vector of estimates are close to the true values. Clearly, a few large outliers among estimates for some of the parameters are skewing the means. Removing results that probably did not achieve the maximum likelihood helps to bring the mean estimates closer to the true values: 
+
+```{r corrected_res}
+q10 <- quantile(baseline_results[,"Max_llik"], probs = 0.1, na.rm = TRUE)
+all_results_subs <- baseline_results[baseline_results[,"Max_llik"] >= q10, ]
+summary(all_results_subs)
+```
+
+## SE calculation with custom parameters
+
+```{r newpar_calc, results="hide"}
+newpar_results = auctionmodel_diagnose("newpar_test_res.csv",
+                                    K=1,
+                                    se_args = list(eps = 1e-10, d=1e-6, r=6))
+```
+
+```{r newpar_res}
+summary(newpar_results)
+```
+
+This time standard errors were produced in `r round(mean(is.na(newpar_results[,"se_mu"]))*100)`% of cases. There does not seem to be much gain from using parameters different from the default values That said, it might be useful to continue investigating other parameter estimates.
+
+## SE calculation after repeated maximization
+
+Next, we add a step that repeats the optimum estimation `K=3` times and chooses the MLE that corresponds to the maximum likelihood value:
+
+```{r repeated_calc}
+repeated_results <- auctionmodel_diagnose("repeated_test_res.csv",
+                                     K=3,
+                                     num_sims = 200,
+                                     se_args = list(eps = 1e-10, d=1e-6, r=6))
+```
+
+```{r repeated_res}
+summary(repeated_results)
+```
+
+## 95% CI coverage
+
+Let's assess coverage properties of 95% confidence intervals, calculated using the estimated standard errors:
+
+```{r CIcoverage}
+
+true_param <- c(10, 2, .2, -1, 1)
+name_param <- c("mu", "alpha", "sigma", "b1", "b2")
+
+coverage <- c()
+for (j in 1:5){
+  coverage[[paste0("cov_",j)]] <- repeated_results[,paste0("est_")]
+     
+```
+
+

@@ -16,10 +16,10 @@ Depends: R (>= 3.5.0)
 Imports:
   stats,
   parallel,
-  numDeriv (>= 2016.8-1.1)
+  numDeriv (>= 2016.8-1)
 Encoding: UTF-8
 LazyData: TRUE
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.0.2
+RoxygenNote: 7.1.0
 Suggests: 
     testthat (>= 2.1.0)
