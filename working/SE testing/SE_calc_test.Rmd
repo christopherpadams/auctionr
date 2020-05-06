@@ -9,7 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Wrapper function
 
-We create a wrapper function that will aid in assessing SE-estimation functionality of the `auctionmodel` package. It generates a random data set and runs optimization routine for each subsample of size 100, with an option to repeat the MLE estimation `K` times. It then saves the results into a file.  
+A wrapper function `auctionmodel_diagnose()` will aid in assessing SE estimation functionality of the `auctionmodel` package. The function generates a random data set and runs optimization routine for each subsample of size 100, with an option to repeat the MLE estimation `K` times. It then saves the results into a `.csv` file.  
 
 ```{r baseline}
 install.packages("../../../auctionmodel_0.0.0.9000.tar.gz", repos = NULL, type = "source")
@@ -19,7 +19,7 @@ library(auctionmodel)
 auctionmodel_diagnose <- function(file_name, K, se_args, num_sims = 200, num_cores = 15) {
    ## Diagnostic function to assess SE estimation capability
    ## Arguments:
-  # file_name  The name of the file that stores results
+  # file_name  The name of the file that stores the results
   # K          Number of repetitions within each MLE estimation
   # se_args    Parameters passed on to the hessian() function
   # num_sims   Number of simulated data sets
@@ -74,7 +74,7 @@ auctionmodel_diagnose <- function(file_name, K, se_args, num_sims = 200, num_cor
           SE_calc <- !is.na(result_iter[,L]) 
           
           # If found SE for at least one out of K iterations - select the one with the maximum likelihood
-          # Otherwise, just select estimates with the overall maximum likelihood
+          # Otherwise, select estimates with the overall maximum likelihood
           if (sum(SE_calc)>0) {
             result_iter_wSE <- result_iter[SE_calc,]
             
@@ -107,7 +107,7 @@ auctionmodel_diagnose <- function(file_name, K, se_args, num_sims = 200, num_cor
 
 ## SE calculation with default argument values
 
-We first diagnose SE calculation with a default set of `hessian()` arguments, `list(eps=1e-4, d=0.0001, r=4)`, and just one MLE estimation per data set. 
+We first diagnose SE calculation with a default set of values for `hessian()` arguments, `list(eps=1e-4, d=0.0001, r=4)`, and one MLE estimation per data set (`K=1`). 
 
 
 ```{r baseline_calc, results="hide"}
@@ -120,7 +120,7 @@ baseline_results <- auctionmodel_diagnose("baseline_test_res.csv",
 summary(baseline_results)
 ```
 
-Standard errors were produced in `r round(mean(!is.na(baseline_results[,"se_mu"]))*100)`% of cases. Medians of the vector of estimates are close to the true values. Clearly, a few large outliers among estimates for some of the parameters are skewing the means. Removing results that probably did not achieve the maximum likelihood helps to bring the mean estimates closer to the true values: 
+Standard errors were produced in `r round(mean(!is.na(baseline_results[,"se_mu"]))*100)`% of cases. Medians of the vector of estimates are close to the true values. Clearly, a few large outliers among estimates for some of the parameters are skewing the means. Removing results that probably did not achieve the maximum likelihood (e.g., bottom 10% of ML values) helps to bring the mean estimates closer to the true values: 
 
 ```{r corrected_res}
 q10 <- quantile(baseline_results[,"Max_llik"], probs = 0.1, na.rm = TRUE)
@@ -142,7 +142,7 @@ newpar_results = auctionmodel_diagnose("newpar_test_res.csv",
 summary(newpar_results)
 ```
 
-Similarly, the standard errors were produced in `r round(mean(!is.na(newpar_results[,"se_mu"]))*100)`% of cases. There does not seem to be much gain from using arguments different from the default values. That said, it might be useful to continue investigating performance of other argument values.
+Similarly, the standard errors were produced in `r round(mean(!is.na(newpar_results[,"se_mu"]))*100)`% of cases. There does not seem to be much gain from using arguments for `hessian()` different from the default values. That said, it might be useful to continue investigating performance of other argument values.
 
 ## SE calculation after repeated maximization
 

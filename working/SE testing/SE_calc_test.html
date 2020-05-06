@@ -312,7 +312,7 @@ $(document).ready(function () {
 
 <div id="wrapper-function" class="section level2">
 <h2>Wrapper function</h2>
-<p>We create a wrapper function that will aid in assessing SE-estimation functionality of the <code>auctionmodel</code> package. It generates a random data set and runs optimization routine for each subsample of size 100, with an option to repeat the MLE estimation <code>K</code> times. It then saves the results into a file.</p>
+<p>A wrapper function <code>auctionmodel_diagnose()</code> will aid in assessing SE estimation functionality of the <code>auctionmodel</code> package. The function generates a random data set and runs optimization routine for each subsample of size 100, with an option to repeat the MLE estimation <code>K</code> times. It then saves the results into a <code>.csv</code> file.</p>
 <pre class="r"><code>install.packages(&quot;../../../auctionmodel_0.0.0.9000.tar.gz&quot;, repos = NULL, type = &quot;source&quot;)</code></pre>
 <pre><code>## Installing package into '/export/home/dor/vliublinska/R/x86_64-pc-linux-gnu-library/3.5'
 ## (as 'lib' is unspecified)</code></pre>
@@ -321,7 +321,7 @@ $(document).ready(function () {
 auctionmodel_diagnose &lt;- function(file_name, K, se_args, num_sims = 200, num_cores = 15) {
    ## Diagnostic function to assess SE estimation capability
    ## Arguments:
-  # file_name  The name of the file that stores results
+  # file_name  The name of the file that stores the results
   # K          Number of repetitions within each MLE estimation
   # se_args    Parameters passed on to the hessian() function
   # num_sims   Number of simulated data sets
@@ -376,7 +376,7 @@ auctionmodel_diagnose &lt;- function(file_name, K, se_args, num_sims = 200, num_
           SE_calc &lt;- !is.na(result_iter[,L]) 
           
           # If found SE for at least one out of K iterations - select the one with the maximum likelihood
-          # Otherwise, just select estimates with the overall maximum likelihood
+          # Otherwise, select estimates with the overall maximum likelihood
           if (sum(SE_calc)&gt;0) {
             result_iter_wSE &lt;- result_iter[SE_calc,]
             
@@ -407,7 +407,7 @@ auctionmodel_diagnose &lt;- function(file_name, K, se_args, num_sims = 200, num_
 </div>
 <div id="se-calculation-with-default-argument-values" class="section level2">
 <h2>SE calculation with default argument values</h2>
-<p>We first diagnose SE calculation with a default set of <code>hessian()</code> arguments, <code>list(eps=1e-4, d=0.0001, r=4)</code>, and just one MLE estimation per data set.</p>
+<p>We first diagnose SE calculation with a default set of values for <code>hessian()</code> arguments, <code>list(eps=1e-4, d=0.0001, r=4)</code>, and one MLE estimation per data set (<code>K=1</code>).</p>
 <pre class="r"><code>baseline_results &lt;- auctionmodel_diagnose(&quot;baseline_test_res.csv&quot;,
                                      K=1,
                                      se_args = list(eps=1e-4, d=0.0001, r=4))</code></pre>
@@ -460,7 +460,7 @@ auctionmodel_diagnose &lt;- function(file_name, K, se_args, num_sims = 200, num_
 ##  3rd Qu.:0.03738  
 ##  Max.   :0.09952  
 ##  NA's   :59</code></pre>
-<p>Standard errors were produced in 70% of cases. Medians of the vector of estimates are close to the true values. Clearly, a few large outliers among estimates for some of the parameters are skewing the means. Removing results that probably did not achieve the maximum likelihood helps to bring the mean estimates closer to the true values:</p>
+<p>Standard errors were produced in 70% of cases. Medians of the vector of estimates are close to the true values. Clearly, a few large outliers among estimates for some of the parameters are skewing the means. Removing results that probably did not achieve the maximum likelihood (e.g., bottom 10% of ML values) helps to bring the mean estimates closer to the true values:</p>
 <pre class="r"><code>q10 &lt;- quantile(baseline_results[,&quot;Max_llik&quot;], probs = 0.1, na.rm = TRUE)
 all_results_subs &lt;- baseline_results[baseline_results[,&quot;Max_llik&quot;] &gt;= q10, ]
 summary(all_results_subs)</code></pre>
@@ -552,7 +552,7 @@ summary(all_results_subs)</code></pre>
 ##  3rd Qu.: 0.03385   3rd Qu.:0.07073   3rd Qu.:0.03741  
 ##  Max.   :21.47762   Max.   :3.89739   Max.   :0.09952  
 ##  NA's   :60         NA's   :60        NA's   :60</code></pre>
-<p>Similarly, the standard errors were produced in 70% of cases. There does not seem to be much gain from using arguments different from the default values. That said, it might be useful to continue investigating performance of other argument values.</p>
+<p>Similarly, the standard errors were produced in 70% of cases. There does not seem to be much gain from using arguments for <code>hessian()</code> different from the default values. That said, it might be useful to continue investigating performance of other argument values.</p>
 </div>
 <div id="se-calculation-after-repeated-maximization" class="section level2">
 <h2>SE calculation after repeated maximization</h2>
