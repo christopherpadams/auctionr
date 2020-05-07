@@ -407,103 +407,97 @@ auctionmodel_diagnose &lt;- function(file_name, K, se_args, num_sims = 200, num_
 </div>
 <div id="se-calculation-with-default-argument-values" class="section level2">
 <h2>SE calculation with default argument values</h2>
-<p>We first diagnose SE calculation with a default set of values for <code>hessian()</code> arguments, <code>list(eps=1e-4, d=0.0001, r=4)</code>, and one MLE estimation per data set (<code>K=1</code>).</p>
-<pre class="r"><code>baseline_results &lt;- auctionmodel_diagnose(&quot;baseline_test_res.csv&quot;,
+<p>We first diagnose SE calculation with a default set of values for <code>hessian()</code> arguments, <code>list()</code>, and one MLE estimation per data set (<code>K=1</code>).</p>
+<pre class="r"><code>baseline_results &lt;- auctionmodel_diagnose(&quot;baseline_test_res1.csv&quot;,
                                      K=1,
-                                     se_args = list(eps=1e-4, d=0.0001, r=4))</code></pre>
+                                     se_args = list())</code></pre>
+<pre><code>## Warning in rbind(all_results, vec): number of columns of result is not a
+## multiple of vector length (arg 2)</code></pre>
 <pre class="r"><code>summary(baseline_results)</code></pre>
-<pre><code>##       X                 nIter           Max_llik          init_mu        
-##  Length:200         Min.   :  1.00   Min.   :-1380.0   Min.   : 0.01554  
-##  Class :character   1st Qu.: 50.75   1st Qu.: -412.9   1st Qu.: 3.36303  
-##  Mode  :character   Median :100.50   Median : -405.6   Median : 7.94940  
-##                     Mean   :100.50   Mean   : -412.1   Mean   : 9.02029  
-##                     3rd Qu.:150.25   3rd Qu.: -396.9   3rd Qu.:13.07550  
-##                     Max.   :200.00   Max.   : -372.4   Max.   :32.68364  
-##                                      NA's   :2                           
-##    init_alpha         init_sigma          init_b1        
-##  Min.   : 0.00891   Min.   : 0.09952   Min.   :-2.52115  
-##  1st Qu.: 1.69648   1st Qu.: 1.54044   1st Qu.:-1.39521  
-##  Median : 3.61898   Median : 3.09701   Median :-1.00756  
-##  Mean   : 4.06579   Mean   : 3.92352   Mean   :-1.05984  
-##  3rd Qu.: 5.32533   3rd Qu.: 5.87873   3rd Qu.:-0.70055  
-##  Max.   :14.72811   Max.   :14.18852   Max.   : 0.03221  
-##                                                          
-##     init_b2            est_mu           est_alpha         est_sigma       
-##  Min.   :-0.6402   Min.   : 0.01554   Min.   :  1.223   Min.   : 0.09612  
-##  1st Qu.: 0.6417   1st Qu.: 9.42656   1st Qu.:  1.887   1st Qu.: 0.16412  
-##  Median : 0.9906   Median :10.06905   Median :  1.999   Median : 0.19272  
-##  Mean   : 0.9913   Mean   :10.51423   Mean   :  4.342   Mean   : 0.31208  
-##  3rd Qu.: 1.3410   3rd Qu.:10.60446   3rd Qu.:  2.165   3rd Qu.: 0.21460  
-##  Max.   : 2.2481   Max.   :75.79294   Max.   :231.151   Max.   :13.98260  
-##                    NA's   :2          NA's   :2         NA's   :2         
-##      est_b1            est_b2           se_mu          
-##  Min.   :-2.6637   Min.   :0.5198   Min.   :  0.00066  
-##  1st Qu.:-1.0407   1st Qu.:0.9740   1st Qu.:  0.69126  
-##  Median :-0.9951   Median :0.9985   Median :  0.78728  
-##  Mean   :-0.9926   Mean   :0.9945   Mean   :  1.96819  
-##  3rd Qu.:-0.9488   3rd Qu.:1.0253   3rd Qu.:  0.86101  
-##  Max.   : 0.1292   Max.   :1.6609   Max.   :177.00000  
-##  NA's   :2         NA's   :2        NA's   :59         
-##     se_alpha            se_sigma            se_b1        
-##  Min.   :-441.3015   Min.   : 0.00000   Min.   :0.00000  
-##  1st Qu.:   0.1281   1st Qu.: 0.02734   1st Qu.:0.04983  
-##  Median :   0.1558   Median : 0.03010   Median :0.05608  
-##  Mean   :  -2.9743   Mean   : 0.17964   Mean   :0.07755  
-##  3rd Qu.:   0.1920   3rd Qu.: 0.03234   3rd Qu.:0.06064  
-##  Max.   :   1.0297   Max.   :21.47762   Max.   :3.89739  
-##  NA's   :59          NA's   :59         NA's   :59       
-##      se_b2        
-##  Min.   :0.00000  
-##  1st Qu.:0.03086  
-##  Median :0.03467  
-##  Mean   :0.03161  
-##  3rd Qu.:0.03738  
-##  Max.   :0.09952  
-##  NA's   :59</code></pre>
-<p>Standard errors were produced in 70% of cases. Medians of the vector of estimates are close to the true values. Clearly, a few large outliers among estimates for some of the parameters are skewing the means. Removing results that probably did not achieve the maximum likelihood (e.g., bottom 10% of ML values) helps to bring the mean estimates closer to the true values:</p>
+<pre><code>##      nIter           Max_llik          init_mu           init_alpha      
+##  Min.   :  1.00   Min.   :-1380.0   Min.   : 0.01554   Min.   : 0.00891  
+##  1st Qu.: 50.75   1st Qu.: -412.9   1st Qu.: 3.36303   1st Qu.: 1.69648  
+##  Median :100.50   Median : -405.2   Median : 7.94940   Median : 3.61898  
+##  Mean   :100.50   Mean   : -411.4   Mean   : 9.02029   Mean   : 4.06579  
+##  3rd Qu.:150.25   3rd Qu.: -396.7   3rd Qu.:13.07550   3rd Qu.: 5.32533  
+##  Max.   :200.00   Max.   : -372.4   Max.   :32.68364   Max.   :14.72811  
+##                   NA's   :4                                              
+##    init_sigma          init_b1            init_b2       
+##  Min.   : 0.09952   Min.   :-2.52115   Min.   :-0.6402  
+##  1st Qu.: 1.54044   1st Qu.:-1.39521   1st Qu.: 0.6417  
+##  Median : 3.09701   Median :-1.00756   Median : 0.9906  
+##  Mean   : 3.92352   Mean   :-1.05984   Mean   : 0.9913  
+##  3rd Qu.: 5.87873   3rd Qu.:-0.70055   3rd Qu.: 1.3410  
+##  Max.   :14.18852   Max.   : 0.03221   Max.   : 2.2481  
+##                                                         
+##      est_mu           est_alpha         est_sigma            est_b1       
+##  Min.   : 0.01554   Min.   :  1.223   Min.   : 0.09612   Min.   :-2.6637  
+##  1st Qu.: 9.42329   1st Qu.:  1.886   1st Qu.: 0.16360   1st Qu.:-1.0413  
+##  Median :10.06904   Median :  1.997   Median : 0.19228   Median :-0.9958  
+##  Mean   :10.18473   Mean   :  4.037   Mean   : 0.30536   Mean   :-0.9990  
+##  3rd Qu.:10.58616   3rd Qu.:  2.164   3rd Qu.: 0.21436   3rd Qu.:-0.9498  
+##  Max.   :27.93709   Max.   :231.151   Max.   :13.98260   Max.   :-0.4146  
+##  NA's   :4          NA's   :4         NA's   :4          NA's   :4        
+##      est_b2           se_mu              se_alpha        
+##  Min.   :0.6827   Min.   :  0.01388   Min.   :-441.3015  
+##  1st Qu.:0.9758   1st Qu.:  0.69876   1st Qu.:   0.1348  
+##  Median :0.9992   Median :  0.78736   Median :   0.1614  
+##  Mean   :0.9973   Mean   :  1.88096   Mean   :  -2.5160  
+##  3rd Qu.:1.0256   3rd Qu.:  0.85948   3rd Qu.:   0.1960  
+##  Max.   :1.6609   Max.   :177.00000   Max.   :   0.8327  
+##  NA's   :4        NA's   :36          NA's   :36         
+##     se_sigma            se_b1             se_b2        
+##  Min.   : 0.00088   Min.   :0.00254   Min.   :0.00219  
+##  1st Qu.: 0.02628   1st Qu.:0.05418   1st Qu.:0.03229  
+##  Median : 0.02945   Median :0.05856   Median :0.03471  
+##  Mean   : 0.16101   Mean   :0.08501   Mean   :0.03499  
+##  3rd Qu.: 0.03190   3rd Qu.:0.06384   3rd Qu.:0.03760  
+##  Max.   :21.47762   Max.   :3.89739   Max.   :0.09952  
+##  NA's   :36         NA's   :36        NA's   :36</code></pre>
+<p>Standard errors were produced in 82% of cases. Medians of the vector of estimates are close to the true values. Clearly, a few large outliers among estimates for some of the parameters are skewing the means. Removing results that probably did not achieve the maximum likelihood (e.g., bottom 10% of ML values) helps to bring the mean estimates closer to the true values:</p>
 <pre class="r"><code>q10 &lt;- quantile(baseline_results[,&quot;Max_llik&quot;], probs = 0.1, na.rm = TRUE)
 all_results_subs &lt;- baseline_results[baseline_results[,&quot;Max_llik&quot;] &gt;= q10, ]
 summary(all_results_subs)</code></pre>
-<pre><code>##       X                 nIter           Max_llik         init_mu       
-##  Length:180         Min.   :  1.00   Min.   :-422.4   Min.   : 0.1841  
-##  Class :character   1st Qu.: 51.25   1st Qu.:-409.6   1st Qu.: 4.0436  
-##  Mode  :character   Median :100.50   Median :-403.2   Median : 8.2915  
-##                     Mean   :100.97   Mean   :-402.2   Mean   : 9.3613  
-##                     3rd Qu.:151.75   3rd Qu.:-395.1   3rd Qu.:13.5038  
-##                     Max.   :200.00   Max.   :-372.4   Max.   :32.6836  
-##                     NA's   :2        NA's   :2        NA's   :2        
-##    init_alpha         init_sigma         init_b1            init_b2       
-##  Min.   : 0.02752   Min.   : 0.2312   Min.   :-2.52115   Min.   :-0.6402  
-##  1st Qu.: 1.73018   1st Qu.: 1.7022   1st Qu.:-1.39709   1st Qu.: 0.6434  
-##  Median : 3.52142   Median : 3.0970   Median :-1.00994   Median : 1.0222  
-##  Mean   : 4.00882   Mean   : 3.9823   Mean   :-1.05697   Mean   : 1.0091  
-##  3rd Qu.: 5.26042   3rd Qu.: 5.8568   3rd Qu.:-0.67591   3rd Qu.: 1.3558  
-##  Max.   :14.72811   Max.   :14.1885   Max.   : 0.03221   Max.   : 2.2481  
-##  NA's   :2          NA's   :2         NA's   :2          NA's   :2        
-##      est_mu         est_alpha         est_sigma           est_b1       
-##  Min.   : 6.014   Min.   :  1.662   Min.   :0.09612   Min.   :-1.2207  
-##  1st Qu.: 9.445   1st Qu.:  1.881   1st Qu.:0.16181   1st Qu.:-1.0407  
-##  Median :10.011   Median :  1.972   Median :0.18930   Median :-0.9997  
-##  Mean   :10.019   Mean   :  2.595   Mean   :0.18827   Mean   :-0.9971  
-##  3rd Qu.:10.506   3rd Qu.:  2.139   3rd Qu.:0.20540   3rd Qu.:-0.9558  
-##  Max.   :13.589   Max.   :104.183   Max.   :0.37849   Max.   :-0.8030  
-##  NA's   :2        NA's   :2         NA's   :2         NA's   :2        
-##      est_b2           se_mu            se_alpha          se_sigma      
-##  Min.   :0.8930   Min.   :0.00066   Min.   :0.00001   Min.   :0.00000  
-##  1st Qu.:0.9770   1st Qu.:0.70141   1st Qu.:0.13085   1st Qu.:0.02730  
-##  Median :1.0012   Median :0.78729   Median :0.15667   Median :0.03001  
-##  Mean   :0.9996   Mean   :0.72822   Mean   :0.15825   Mean   :0.02741  
-##  3rd Qu.:1.0261   3rd Qu.:0.86003   3rd Qu.:0.19131   3rd Qu.:0.03225  
-##  Max.   :1.1006   Max.   :2.27027   Max.   :1.02971   Max.   :0.06945  
-##  NA's   :2        NA's   :46        NA's   :46        NA's   :46       
-##      se_b1             se_b2        
-##  Min.   :0.00000   Min.   :0.00000  
-##  1st Qu.:0.04987   1st Qu.:0.03088  
-##  Median :0.05591   Median :0.03465  
-##  Mean   :0.05014   Mean   :0.03116  
-##  3rd Qu.:0.06058   3rd Qu.:0.03730  
-##  Max.   :0.12495   Max.   :0.05426  
-##  NA's   :46        NA's   :46</code></pre>
+<pre><code>##      nIter           Max_llik         init_mu          init_alpha      
+##  Min.   :  2.00   Min.   :-421.7   Min.   : 0.1841   Min.   : 0.02752  
+##  1st Qu.: 51.75   1st Qu.:-409.2   1st Qu.: 4.0444   1st Qu.: 1.69648  
+##  Median :100.50   Median :-402.7   Median : 8.2915   Median : 3.52142  
+##  Mean   :101.23   Mean   :-402.0   Mean   : 9.3567   Mean   : 3.97801  
+##  3rd Qu.:151.25   3rd Qu.:-395.0   3rd Qu.:13.4937   3rd Qu.: 5.24683  
+##  Max.   :200.00   Max.   :-372.4   Max.   :32.6836   Max.   :14.72811  
+##  NA's   :4        NA's   :4        NA's   :4         NA's   :4         
+##    init_sigma         init_b1            init_b2            est_mu      
+##  Min.   : 0.2312   Min.   :-2.52115   Min.   :-0.6402   Min.   : 6.014  
+##  1st Qu.: 1.7125   1st Qu.:-1.40373   1st Qu.: 0.6436   1st Qu.: 9.433  
+##  Median : 3.1304   Median :-1.00474   Median : 1.0234   Median : 9.995  
+##  Mean   : 4.0112   Mean   :-1.05373   Mean   : 1.0127   Mean   :10.014  
+##  3rd Qu.: 5.8881   3rd Qu.:-0.66697   3rd Qu.: 1.3603   3rd Qu.:10.501  
+##  Max.   :14.1885   Max.   : 0.03221   Max.   : 2.2481   Max.   :13.589  
+##  NA's   :4         NA's   :4          NA's   :4         NA's   :4       
+##    est_alpha         est_sigma           est_b1            est_b2      
+##  Min.   :  1.662   Min.   :0.09612   Min.   :-1.2207   Min.   :0.8930  
+##  1st Qu.:  1.880   1st Qu.:0.16168   1st Qu.:-1.0405   1st Qu.:0.9769  
+##  Median :  1.969   Median :0.18833   Median :-0.9997   Median :1.0013  
+##  Mean   :  2.600   Mean   :0.18764   Mean   :-0.9970   Mean   :0.9997  
+##  3rd Qu.:  2.137   3rd Qu.:0.20462   3rd Qu.:-0.9554   3rd Qu.:1.0267  
+##  Max.   :104.183   Max.   :0.37849   Max.   :-0.8030   Max.   :1.1006  
+##  NA's   :4         NA's   :4         NA's   :4         NA's   :4       
+##      se_mu            se_alpha          se_sigma           se_b1         
+##  Min.   :0.01388   Min.   :0.08911   Min.   :0.00088   Min.   :0.002545  
+##  1st Qu.:0.69644   1st Qu.:0.13458   1st Qu.:0.02643   1st Qu.:0.053510  
+##  Median :0.78672   Median :0.16045   Median :0.02944   Median :0.058292  
+##  Mean   :0.80099   Mean   :0.17566   Mean   :0.03031   Mean   :0.061444  
+##  3rd Qu.:0.85552   3rd Qu.:0.19495   3rd Qu.:0.03189   3rd Qu.:0.063560  
+##  Max.   :2.60455   Max.   :0.83271   Max.   :0.14914   Max.   :0.377285  
+##  NA's   :26        NA's   :26        NA's   :26        NA's   :26        
+##      se_b2         
+##  Min.   :0.002191  
+##  1st Qu.:0.032162  
+##  Median :0.034501  
+##  Mean   :0.034352  
+##  3rd Qu.:0.037234  
+##  Max.   :0.046688  
+##  NA's   :26</code></pre>
 </div>
 <div id="se-calculation-with-custom-argument-values" class="section level2">
 <h2>SE calculation with custom argument values</h2>

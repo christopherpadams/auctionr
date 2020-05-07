@@ -107,13 +107,13 @@ auctionmodel_diagnose <- function(file_name, K, se_args, num_sims = 200, num_cor
 
 ## SE calculation with default argument values
 
-We first diagnose SE calculation with a default set of values for `hessian()` arguments, `list(eps=1e-4, d=0.0001, r=4)`, and one MLE estimation per data set (`K=1`). 
+We first diagnose SE calculation with a default set of values for `hessian()` arguments, `list()`, and one MLE estimation per data set (`K=1`). 
 
 
 ```{r baseline_calc, results="hide"}
-baseline_results <- auctionmodel_diagnose("baseline_test_res.csv",
+baseline_results <- auctionmodel_diagnose("baseline_test_res1.csv",
                                      K=1,
-                                     se_args = list(eps=1e-4, d=0.0001, r=4))
+                                     se_args = list())
 ```
 
 ```{r baseline_res}
