@@ -144,11 +144,11 @@ summary(newpar_results)
 
 Similarly, the standard errors were produced in `r round(mean(!is.na(newpar_results[,"se_mu"]))*100)`% of cases. There does not seem to be much gain from using arguments for `hessian()` different from the default values. That said, it might be useful to continue investigating performance of other argument values.
 
-## SE calculation after repeated maximization
+## SE calculation after repeated maximization (new arguments)
 
 Next, we add a step that repeats the optimum estimation `K=3` times and chooses the MLE that corresponds to the maximum likelihood value:
 
-```{r repeated_calc}
+```{r repeated_calc, results="hide"}
 repeated_results <- auctionmodel_diagnose("repeated_test_res.csv",
                                      K=3,
                                      num_sims = 200,
@@ -159,9 +159,9 @@ repeated_results <- auctionmodel_diagnose("repeated_test_res.csv",
 summary(repeated_results)
 ```
 
-Having just `K=3` repeated optimization steps resulted in `r round(mean(!is.na(repeated_results[,"se_mu"]))*100)`% of cases having estimated SEs. The mean and median point estimates are now considerably closer together as well as close to the true parameter values. 
+Having just `K=3` repeated optimization steps resulted in `r round(mean(!is.na(repeated_results[,"se_mu"]))*100,1)`% of cases having estimated SEs. The mean and median point estimates are now considerably closer together as well as close to the true parameter values. 
 
-## 95% CI coverage
+## 95% CI coverage  (new arguments)
 
 Let's assess coverage properties of the 95% confidence intervals, calculated using the estimated standard errors:
 
@@ -184,3 +184,39 @@ print(round(sapply(coverage, mean, na.rm = T)*100,1))
 ```
 
 Parameters `mu` and `b_i` are just slightly undercovered, while `alpha` and, especially, `sigma` are a bit harder to pin down.
+
+## SE calculation after repeated maximization (default arguments)
+
+We repeat the estimation with `K=3`, while using the default argument values for `hessian()`:
+
+```{r repeated_default_calc, results="hide"}
+repeated_def_results <- auctionmodel_diagnose("repeated_default_test_res.csv",
+                                     K=3,
+                                     num_sims = 200,
+                                     se_args = list())
+```
+
+```{r repeated_default_res}
+summary(repeated_def_results)
+```
+
+The resulting success rate in estimating SEs is `r round(mean(!is.na(repeated_def_results[,"se_mu"]))*100,1)`%.
+
+## 95% CI coverage (default arguments)
+
+We assess coverage properties of the 95% confidence intervals with default `hessian()` arguments:
+
+```{r CIcoverage_default}
+
+coverage <- c()
+for (j in 1:5){
+  est = repeated_def_results[,paste0("est_",name_param[j])]
+  se = repeated_def_results[,paste0("se_",name_param[j])]
+  CI_low  <- est - 1.96*se
+  CI_high <- est + 1.96*se
+  coverage[[paste0("cov_",name_param[j])]] <- (true_param[j] < CI_high) & (true_param[j] > CI_low)
+}
+
+print(round(sapply(coverage, mean, na.rm = T)*100,1))
+     
+```

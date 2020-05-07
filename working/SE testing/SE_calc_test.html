@@ -554,8 +554,8 @@ summary(all_results_subs)</code></pre>
 ##  NA's   :60         NA's   :60        NA's   :60</code></pre>
 <p>Similarly, the standard errors were produced in 70% of cases. There does not seem to be much gain from using arguments for <code>hessian()</code> different from the default values. That said, it might be useful to continue investigating performance of other argument values.</p>
 </div>
-<div id="se-calculation-after-repeated-maximization" class="section level2">
-<h2>SE calculation after repeated maximization</h2>
+<div id="se-calculation-after-repeated-maximization-new-arguments" class="section level2">
+<h2>SE calculation after repeated maximization (new arguments)</h2>
 <p>Next, we add a step that repeats the optimum estimation <code>K=3</code> times and chooses the MLE that corresponds to the maximum likelihood value:</p>
 <pre class="r"><code>repeated_results &lt;- auctionmodel_diagnose(&quot;repeated_test_res.csv&quot;,
                                      K=3,
@@ -604,8 +604,8 @@ summary(all_results_subs)</code></pre>
 ##  NA's   :8          NA's   :8          NA's   :8</code></pre>
 <p>Having just <code>K=3</code> repeated optimization steps resulted in 96% of cases having estimated SEs. The mean and median point estimates are now considerably closer together as well as close to the true parameter values.</p>
 </div>
-<div id="ci-coverage" class="section level2">
-<h2>95% CI coverage</h2>
+<div id="ci-coverage-new-arguments" class="section level2">
+<h2>95% CI coverage (new arguments)</h2>
 <p>Let’s assess coverage properties of the 95% confidence intervals, calculated using the estimated standard errors:</p>
 <pre class="r"><code>true_param &lt;- c(10, 2, .2, -1, 1)
 name_param &lt;- c(&quot;mu&quot;, &quot;alpha&quot;, &quot;sigma&quot;, &quot;b1&quot;, &quot;b2&quot;)
@@ -623,6 +623,72 @@ print(round(sapply(coverage, mean, na.rm = T)*100,1))</code></pre>
 <pre><code>##    cov_mu cov_alpha cov_sigma    cov_b1    cov_b2 
 ##      93.2      88.0      81.2      93.8      92.2</code></pre>
 <p>Parameters <code>mu</code> and <code>b_i</code> are just slightly undercovered, while <code>alpha</code> and, especially, <code>sigma</code> are a bit harder to pin down.</p>
+</div>
+<div id="se-calculation-after-repeated-maximization-default-arguments" class="section level2">
+<h2>SE calculation after repeated maximization (default arguments)</h2>
+<p>We repeat the estimation with <code>K=3</code>, while using the default argument values for <code>hessian()</code>:</p>
+<pre class="r"><code>repeated_def_results &lt;- auctionmodel_diagnose(&quot;repeated_default_test_res.csv&quot;,
+                                     K=3,
+                                     num_sims = 200,
+                                     se_args = list())</code></pre>
+<pre class="r"><code>summary(repeated_def_results)</code></pre>
+<pre><code>##       X                 nIter           Max_llik         init_mu       
+##  Length:200         Min.   :  1.00   Min.   :-441.8   Min.   : 0.0386  
+##  Class :character   1st Qu.: 50.75   1st Qu.:-410.3   1st Qu.: 3.3836  
+##  Mode  :character   Median :100.50   Median :-404.2   Median : 7.5169  
+##                     Mean   :100.50   Mean   :-403.4   Mean   : 8.7880  
+##                     3rd Qu.:150.25   3rd Qu.:-396.7   3rd Qu.:12.7485  
+##                     Max.   :200.00   Max.   :-372.4   Max.   :32.6836  
+##                                                                        
+##    init_alpha        init_sigma         init_b1           init_b2       
+##  Min.   : 0.3979   Min.   : 0.1107   Min.   :-2.4794   Min.   :-0.1157  
+##  1st Qu.: 1.7336   1st Qu.: 2.0921   1st Qu.:-1.4304   1st Qu.: 0.6323  
+##  Median : 3.5155   Median : 3.4201   Median :-1.0771   Median : 0.9436  
+##  Mean   : 3.8951   Mean   : 4.1578   Mean   :-1.0552   Mean   : 0.9834  
+##  3rd Qu.: 5.4559   3rd Qu.: 5.9282   3rd Qu.:-0.6215   3rd Qu.: 1.3247  
+##  Max.   :13.6858   Max.   :13.1410   Max.   : 0.4511   Max.   : 2.1342  
+##                                                                         
+##      est_mu         est_alpha       est_sigma           est_b1       
+##  Min.   : 8.214   Min.   :1.662   Min.   :0.09621   Min.   :-1.2205  
+##  1st Qu.: 9.426   1st Qu.:1.887   1st Qu.:0.16348   1st Qu.:-1.0404  
+##  Median : 9.939   Median :1.997   Median :0.19081   Median :-0.9994  
+##  Mean   :10.029   Mean   :2.058   Mean   :0.18994   Mean   :-0.9958  
+##  3rd Qu.:10.463   3rd Qu.:2.137   3rd Qu.:0.20751   3rd Qu.:-0.9551  
+##  Max.   :12.673   Max.   :9.754   Max.   :0.39497   Max.   :-0.6808  
+##                                                                      
+##      est_b2           se_mu              se_alpha        
+##  Min.   :0.7446   Min.   :  0.06075   Min.   :-404.0957  
+##  1st Qu.:0.9774   1st Qu.:  0.67285   1st Qu.:   0.1333  
+##  Median :1.0010   Median :  0.76389   Median :   0.1566  
+##  Mean   :0.9993   Mean   :  1.32181   Mean   :  -1.8783  
+##  3rd Qu.:1.0253   3rd Qu.:  0.85355   3rd Qu.:   0.1919  
+##  Max.   :1.0998   Max.   :107.00000   Max.   :   1.1452  
+##                   NA's   :3           NA's   :3          
+##     se_sigma            se_b1              se_b2         
+##  Min.   :0.002597   Min.   :0.007572   Min.   :0.008357  
+##  1st Qu.:0.024031   1st Qu.:0.054694   1st Qu.:0.031078  
+##  Median :0.028251   Median :0.058624   Median :0.034173  
+##  Mean   :0.071725   Mean   :0.089207   Mean   :0.053464  
+##  3rd Qu.:0.031235   3rd Qu.:0.064646   3rd Qu.:0.036918  
+##  Max.   :8.648558   Max.   :5.505748   Max.   :3.811323  
+##  NA's   :3          NA's   :3          NA's   :3</code></pre>
+<p>The resulting success rate in estimating SEs is 98.5%.</p>
+</div>
+<div id="ci-coverage-default-arguments" class="section level2">
+<h2>95% CI coverage (default arguments)</h2>
+<p>We assess coverage properties of the 95% confidence intervals with default <code>hessian()</code> arguments:</p>
+<pre class="r"><code>coverage &lt;- c()
+for (j in 1:5){
+  est = repeated_def_results[,paste0(&quot;est_&quot;,name_param[j])]
+  se = repeated_def_results[,paste0(&quot;se_&quot;,name_param[j])]
+  CI_low  &lt;- est - 1.96*se
+  CI_high &lt;- est + 1.96*se
+  coverage[[paste0(&quot;cov_&quot;,name_param[j])]] &lt;- (true_param[j] &lt; CI_high) &amp; (true_param[j] &gt; CI_low)
+}
+
+print(round(sapply(coverage, mean, na.rm = T)*100,1))</code></pre>
+<pre><code>##    cov_mu cov_alpha cov_sigma    cov_b1    cov_b2 
+##      89.3      91.4      86.8      93.4      92.9</code></pre>
 </div>
 
 
