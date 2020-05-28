@@ -3,7 +3,7 @@ Auction Modeling
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# auctionmodel
+# auctionr
 
 ## Overview
 
@@ -34,14 +34,8 @@ There are two functions available in the package:
 <!-- end list -->
 
 ``` r
-library(auctionmodel)
-```
+library(auctionr)
 
-    ## Loading required package: parallel
-
-    ## Loading required package: numDeriv
-
-``` r
 set.seed(100)
 dat <- auction_generate_data(obs = 100, mu = 10, alpha = 2, sigma = 0.2,
                              beta = c(-1,1), new_x_mean= c(-1,1), new_x_sd = c(0.5,0.8))
