@@ -9,7 +9,7 @@ test_that("Bid function",{
     cost = (mu/gamma(1+1/alpha))*(-log(1-stats::runif(n_bids)))^(1/alpha)
 
                                         # test generic results
-    bids <- auctionmodel:::vf__bid_function_fast(cost = cost,
+    bids <- auctionr:::vf__bid_function_fast(cost = cost,
                                                  num_bids = n_bids,
                                                  mu = mu,
                                                  alpha = alpha,
@@ -30,7 +30,7 @@ test_that("Bid function",{
     gamma_1p1oa = gamma(1 + 1/alpha)
     cost = (mu/gamma(1+1/alpha))*(-log(1-stats::runif(n_bids)))^(1/alpha)
 
-    bids = auctionmodel:::vf__bid_function_fast(cost = cost,
+    bids = auctionr:::vf__bid_function_fast(cost = cost,
                                                 num_bids = n_bids,
                                                 mu = mu,
                                                 alpha = alpha,

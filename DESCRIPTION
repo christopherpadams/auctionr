@@ -1,17 +1,18 @@
-Package: auctionmodel
+Package: auctionr
 Type: Package
 Title: Estimate First-Price Auction Model
 Version: 0.0.0.9000
 Authors@R: c( person("Alex",     "MacKay",       email = "amackay@hbs.edu",            role = c("aut", "cre")),
               person("Bob",      "Freeman",      email = "robert_freeman@harvard.edu", role = c("aut")),
               person("Paul",     "Jonak",        email = "pjonak@hbs.edu",             role = c("aut")),
-              person("Victoria", "Prince",   email = "vliublinska@hbs.edu",        role = c("aut"))
+              person("Victoria", "Prince",       email = "vliublinska@hbs.edu",        role = c("aut")),
+              person("Ista",     "Zahn",         email = "izahn@hbs.edu",              role = c("aut"))
               )
 Description: Package for R to estimates a first-price auction model with conditional independent private 
   values. The model allows for unobserved heterogeneity that is common to all bidders 
   in addition to observable heterogeneity. 
 License: GPL-3
-URL: https://code.harvard.edu/HBS/rcs_amackay__auction_modeling
+URL: https://code.harvard.edu/HBS/rcs_amackay__auctionr
 Depends: R (>= 3.5.0)
 Imports:
   stats,

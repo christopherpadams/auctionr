@@ -1,5 +1,0 @@
-TO-DO's for the project
-(separate from bug fixes / issues)
-
-- include Alex's GitHub account (ajmack)
-

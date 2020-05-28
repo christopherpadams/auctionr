@@ -18,17 +18,17 @@ auction_generate_data(
 \arguments{
 \item{obs}{Number of observations (or auctions) to draw.}
 
-\item{max_n_bids}{Maximum number of bids per auction. The routine generates a vector of length \code{obs} of random numbers between 2 and max_n_bids.}
+\item{max_n_bids}{Maximum number of bids per auction (must be 3 or greater). The routine generates a vector of length \code{obs} of random numbers between 2 and max_n_bids.}
 
-\item{new_x_mean}{Mean values for observable controls to be generated from a Normal distriution.}
+\item{new_x_mean}{Mean values for observable controls to be generated from a Normal distribution.}
 
-\item{new_x_sd}{Standard deviations for observable controls to be generated from a Normal distriution.}
+\item{new_x_sd}{Standard deviations for observable controls to be generated from a Normal distribution.}
 
 \item{mu}{Value for mu, or mean, of private value distribution (Weibull) to be generated.}
 
 \item{alpha}{Value for alpha, or shape parameter, of private value distribution (Weibull) to be generated.}
 
-\item{sigma}{Value for standard deviation of unobserved heterogeneity distribution. Note that the distibution is assumed to have mean 1.}
+\item{sigma}{Value for standard deviation of unobserved heterogeneity distribution. Note that the distribution is assumed to have mean 1.}
 
 \item{beta}{Coefficients for the generated observable controls. Must be of the same length as \code{new_x_mean} and \code{new_x_sd}.}
 }
@@ -37,7 +37,7 @@ A data frame with \code{obs} rows and the following columns:
 
 \item{winning_bid}{numeric values of the winning bids for each observation}
 \item{n_bids}{number of bids  for each observation}
-\item{obs_X#}{X terms that represent observed heterogeneity}
+\item{X#}{X terms that represent observed heterogeneity}
 }
 \description{
 Generates sample data for running \code{\link{auction_model}}

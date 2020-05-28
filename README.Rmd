@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
 ```
 
 
-# auctionmodel
+# auctionr
 
 ## Overview 
 
@@ -46,7 +46,7 @@ There are two functions available in the package:
 * `auction_model()` calculates maximum likelihood estimates of parameters of the principal model for the data provided by the user.
 
 ```{r}
-library(auctionmodel)
+library(auctionr)
 
 set.seed(100)
 dat <- auction_generate_data(obs = 100, mu = 10, alpha = 2, sigma = 0.2,

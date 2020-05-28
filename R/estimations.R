@@ -4,17 +4,18 @@
 #' @param dat A data.frame containing input columns in the following order: the winning bids, number of bids, and \code{X}
 #' variables that represent observed heterogeneity.
 #' @param init_param Vector of initial values for mu, alpha, sigma, and beta vector, provided in order specified.
-#' Note that Weibull distribution requires mu and alpha to be positive. Naturally, sigma must be positive as well. Beta vector may take any values.
+#' Note that the Weibull distribution requires mu and alpha to be positive. The standard deviation of unobserved heterogeneity, sigma, must be positive as well. The Beta vector may take any values.
 #' If \code{init_params} is not provided, all values will be set to 1 by default.
 #' @param num_cores The number of cores for running the model in parallel. The default value is 1.
 #' @param method Optimization method to be used in optim() (see ?optim for details).
 #' @param control A list of control parameters to be passed to optim() (see ?optim for details).
 #' @param std_err If TRUE, the standard errors of the parameters will also be calculated. Note that it may significantly increase the computation time.
-#' @param se_args A list of arguments passed to the hessian() function if standard errors are calculated (see ?hessian for details).
+#' @param hessian_args A list of arguments passed as the \code{method.args} argument of the hessian() function if standard errors are calculated (see ?hessian for details).
 #'
-#' @details This function estimates a first-price auction model with conditional independent private values.
-#' The model allows for unobserved heterogeneity that is common to all bidders in addition to observable
-#' heterogeneity. The winning bid (Y) takes the form
+#' @details This function estimates a first-price auction model with conditionally independent private values.
+#' This version of the package estimates a procurement auction, where the winning bid is the amount that a single buyer
+#' will pay to the top bidding supplier, and values correspond to costs. The model allows for unobserved heterogeneity
+#' that is common to all bidders in addition to observable heterogeneity. The winning bid (Y) takes the form
 #'
 #' Y = B * U * h(X)
 #'
@@ -23,11 +24,11 @@
 #' log(Y) = log(B) + log(U) + log(h(X)) and log(h(X)) = beta1 * X1 + beta2 * X2 + ...
 #'
 #' The (conditionally) independent private costs are drawn from a Weibull distribution
-#' with parameters mu and alpha. The CDF of this distribution is given by
+#' with parameters mu (mean) and alpha (shape). The CDF of this distribution is given by
 #'
 #' F(c) = 1 - exp(- (c * 1/mu * Gamma(1 + 1/alpha))^(alpha))
 #'
-#' The unobserved heterogeneity U is sampled from log-Normal distribution with mean 1 and a free parameter sigma representing its standard deviation.
+#' The unobserved heterogeneity U is sampled from log-normal distribution with mean 1 and a free parameter sigma representing its standard deviation.
 #'
 #' \code{init_params}, the initial guess for convergence, must be supplied.
 #'
@@ -36,6 +37,10 @@
 #' to use all at once, as this may make your system unresponsive. Please see \code{Rparallel} and \code{Rsnow} for more details.
 #'
 #' Note that the supplied data can not have missing values.
+#'
+#' @author Mackay, Alexander. \email{amackay@hbs.edu}, HBS Research Computing \email{research@hbs.edu}.
+#'
+#' @references Mackay, Alexander. 2020. “Contract Duration and the Costs of Market Transactions.” Working paper, Appendix G.
 #'
 #' @return A list returned by \code{optim()}. See \code{?optim} for more details. If \code{std_err} was set to TRUE and the routine succeeded in inverting
 #' the estimated Hessian, the list will have an additional component:
@@ -83,10 +88,10 @@
 #'        res_list <- c(res_list, list(res3))
 #'        max_llik = c(max_llik, res3$value)
 #'    }
-#'}}
+#'}
 #' ## Selecting a solution with the maximum value of the likelihood
 #' res_final <- res_list[[which.max(max_llik)]]
-#'
+#'}
 #' @seealso \code{\link{auction_generate_data}}
 #'
 #'
@@ -102,7 +107,7 @@ auction_model <- function(dat = NULL,
                           method = "BFGS",
                           control = list(),
                           std_err = FALSE,
-                          se_args = list()
+                          hessian_args = list()
 ) {
 
   if(is.null(dat)) stop("Argument 'dat' is required")
@@ -150,7 +155,7 @@ auction_model <- function(dat = NULL,
                                          func=f__ll_parallel,
                                          y=v__y, n=v__n, h_x=m__h_x,
                                          cl=cl,
-                                         method.args = se_args),
+                                         method.args = hessian_args),
                        finally = stopCluster(cl)
       )
 
@@ -202,12 +207,12 @@ auction_model <- function(dat = NULL,
 #'
 #'
 #' @param obs Number of observations (or auctions) to draw.
-#' @param max_n_bids Maximum number of bids per auction. The routine generates a vector of length \code{obs} of random numbers between 2 and max_n_bids.
-#' @param new_x_mean Mean values for observable controls to be generated from a Normal distriution.
-#' @param new_x_sd Standard deviations for observable controls to be generated from a Normal distriution.
+#' @param max_n_bids Maximum number of bids per auction (must be 3 or greater). The routine generates a vector of length \code{obs} of random numbers between 2 and max_n_bids.
+#' @param new_x_mean Mean values for observable controls to be generated from a Normal distribution.
+#' @param new_x_sd Standard deviations for observable controls to be generated from a Normal distribution.
 #' @param mu Value for mu, or mean, of private value distribution (Weibull) to be generated.
 #' @param alpha Value for alpha, or shape parameter, of private value distribution (Weibull) to be generated.
-#' @param sigma Value for standard deviation of unobserved heterogeneity distribution. Note that the distibution is assumed to have mean 1.
+#' @param sigma Value for standard deviation of unobserved heterogeneity distribution. Note that the distribution is assumed to have mean 1.
 #' @param beta Coefficients for the generated observable controls. Must be of the same length as \code{new_x_mean} and \code{new_x_sd}.
 #'
 #' @details This function generates example data for feeding into auction_model(). Specifically, the
@@ -217,7 +222,7 @@ auction_model <- function(dat = NULL,
 #'
 #' \item{winning_bid}{numeric values of the winning bids for each observation}
 #' \item{n_bids}{number of bids  for each observation}
-#' \item{obs_X#}{X terms that represent observed heterogeneity}
+#' \item{X#}{X terms that represent observed heterogeneity}
 #'
 #' @examples
 #' dat <- auction_generate_data(obs = 100,
@@ -254,6 +259,7 @@ auction_generate_data <- function(obs = NULL,
                missing_args[nmiss], "' required", sep = ""))
   }
   if(any(c(mu, alpha, sigma) <= 0)) stop("Values for mu, alpha, and sigma must be positive.")
+  if(max_n_bids <= 2) stop("max_n_bids must be 3 or greater.")
   # new_x_mean and new_x_sd must be of the same length as beta
   if (length(new_x_mean) != length(beta)) stop("'new_x_sd' must have the same length as 'beta'")
   if (length(new_x_sd) != length(beta)) stop("'new_x_sd' must have the same length as 'beta'")
@@ -317,7 +323,7 @@ auction__generate_x <- function(obs,
                                    sd = new_x_sd[i.new_x])
   }
 
-  colnames(new_x_vars) = paste0("obs_X",1:new_x_num)
+  colnames(new_x_vars) = paste0("X",1:new_x_num)
 
   return(new_x_vars)
 }
