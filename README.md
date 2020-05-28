@@ -16,7 +16,7 @@ for unobservable auction-specific heterogeneity.
 # Install a necessary dependency
 install.packages("numDeriv")
 
-# Download a ZIP archive of the repo from https://code.harvard.edu/HBS/rcs_amackay__auction_modeling
+# Download a ZIP archive of the repo from https://code.harvard.edu/HBS/rcs_amackay__auctionr
 # Install the package
 install.packages("[local path to the archive]", repos = NULL, type = "source")
 ```
