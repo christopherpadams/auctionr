@@ -167,17 +167,12 @@ auction_model <- function(dat = NULL,
         result$std_err = rep(NA, length(fisher_info_diag))
       } else {
         result$std_err <- sqrt(fisher_info_diag)
-        std_err_print <- as.character(signif(result$std_err, 6))
+        std_err_print <- format(round(result$std_err, 6), digits = 6)
       }
 
     } else
       std_err_print <- rep("--",length(result$par))
-
-    param_values <- signif(result$par, 6)
-    param_value_widths <- nchar(gsub("\\..*", "", param_values))
-    param_values <- paste0(sapply(max(param_value_widths) - param_value_widths,
-                                  function(y) paste(rep(" ", each = y), collapse = "")),
-                           param_values)
+    param_values <- format(round(result$par, 6), digits = 6)
 
     est_param <- cbind(c("mu", "alpha", "sigma",
                          as.character(sapply(seq_along(result$par[-(1:3)]), function(x) (paste0("beta[", x, "]"))))),
