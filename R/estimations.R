@@ -162,34 +162,14 @@ auction_model <- function(dat = NULL,
       fisher_info_diag <- diag(solve(hess))
 
       if (any(fisher_info_diag<0)) {
-        std_err_print <- rep("--",length(result$par))
         output = "The estimated Hessian matrix is not a positive definite, so standard errors will not be produced. \nWe suggest rerunning the routine with different starting values or using a different optimization method (see ?optim for a full list)."
         result$std_err = rep(NA, length(fisher_info_diag))
       } else {
         result$std_err <- sqrt(fisher_info_diag)
-        std_err_print <- as.character(signif(result$std_err, 6))
       }
 
     } else
-      std_err_print <- rep("--",length(result$par))
-
-    param_values <- signif(result$par, 6)
-    param_value_widths <- nchar(gsub("\\..*", "", param_values))
-    param_values <- paste0(sapply(max(param_value_widths) - param_value_widths,
-                                  function(y) paste(rep(" ", each = y), collapse = "")),
-                           param_values)
-
-    est_param <- cbind(c("mu", "alpha", "sigma",
-                         as.character(sapply(seq_along(result$par[-(1:3)]), function(x) (paste0("beta[", x, "]"))))),
-                       param_values,
-                       paste0("(", std_err_print, ")"))
-    colnames(est_param) <- rep("", ncol(est_param))
-    rownames(est_param) <- rep("", nrow(est_param))
-    est_param <- paste(capture.output(print(noquote(est_param))), collapse = "\n\t")
-    output <- paste0(output, "\nEstimated parameters (SE):",
-                        est_param, "\n\n",
-                        "Maximum log-likelihood = ", signif(result$value,6))
-
+      result$std_err <- rep(NA, length(result$par))
   } else
     output = ifelse(result$convergence==1,
                     "The iteration limit has been reached, use control$maxit to increase it.",
@@ -199,7 +179,37 @@ auction_model <- function(dat = NULL,
   cat(output, "\n")
 
   # Return result
-  return(result)
+    class(result) <- c("auctionmodel", class(result))
+    return(result)
+}
+
+
+#' Print an auction model.
+#'
+#' 
+#' @param x An object of class auction_model.
+#' @param digits Number of digits to display.
+#' @return x, invisibly.
+#' @export
+
+print.auctionmodel <- function(x, digits = 6) {
+    std_err_print <- rep("--",length(x$par))
+    if(any(!is.na(x$std_err))) std_err_print <- format(round(x$std_err, digits), digits = digits)
+        param_values <- format(round(x$par, digits), digits = digits)
+
+    est_param <- cbind(c("mu", "alpha", "sigma",
+                         as.character(sapply(seq_along(x$par[-(1:3)]), function(x) (paste0("beta[", x, "]"))))),
+                       param_values,
+                       paste0("(", std_err_print, ")"))
+    colnames(est_param) <- rep("", ncol(est_param))
+    rownames(est_param) <- rep("", nrow(est_param))
+    est_param <- paste(capture.output(print(noquote(est_param))), collapse = "\n\t")
+    output <- paste0("\nEstimated parameters (SE):",
+                        est_param, "\n\n",
+                     "Maximum log-likelihood = ", signif(x$value,digits),
+                     "\n")
+    cat(output)
+    return(invisible(x))
 }
 
 
