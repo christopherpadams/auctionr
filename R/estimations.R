@@ -40,7 +40,7 @@
 #'
 #' @author Mackay, Alexander. \email{amackay@hbs.edu}, HBS Research Computing \email{research@hbs.edu}.
 #'
-#' @references Mackay, Alexander. 2020. “Contract Duration and the Costs of Market Transactions.” Working paper, Appendix G.
+#' @references Mackay, Alexander. 2020. "Contract Duration and the Costs of Market Transactions." Working paper, Appendix G.
 #'
 #' @return A list returned by \code{optim()}. See \code{?optim} for more details. If \code{std_err} was set to TRUE and the routine succeeded in inverting
 #' the estimated Hessian, the list will have an additional component:
