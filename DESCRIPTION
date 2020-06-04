@@ -1,7 +1,7 @@
 Package: auctionr
 Type: Package
 Title: Estimate First-Price Auction Model
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R: c( person("Alex",     "MacKay",       email = "amackay@hbs.edu",            role = c("aut", "cre")),
               person("Bob",      "Freeman",      email = "robert_freeman@harvard.edu", role = c("aut")),
               person("Paul",     "Jonak",        email = "pjonak@hbs.edu",             role = c("aut")),
