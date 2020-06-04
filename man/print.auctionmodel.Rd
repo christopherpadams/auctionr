@@ -4,12 +4,14 @@
 \alias{print.auctionmodel}
 \title{Print an auction model.}
 \usage{
-\method{print}{auctionmodel}(x, digits = 6)
+\method{print}{auctionmodel}(x, digits = 6, ...)
 }
 \arguments{
 \item{x}{An object of class auction_model.}
 
 \item{digits}{Number of digits to display.}
+
+\item{...}{Additional arguments passed to other methods.}
 }
 \value{
 x, invisibly.
