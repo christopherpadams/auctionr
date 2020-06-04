@@ -117,7 +117,7 @@ res_final <- res_list[[which.max(max_llik)]]
 }
 }
 \references{
-Mackay, Alexander. 2020. “Contract Duration and the Costs of Market Transactions.” Working paper, Appendix G.
+Mackay, Alexander. 2020. "Contract Duration and the Costs of Market Transactions." Working paper, Appendix G.
 }
 \seealso{
 \code{\link{auction_generate_data}}
