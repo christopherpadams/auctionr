@@ -80,6 +80,7 @@ dat1 <- auction_generate_data(obs = 100, mu = 10, alpha = 2,
                       num_cores = 1,
                       control = list(trace=1, parscale = c(1,0.1,0.1,1,1)),
                       std_err = TRUE)
+res1
 }
 
 ########################################################################
@@ -92,6 +93,7 @@ dat2 <- auction_generate_data(obs = 100, mu = 10, alpha = 2,
 ## Standard error calculation fails in the following single run
 \donttest{res2 <- auction_model(dat2, init_param =  c(8, 2, .5, .4, .6),
                                num_cores = 1, std_err = TRUE)
+res2
 }
 ## Solving the issue with multiple runs
 res_list <- list()
