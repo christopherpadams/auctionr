@@ -191,10 +191,11 @@ auction_model <- function(dat = NULL,
 #' 
 #' @param x An object of class auction_model.
 #' @param digits Number of digits to display.
+#' @param ... Additional arguments passed to other methods.
 #' @return x, invisibly.
 #' @export
 
-print.auctionmodel <- function(x, digits = 6) {
+print.auctionmodel <- function(x, digits = 6, ...) {
     std_err_print <- rep("--",length(x$par))
     if(any(!is.na(x$std_err))) std_err_print <- format(round(x$std_err, digits), digits = digits)
         param_values <- format(round(x$par, digits), digits = digits)
