@@ -164,7 +164,7 @@ auction_model <- function(dat = NULL,
       fisher_info_diag <- diag(solve(hess))
 
       if (any(fisher_info_diag<0)) {
-        output = "The estimated Hessian matrix is not a positive definite, so standard errors will not be produced. \nWe suggest rerunning the routine with different starting values or using a different optimization method (see ?optim for a full list)."
+        output = "The estimated Hessian matrix is not positive definite, so standard errors will not be produced. The routine may not have found the global minimum. We suggest re-running the routine with different starting values or using a different optimization method (see ?optim for a full list)."
         result$std_err = rep(NA, length(fisher_info_diag))
       } else {
         result$std_err <- sqrt(fisher_info_diag)
