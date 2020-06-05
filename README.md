@@ -5,20 +5,18 @@ Auction Modeling
 
 # auctionr
 
-## Overview
-
 A package for R to estimate private-value auction models while allowing
 for unobservable auction-specific heterogeneity.
 
 ## Installation
 
 ``` r
-# Install a necessary dependency
-install.packages("numDeriv")
+# Install auctionr from CRAN
+install.packages("auctionr")
 
-# Download a ZIP archive of the repo from https://code.harvard.edu/HBS/rcs_amackay__auctionr
-# Install the package
-install.packages("[local path to the archive]", repos = NULL, type = "source")
+# Or the development version from GitHub:
+# install.packages("remotes")
+install_github("ajmack/auctionr")
 ```
 
 ## Getting started
@@ -56,15 +54,23 @@ res <- auction_model(dat,
     ## final  value 410.710822 
     ## converged
     ## 
-    ## Estimated parameters (SE):                              
-    ##   mu      11.0127   (1.15264)  
-    ##   alpha    1.75277  (0.185499) 
-    ##   sigma    0.20423  (0.0352861)
-    ##   beta[1] -0.920617 (0.0570396)
-    ##   beta[2]  1.0681   (0.0400262)
+
+``` r
+res
+```
+
+    ## 
+    ## Estimated parameters (SE):                             
+    ##   mu      11.012673 (1.152635)
+    ##   alpha    1.752769 (0.185499)
+    ##   sigma    0.204230 (0.035286)
+    ##   beta[1] -0.920617 (0.057040)
+    ##   beta[2]  1.068096 (0.040026)
     ## 
     ## Maximum log-likelihood = -410.711
 
 ## For further information
 
-## License
+Background and details about the model implemented here are available in
+[Mackay, Alexander. 2020. *Contract Duration and the Costs of Market
+Transactions.*](https://www.hbs.edu/faculty/Pages/item.aspx?num=53718).

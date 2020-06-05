@@ -21,19 +21,17 @@ knitr::opts_chunk$set(
 
 # auctionr
 
-## Overview 
-
 A package for R to estimate private-value auction models while allowing for unobservable auction-specific heterogeneity.
 
 ## Installation
 
 ```{r, eval = FALSE}
-# Install a necessary dependency
-install.packages("numDeriv")
+# Install auctionr from CRAN
+install.packages("auctionr")
 
-# Download a ZIP archive of the repo from https://code.harvard.edu/HBS/rcs_amackay__auctionr
-# Install the package
-install.packages("[local path to the archive]", repos = NULL, type = "source")
+# Or the development version from GitHub:
+# install.packages("remotes")
+install_github("ajmack/auctionr")
 ```
 
 
@@ -58,9 +56,10 @@ res <- auction_model(dat,
                     method = "BFGS",
                     control = list(trace=1, parscale = c(1,0.1,0.1,1,1)),
                     std_err = TRUE)
+res
 ```
 
 ## For further information
 
-## License
-
+Background and details about the model implemented here are available in 
+[Mackay, Alexander. 2020. *Contract Duration and the Costs of Market Transactions.*](https://www.hbs.edu/faculty/Pages/item.aspx?num=53718).

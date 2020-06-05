@@ -7,7 +7,7 @@
 \method{print}{auctionmodel}(x, digits = 6, ...)
 }
 \arguments{
-\item{x}{An object of class auction_model.}
+\item{x}{An object of class auctionmodel.}
 
 \item{digits}{Number of digits to display.}
 
