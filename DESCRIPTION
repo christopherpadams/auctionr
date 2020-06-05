@@ -8,11 +8,12 @@ Authors@R: c( person("Alex",     "MacKay",       email = "amackay@hbs.edu",     
               person("Victoria", "Prince",       email = "vliublinska@hbs.edu",        role = c("aut")),
               person("Ista",     "Zahn",         email = "izahn@hbs.edu",              role = c("aut"))
               )
-Description: Package for R to estimates a first-price auction model with conditional independent private 
+Description: Estimates a first-price auction model with conditional independent private 
   values. The model allows for unobserved heterogeneity that is common to all bidders 
   in addition to observable heterogeneity. 
 License: GPL-3
-URL: https://code.harvard.edu/HBS/rcs_amackay__auctionr
+URL: https://github.com/ajmack/auctionr
+BugReports: https://github.com/ajmack/auctionr/issues
 Depends: R (>= 3.5.0)
 Imports:
   stats,

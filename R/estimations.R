@@ -188,7 +188,7 @@ auction_model <- function(dat = NULL,
 #' Print an auction model.
 #'
 #' 
-#' @param x An object of class auction_model.
+#' @param x An object of class auctionmodel.
 #' @param digits Number of digits to display.
 #' @param ... Additional arguments passed to other methods.
 #' @return x, invisibly.

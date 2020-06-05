@@ -1,5 +1,5 @@
 ---
-title: "Testing SE calculation in the auctionmodel package"
+title: "Testing SE calculation in the auctionr package"
 output: html_document
 ---
 
@@ -12,9 +12,9 @@ knitr::opts_chunk$set(echo = TRUE)
 A wrapper function `auctionmodel_diagnose()` will aid in assessing SE estimation functionality of the `auctionmodel` package. The function generates a random data set and runs optimization routine for each subsample of size 100, with an option to repeat the MLE estimation `K` times. It then saves the results into a `.csv` file.  
 
 ```{r baseline}
-install.packages("../../../auctionmodel_0.0.0.9000.tar.gz", repos = NULL, type = "source")
+install.packages("../../../auctionr_0.0.0.9000.tar.gz", repos = NULL, type = "source")
 
-library(auctionmodel)
+library(auctionr)
 
 auctionmodel_diagnose <- function(file_name, K, se_args, num_sims = 200, num_cores = 15) {
    ## Diagnostic function to assess SE estimation capability

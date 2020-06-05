@@ -1,7 +1,15 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^README\.R?md$
+^README\.Rmd$
+^README\.html$
 ^working$
 ^examples$
 ^TODO\.txt$
-^NEWS\.md$
+^NEWS\.Rmd$
+^LICENSE$
+^docs$
+^Meta$
+^data-raw$
+^pkgdown$ 
+^_pkgdown\.yml$
+^\.github$   
