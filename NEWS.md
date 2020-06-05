@@ -1,4 +1,4 @@
-All changes to auctionr are documented here. GitHub issue numbers are given after each change when relevant. See <https://github.com/alexmackay/auctionr/issues>. External contributors are referenced with their GitHub usernames when applicable.
+All major changes to auctionr are summarized here.
 
 auctionr version 0.1.0
 ==============================
