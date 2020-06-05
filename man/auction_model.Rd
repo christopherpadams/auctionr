@@ -72,7 +72,7 @@ Note that the supplied data can not have missing values.
 ###########################################################################
 ## Estimating parameters and standard errors with custom "control" argument
 set.seed(100)
-dat1 <- auction_generate_data(obs = 30, mu = 10, alpha = 2,
+dat1 <- auction_generate_data(obs = 15, mu = 10, alpha = 2,
                               sigma = 0.2, beta = c(-1,1),
                               new_x_mean= c(-1,1),
                               new_x_sd = c(0.5,0.8))
@@ -83,7 +83,7 @@ res1 <- auction_model(dat1, init_param =  c(8, 2, .5, .4, .6),
                       std_err = TRUE)
 res1
 
-\dontrun{ ## Examples are slow
+\dontrun{ ## Remaining examples are slow
 ########################################################################
 ## Trying out several random starting points to estimate standard errors
 set.seed(5)

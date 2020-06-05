@@ -51,7 +51,7 @@
 #' ###########################################################################
 #' ## Estimating parameters and standard errors with custom "control" argument
 #' set.seed(100)
-#' dat1 <- auction_generate_data(obs = 30, mu = 10, alpha = 2,
+#' dat1 <- auction_generate_data(obs = 15, mu = 10, alpha = 2,
 #'                               sigma = 0.2, beta = c(-1,1),
 #'                               new_x_mean= c(-1,1),
 #'                               new_x_sd = c(0.5,0.8))
@@ -62,7 +62,7 @@
 #'                       std_err = TRUE)
 #' res1
 #'
-#'\dontrun{ ## Examples are slow
+#'\dontrun{ ## Remaining examples are slow
 #' ########################################################################
 #' ## Trying out several random starting points to estimate standard errors
 #' set.seed(5)
@@ -413,7 +413,10 @@ f__ll_parallel = function(x0, y, n, h_x, cl) {
 
   v__f_w =
     tryCatch(
-      parApply(cl = cl, X = dat, MARGIN = 1, FUN = f__funk, sigma_u = u),
+    {if(length(cl) > 1)
+       parApply(cl = cl, X = dat, MARGIN = 1, FUN = f__funk, sigma_u = u)
+      else apply(X = dat, MARGIN = 1, FUN = f__funk, sigma_u = u)
+    },
       error = function(err_msg){
         if (grepl("the integral is probably divergent", err_msg) | grepl("non-finite function value", err_msg)) return(-Inf)
           else {
