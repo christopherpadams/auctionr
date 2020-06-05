@@ -51,7 +51,7 @@
 #' ###########################################################################
 #' ## Estimating parameters and standard errors with custom "control" argument
 #' set.seed(100)
-#' dat1 <- auction_generate_data(obs = 100, mu = 10, alpha = 2,
+#' dat1 <- auction_generate_data(obs = 30, mu = 10, alpha = 2,
 #'                               sigma = 0.2, beta = c(-1,1),
 #'                               new_x_mean= c(-1,1),
 #'                               new_x_sd = c(0.5,0.8))
