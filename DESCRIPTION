@@ -8,10 +8,11 @@ Authors@R: c( person("Alex",     "MacKay",       email = "amackay@hbs.edu",     
               person("Victoria", "Prince",       email = "vliublinska@hbs.edu",        role = c("aut")),
               person("Ista",     "Zahn",         email = "izahn@hbs.edu",              role = c("aut"))
               )
-Description: Estimates a first-price auction model with conditional independent private
-  values as described in <https://www.hbs.edu/faculty/Pages/item.aspx?num=53718>. The
-  model allows for unobserved heterogeneity that is common to all bidders in addition
-  to observable heterogeneity.
+Description: Estimates a first-price auction model with conditionally independent
+  private values as described in
+  <https://www.hbs.edu/faculty/Pages/item.aspx?num=53718>. The model allows for
+  unobserved heterogeneity that is common to all bidders in addition to observable
+  heterogeneity.
 License: GPL-3
 URL: https://github.com/ajmack/auctionr
 BugReports: https://github.com/ajmack/auctionr/issues
