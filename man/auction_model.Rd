@@ -79,7 +79,7 @@ dat1 <- auction_generate_data(obs = 15, mu = 10, alpha = 2,
 
 res1 <- auction_model(dat1, init_param =  c(8, 2, .5, .4, .6),
                       num_cores = 1,
-                      control = list(trace=1, parscale = c(1,0.1,0.1,1,1)),
+                      control = list(parscale = c(1,0.1,0.1,1,1)),
                       std_err = TRUE)
 res1
 

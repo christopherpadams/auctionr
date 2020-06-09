@@ -58,7 +58,7 @@
 #'
 #' res1 <- auction_model(dat1, init_param =  c(8, 2, .5, .4, .6),
 #'                       num_cores = 1,
-#'                       control = list(trace=1, parscale = c(1,0.1,0.1,1,1)),
+#'                       control = list(parscale = c(1,0.1,0.1,1,1)),
 #'                       std_err = TRUE)
 #' res1
 #'
@@ -135,8 +135,6 @@ auction_model <- function(dat = NULL,
   cl = makeCluster(num_cores)
 
   #f__ll_parallel(x0, y = v__y, n = v__n, h_x = m__h_x, cl = cl)
-
-  cat("Running the optimizer using the", method, "method with starting values (", paste(init_param, collapse = ", "), ")...\n\n")
 
   # Run
   result = tryCatch(optim(par=init_param, fn=f__ll_parallel,
