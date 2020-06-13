@@ -8,8 +8,4 @@ This is a resubmission. In this version I have:
 
 * Removed unnecessary console logging from the parameter estimation routine.
 
-NOTE: The first two expressions in the auction_model example run in < 5 seconds
-and are sufficient to test the function. The remaining expressions are wrapped
-in `\dontrun` because they take a long time to run. These remaining expressions
-are important to demonstrate real-world use, and cannot be simplified without
-losing their value.
+* Moved the example code wrapped in `\dontrun` to a vignette "auctionr.Rmd". The remaining auction_model() example should run in < 5 seconds. 
