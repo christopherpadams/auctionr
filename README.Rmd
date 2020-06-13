@@ -31,7 +31,8 @@ install.packages("auctionr")
 
 # Or the development version from GitHub:
 # install.packages("remotes")
-install_github("ajmack/auctionr")
+# library(remotes)
+install_github("ajmack/auctionr", build_vignettes = T)
 ```
 
 

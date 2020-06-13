@@ -16,7 +16,8 @@ install.packages("auctionr")
 
 # Or the development version from GitHub:
 # install.packages("remotes")
-install_github("ajmack/auctionr")
+# library(remotes)
+install_github("ajmack/auctionr", build_vignettes = T)
 ```
 
 ## Getting started
@@ -46,8 +47,6 @@ res <- auction_model(dat,
                     std_err = TRUE)
 ```
 
-    ## Running the optimizer using the BFGS method with starting values ( 8, 2, 0.5, 0.4, 0.6 )...
-    ## 
     ## initial  value 1339.327262 
     ## iter  10 value 434.301377
     ## iter  20 value 410.711195
