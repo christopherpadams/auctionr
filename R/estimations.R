@@ -146,7 +146,7 @@ auction_model <- function(dat = NULL,
                     ifelse(result$convergence==10, "Degeneracy of the Nelder-Mead simplex.",
                            result$messsage))
 
-  cat(output, "\n")
+  if(output != "") warning(output)
 
   # Return result
     class(result) <- c("auctionmodel", class(result))
