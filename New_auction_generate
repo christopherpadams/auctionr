@@ -1,0 +1,87 @@
+new_auction_generate_data <- function(obs = NULL,
+                                  max_n_bids = 10,
+                                  new_x_mean = NULL,
+                                  new_x_sd = NULL,
+                                  mu = NULL,
+                                  alpha = NULL,
+                                  sigma = NULL,
+                                  beta = NULL) {
+  # Note on changes
+  # Allows data to be generated without unobserved
+  # heterogeneity
+  
+  # Inspect parameters
+  # Must specify (mu, alpha, sigma, beta)
+  all_args <- as.list(environment())
+  missing_args <- names(all_args[sapply(all_args, is.null)])
+  nmiss <- length(missing_args)
+  if(nmiss != 0) {
+    stop(paste("Argument(s) '", paste(missing_args[-nmiss], collapse = "', '"),
+               ifelse(nmiss > 1, " and ", ""),
+               missing_args[nmiss], "' required", sep = ""))
+  }
+  if(any(c(mu, alpha, sigma) < 0)) stop("Values for mu, alpha, and sigma cannot be negative.")
+  if(any(c(mu, alpha) == 0)) stop("Values for mu and alpha must be positive.")
+  if(max_n_bids <= 2) stop("max_n_bids must be 3 or greater.")
+  # new_x_mean and new_x_sd must be of the same length as beta
+  if (length(new_x_mean) != length(beta)) stop("'new_x_sd' must have the same length as 'beta'")
+  if (length(new_x_sd) != length(beta)) stop("'new_x_sd' must have the same length as 'beta'")
+  # all arguments must be numeric
+  non_num_args <- names(all_args)[!sapply(all_args, is.numeric)]
+  nna <- length(non_num_args)
+  if (nna != 0) {
+    stop(paste("Argument(s) '", paste(non_num_args[-nna], collapse = "', '"),
+               ifelse(nna > 1, " and ", ""),
+               non_num_args[nna], "' must be numeric", sep = ""))
+  }
+  
+  # Generate number of bids for every auction
+  n_bids = sample(2:max_n_bids, obs, replace=TRUE)
+  gamma_1p1oa = gamma(1 + 1/alpha)
+  
+  # Winning cost is taken as a minimum of n_bids independent r.v's distributed as Weibull
+  # Then a proportional bid function is applied to the winning cost
+  v.w_bid = rep(NA, obs)
+  v.bid = matrix(NA, obs, max_n_bids)
+  
+  for(i in 1:obs){
+    costs = (mu/gamma(1+1/alpha))*(-log(1-stats::runif(n_bids[i])))^(1/alpha)
+    
+    v.w_bid[i] = vf__bid_function_fast(cost=min(costs),
+                                       num_bids=n_bids[i],
+                                       mu=mu,
+                                       alpha=alpha,
+                                       gamma_1p1oa=gamma_1p1oa)
+    
+    bids = sapply(costs, function(cost) vf__bid_function_fast(cost=cost,
+                                                              num_bids = n_bids[i],
+                                                              mu=mu,
+                                                              alpha=alpha,
+                                                              gamma_1p1oa=gamma_1p1oa))
+    v.bid[i,1:length(bids)] = sort(bids)
+  }
+  
+  # Unobserved heterogeneity
+  if (sigma > 0) {
+    sigma_lnorm = sqrt(log(1+sigma^2))
+    v.u = rlnorm(n = obs, meanlog=(-sigma_lnorm^2*1/2), sdlog = sigma_lnorm)
+  }
+  else { # no unobserved heterogeneity
+    v.u = rep(1,obs)
+  }
+  
+  # Observed heterogeneity
+  all_x_vars = auction__generate_x(obs = obs,
+                                   new_x_mean = new_x_mean,
+                                   new_x_sd = new_x_sd)
+  
+  # Calculate winning bid
+  v.h_x = exp(colSums(beta*t(all_x_vars)))
+  v.winning_bid = v.w_bid*v.u*v.h_x
+  v.all_bid = v.bid*matrix(rep(v.u,max_n_bids),nrow=obs)*matrix(rep(v.h_x,max_n_bids),nrow=obs)
+  colnames(v.all_bid) <- sapply(1:max_n_bids, function(i) paste("bid_",i,sep=""))
+    
+  dat = data.frame(winning_bid = v.winning_bid, n_bids = n_bids, all_x_vars, v.all_bid)
+  
+  return(dat)
+}
