@@ -239,7 +239,8 @@ auction_generate_data <- function(obs = NULL,
                ifelse(nmiss > 1, " and ", ""),
                missing_args[nmiss], "' required", sep = ""))
   }
-  if(any(c(mu, alpha, sigma) <= 0)) stop("Values for mu, alpha, and sigma must be positive.")
+  if(any(c(mu, alpha, sigma) < 0)) stop("Values for mu, alpha, and sigma must be positive.")
+  if(any(c(mu, alpha) == 0)) stop("Values for mu, alpha, and sigma must be positive.")
   if(max_n_bids <= 2) stop("max_n_bids must be 3 or greater.")
   # new_x_mean and new_x_sd must be of the same length as beta
   if (length(new_x_mean) != length(beta)) stop("'new_x_sd' must have the same length as 'beta'")
@@ -272,8 +273,13 @@ auction_generate_data <- function(obs = NULL,
   }
 
   # Unobserved heterogeneity
-  sigma_lnorm = sqrt(log(1+sigma^2))
-  v.u = rlnorm(n = obs, meanlog=(-sigma_lnorm^2*1/2), sdlog = sigma_lnorm)
+  if (sigma > 0) {
+    sigma_lnorm = sqrt(log(1+sigma^2))
+    v.u = rlnorm(n = obs, meanlog=(-sigma_lnorm^2*1/2), sdlog = sigma_lnorm)
+  }
+  else { # no unobserved heterogeneity
+    v.u = rep(1,obs)
+  }
 
   # Observed heterogeneity
   all_x_vars = auction__generate_x(obs = obs,
